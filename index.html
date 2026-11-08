@@ -651,7 +651,7 @@
     });
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
 
-    map.on('load', () => {
+    map.once('style.load', () => {
       addAlertLayers();
       // Hover and click (registered once the alert layers exist)
       const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 8 });
