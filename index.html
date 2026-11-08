@@ -115,6 +115,58 @@
   .maplibregl-ctrl-attrib { background: rgba(7,10,16,0.7) !important; color: var(--text-dim); }
   .maplibregl-ctrl-attrib a { color: var(--text-dim); }
 
+  /* ---------- TV view ---------- */
+  .open-tv { display: inline-flex; align-items: center; gap: 8px; margin: 4px 0 6px; background: var(--neon); color: #001318; border: 0; border-radius: 6px; padding: 9px 14px; font: inherit; font-weight: 600; cursor: pointer; }
+  .tv-modal { position: fixed; inset: 0; z-index: 80; background: #000; display: none; flex-direction: column; }
+  .tv-modal.open { display: flex; }
+  .tv-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 14px; background: #05070b; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text-dim); }
+  .tv-bar button { background: none; border: 1px solid var(--border-hi); color: var(--text); border-radius: 6px; padding: 6px 12px; font: inherit; cursor: pointer; margin-left: 6px; }
+  .tv-fit { flex: 1; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+  .tv-stage { position: absolute; left: 50%; top: 50%; width: 1920px; height: 1080px; transform-origin: center center; background: #070a10; color: #e8edf8; font-family: var(--ff-body); display: grid; grid-template-rows: 120px 1fr 96px 44px; overflow: hidden; }
+  .tv-head { display: flex; align-items: center; justify-content: space-between; padding: 0 48px; gap: 28px; }
+  .tv-head .l { display: flex; align-items: center; gap: 24px; min-width: 0; }
+  .tv-glyph { width: 74px; height: 74px; flex: none; }
+  .tv-event { font-family: var(--ff-head); font-weight: 700; font-size: 62px; line-height: 1; }
+  .tv-sevbadge { font-family: var(--ff-mono); font-size: 26px; letter-spacing: 0.08em; text-transform: uppercase; padding: 6px 14px; border: 3px solid currentColor; border-radius: 6px; white-space: nowrap; }
+  .tv-clock { font-family: var(--ff-mono); font-size: 40px; text-align: right; line-height: 1.1; }
+  .tv-clock small { display: block; font-size: 20px; opacity: 0.8; }
+  .tv-body { display: grid; grid-template-columns: 560px 1fr 560px; gap: 36px; padding: 32px 48px 24px; min-height: 0; }
+  .tv-col { display: flex; flex-direction: column; gap: 22px; min-height: 0; }
+  .tv-label { font-family: var(--ff-mono); font-size: 20px; letter-spacing: 0.12em; text-transform: uppercase; color: #8fa0bd; }
+  .tv-source { font-size: 26px; }
+  .tv-source b { font-weight: 600; }
+  .tv-headline { font-family: var(--ff-head); font-weight: 600; font-size: 50px; line-height: 1.08; margin: 0; overflow-wrap: anywhere; }
+  .tv-qr { border: 3px dashed #4a5876; border-radius: 12px; height: 230px; display: grid; place-items: center; text-align: center; padding: 18px; color: #8fa0bd; font-size: 22px; flex: none; }
+  .tv-qr b { display: block; font-family: var(--ff-mono); letter-spacing: 0.12em; color: #ffc400; font-size: 20px; margin-bottom: 8px; }
+  .tv-meta { margin-top: auto; display: grid; grid-template-columns: max-content 1fr; gap: 6px 18px; font-size: 19px; color: #b9c4d8; }
+  .tv-meta dt { color: #8fa0bd; }
+  .tv-meta dd { margin: 0; overflow-wrap: anywhere; }
+  .tv-level { border: 3px solid var(--tv-sev); border-radius: 12px; padding: 20px 24px; background: color-mix(in srgb, var(--tv-sev) 12%, transparent); flex: none; }
+  .tv-level .lv { font-family: var(--ff-head); font-weight: 700; font-size: 46px; color: var(--tv-sev); line-height: 1.05; }
+  .tv-scale { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 14px 0 12px; }
+  .tv-scale div { height: 16px; border-radius: 4px; opacity: 0.22; }
+  .tv-scale div.on { opacity: 1; outline: 3px solid #fff; }
+  .tv-trip { display: flex; gap: 36px; font-size: 24px; }
+  .tv-trip em { font-style: normal; color: #8fa0bd; display: block; font-size: 18px; font-family: var(--ff-mono); letter-spacing: 0.08em; text-transform: uppercase; }
+  .tv-levsrc { margin-top: 10px; font-size: 18px; color: #8fa0bd; }
+  .tv-desc { flex: 1; min-height: 0; overflow: hidden; position: relative; }
+  .tv-desc p { margin: 0; font-size: 31px; line-height: 1.35; white-space: pre-wrap; }
+  .tv-resp { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; flex: none; }
+  .tv-resp span.chip { font-size: 24px; font-weight: 600; padding: 6px 16px; border: 2px solid #e8edf8; border-radius: 999px; }
+  .tv-map { flex: none; height: 400px; border: 1px solid #22304a; border-radius: 10px; background: #0a1220; overflow: hidden; }
+  .tv-map svg { width: 100%; height: 100%; display: block; }
+  .tv-areas { flex: 1; min-height: 0; overflow: hidden; overflow-wrap: anywhere; font-size: 24px; line-height: 1.35; white-space: pre-wrap; }
+  .tv-small { font-size: 16px; color: #8fa0bd; }
+  .tv-ticker { display: grid; grid-template-columns: 250px 1fr; align-items: center; background: #0f1626; border-top: 3px solid var(--tv-sev); min-width: 0; }
+  .tv-ticker .tl { font-family: var(--ff-mono); font-size: 22px; letter-spacing: 0.12em; color: var(--tv-sev); padding-left: 48px; }
+  .tv-ticker .tw { overflow: hidden; white-space: nowrap; min-width: 0; }
+  .tv-ticker .tt { display: inline-block; font-size: 38px; font-weight: 600; padding-left: 100%; animation: tvTick linear infinite; }
+  .tv-ticker .tt.static { padding-left: 0; animation: none; white-space: normal; font-size: 30px; }
+  @keyframes tvTick { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+  .tv-foot { display: flex; justify-content: space-between; align-items: center; padding: 0 48px; background: #05070b; font-family: var(--ff-mono); font-size: 17px; color: #8fa0bd; letter-spacing: 0.04em; }
+  .tv-foot .wm { color: #ffc400; }
+  @media (prefers-reduced-motion: reduce) { .tv-ticker .tt { animation: none; padding-left: 0; white-space: normal; font-size: 30px; } }
+
   @media (max-width: 860px) {
     header.site { padding: 12px 16px; }
     .by { display: none; }
@@ -185,7 +237,7 @@
   <section class="about" id="about">
     <h2>What you are looking at</h2>
     <p>Alerting authorities around the world already publish their warnings in CAP, the international standard for public alerts (OASIS CAP 1.2, ITU-T X.1303). CAP24 relays such alerts verbatim to broadcast, IPTV and phone screens, under the approval of each country's authorities and as part of its national warning system. This page shows the alerts as published. AI never creates, translates or changes alert content.</p>
-    <p>Coming next on this page: the same alert as a full-screen TV overlay, on a phone reached by QR code, and in a visual-only view for deaf viewers.</p>
+    <p>Open any alert and choose <em>View as TV overlay</em> to see it fill a broadcast screen. Coming next: the same alert on a phone reached by QR code, and in a visual-only view for deaf viewers.</p>
   </section>
 </main>
 
@@ -206,6 +258,60 @@
     <button class="panel-close" id="pClose" type="button">Close</button>
   </div>
   <div class="panel-body" id="pBody"></div>
+</div>
+
+<div class="tv-modal" id="tv" role="dialog" aria-modal="true" aria-label="Alert shown as a full-screen TV overlay">
+  <div class="tv-bar">
+    <span>TV view: how this alert would fill a broadcast screen. On air, the alert covers the whole picture.</span>
+    <span><button type="button" id="tvFull">Full screen</button><button type="button" id="tvClose">Close</button></span>
+  </div>
+  <div class="tv-fit" id="tvFit">
+    <div class="tv-stage" id="tvStage">
+      <div class="tv-head" id="tvHead">
+        <div class="l">
+          <svg class="tv-glyph" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2 1 21h22L12 2zm0 4.3L19.5 19h-15L12 6.3zM11 10v5h2v-5h-2zm0 6v2h2v-2h-2z"/></svg>
+          <div class="tv-event" id="tvEvent"></div>
+          <span class="tv-sevbadge" id="tvSev"></span>
+        </div>
+        <div class="tv-clock" id="tvClock"></div>
+      </div>
+      <div class="tv-body">
+        <div class="tv-col">
+          <div class="tv-source"><span class="tv-label">Source</span><br><b id="tvSender"></b></div>
+          <h2 class="tv-headline" id="tvHeadline"></h2>
+          <div class="tv-qr"><div><b>PLANNED</b>QR code that opens this alert on a phone. Not built in this demonstration yet.</div></div>
+          <dl class="tv-meta" id="tvMeta"></dl>
+        </div>
+        <div class="tv-col">
+          <div class="tv-level">
+            <div class="tv-label">Warning level</div>
+            <div class="lv" id="tvLevel"></div>
+            <div class="tv-scale" id="tvScale"></div>
+            <div class="tv-trip" id="tvTrip"></div>
+            <div class="tv-levsrc" id="tvLevSrc"></div>
+          </div>
+          <div class="tv-label">Description</div>
+          <div class="tv-desc" id="tvDescBox"><p id="tvDesc"></p></div>
+          <div class="tv-resp" id="tvResp"></div>
+        </div>
+        <div class="tv-col">
+          <div class="tv-label">Area</div>
+          <div class="tv-map" id="tvMap"></div>
+          <div class="tv-small">Area as sent in the alert, simplified for display. Outlines: Natural Earth.</div>
+          <div class="tv-areas" id="tvAreas"></div>
+        </div>
+      </div>
+      <div class="tv-ticker" id="tvTicker">
+        <div class="tl">INSTRUCTION</div>
+        <div class="tw"><span class="tt" id="tvInstr"></span></div>
+      </div>
+      <div class="tv-foot">
+        <span class="wm">DEMONSTRATION · NOT FOR BROADCAST</span>
+        <span>Real alert from a public CAP feed via Alert-Hub.org · Text as published, not translated</span>
+        <span>CAP24 · Green Media Foundation</span>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script src="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.js"></script>
@@ -271,6 +377,8 @@
   let map = null, mapReady = false, pendingGeo = null;
   let spinning = true;
   let pendingFly = null;   // alert chosen before the globe finished loading
+  let landGeo = null;      // country outlines, reused by the TV view map
+  let currentGeo = null;   // alert areas currently on the globe
   const stopSpin = () => { spinning = false; };
 
   // ---- Data --------------------------------------------------------------
@@ -452,6 +560,7 @@
     try {
       const topo = await fetch(COUNTRIES).then(r => r.json());
       land = topojson.feature(topo, topo.objects.countries);
+      landGeo = land;
     } catch (e) { /* globe still works without outlines */ }
 
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -523,6 +632,7 @@
   function setGeo(geo) {
     // promoteId lets us highlight every area of the selected alert
     geo.features.forEach((f, i) => { f.id = f.properties.OBJECTID || i; });
+    currentGeo = geo;
     if (mapReady) map.getSource('alerts').setData(geo); else pendingGeo = geo;
     if (selectedKey) highlight(selectedKey);
   }
@@ -587,7 +697,7 @@
     try {
       const params = new URLSearchParams({
         where: a.identifier ? `identifier=${sqlStr(a.identifier)}` : `OBJECTID IN (${a.oids.join(',')})`,
-        outFields: 'identifier,infoIndex,areaIndex,language,event,headline,description,instruction,web,contact,senderName,sender,sent,effective,onset,expires,urgency,severity,certainty,areaDesc,msgType,registerUrl,hubLink,orgName',
+        outFields: 'identifier,infoIndex,areaIndex,language,event,headline,description,instruction,web,contact,senderName,sender,sent,effective,onset,expires,urgency,severity,certainty,areaDesc,msgType,registerUrl,hubLink,orgName,responseType,parameter,scope,status',
         returnGeometry: 'false',
         orderByFields: 'infoIndex,areaIndex',
         f: 'json'
@@ -634,6 +744,9 @@
 
     function showBlock(b) {
       content.replaceChildren();
+      const tvBtn = el('button', { type: 'button', class: 'open-tv' }, 'View as TV overlay');
+      tvBtn.addEventListener('click', () => openTV(a, b));
+      content.append(tvBtn);
       const facts = el('dl', { class: 'facts' });
       const add = (k, v) => { if (v == null || v === '') return; facts.append(el('dt', {}, k), el('dd', {}, v)); };
       add('Event', b.event);
@@ -673,6 +786,194 @@
     showBlock(blocks[0]);
   }
 
+  // ---- TV view -----------------------------------------------------------
+  const tv = document.getElementById('tv');
+  const tvStage = document.getElementById('tvStage');
+  let tvTimer = null, tvScroll = null, tvReturn = null;
+  const INK = { Extreme: '#ffffff', Severe: '#0a0d14', Moderate: '#0a0d14', Minor: '#0a0d14', Unknown: '#ffffff' };
+  const LEVEL_COLORS = { green: '#2bd47d', yellow: '#ffc400', orange: '#ff6d00', red: '#ff1744' };
+
+  const parseList = v => { try { const x = JSON.parse(v); return Array.isArray(x) ? x : []; } catch (e) { return []; } };
+  const parseParams = v => { try { return JSON.parse(v) || {}; } catch (e) { return {}; } };
+
+  function fitStage() {
+    const box = document.getElementById('tvFit').getBoundingClientRect();
+    const k = Math.min(box.width / 1920, box.height / 1080);
+    tvStage.style.transform = `translate(-50%, -50%) scale(${k})`;
+  }
+
+  function openTV(a, b) {
+    tvReturn = document.activeElement;
+    const sev = sevOf(b.severity);
+    const params = parseParams(b.parameter);
+    // Level: from a declared awareness_level parameter if the source sends one, else from CAP severity
+    let color = SEV_COLOR[sev], ink = INK[sev], levelText = sev, levSrc = 'Colour from CAP severity. This source declares no level parameter.', scaleOn = null, scale = 'sev';
+    const al = params.awareness_level;
+    if (typeof al === 'string') {
+      const word = (al.split(';')[1] || '').trim().toLowerCase();
+      if (LEVEL_COLORS[word]) {
+        color = LEVEL_COLORS[word]; ink = word === 'red' ? '#ffffff' : '#0a0d14';
+        levelText = al; levSrc = 'Level and colour from the awareness_level parameter, as sent.'; scaleOn = word; scale = 'level';
+      }
+    }
+    tvStage.style.setProperty('--tv-sev', color);
+    const head = document.getElementById('tvHead');
+    head.style.background = color; head.style.color = ink;
+
+    const ev = b.event || a.event || '';
+    const evEl = document.getElementById('tvEvent');
+    evEl.textContent = ev;
+    evEl.style.fontSize = ev.length <= 24 ? '62px' : ev.length <= 44 ? '46px' : '34px';
+    document.getElementById('tvSev').textContent = sev;
+    document.getElementById('tvSender').textContent = b.senderName || a.sender;
+    const hl = b.headline || b.event || '';
+    const hlEl = document.getElementById('tvHeadline');
+    hlEl.textContent = hl;
+    hlEl.style.fontSize = hl.length <= 60 ? '50px' : hl.length <= 110 ? '42px' : hl.length <= 180 ? '34px' : '28px';
+    document.getElementById('tvLevel').textContent = levelText;
+
+    const sc = document.getElementById('tvScale'); sc.replaceChildren();
+    const steps = scale === 'level'
+      ? [['green', LEVEL_COLORS.green], ['yellow', LEVEL_COLORS.yellow], ['orange', LEVEL_COLORS.orange], ['red', LEVEL_COLORS.red]]
+      : [['Minor', SEV_COLOR.Minor], ['Moderate', SEV_COLOR.Moderate], ['Severe', SEV_COLOR.Severe], ['Extreme', SEV_COLOR.Extreme]];
+    for (const [name, c] of steps) {
+      const d = el('div', { title: name, style: `background:${c}` });
+      if ((scale === 'level' && name === scaleOn) || (scale === 'sev' && name === sev)) d.className = 'on';
+      sc.append(d);
+    }
+    const trip = document.getElementById('tvTrip'); trip.replaceChildren();
+    for (const [k, v] of [['Severity', b.severity], ['Urgency', b.urgency], ['Certainty', b.certainty]]) {
+      const sp = el('span'); sp.append(el('em', {}, k), document.createTextNode(v || '—')); trip.append(sp);
+    }
+    document.getElementById('tvLevSrc').textContent = levSrc;
+
+    document.getElementById('tvDesc').textContent = b.description || 'No description in this message.';
+
+    const resp = document.getElementById('tvResp'); resp.replaceChildren();
+    const rts = parseList(b.responseType);
+    if (rts.length) {
+      resp.append(el('span', { class: 'tv-label' }, 'Response'));
+      for (const r of rts) resp.append(el('span', { class: 'chip' }, r));
+    }
+
+    document.getElementById('tvAreas').textContent = [...b.areas].join('\n');
+
+    const meta = document.getElementById('tvMeta'); meta.replaceChildren();
+    const addM = (k, v) => { if (v) meta.append(el('dt', {}, k), el('dd', {}, v)); };
+    addM('Message', [b.status, b.msgType].filter(Boolean).join(' · '));
+    addM('Sent', fmtTime(b.sent));
+    if (b.onset) addM('Onset', fmtTime(b.onset));
+    addM('Expires', b.expires ? fmtTime(b.expires) : 'Not stated');
+    addM('Language', b.language);
+
+    const instr = document.getElementById('tvInstr');
+    const ticker = document.getElementById('tvTicker');
+    if (b.instruction) {
+      ticker.style.visibility = '';
+      instr.textContent = b.instruction;
+      instr.classList.remove('static');
+      // speed: about 160 px per second at stage scale
+      instr.style.animationDuration = Math.max(12, Math.round((b.instruction.length * 19 + 1500) / 160)) + 's';
+    } else {
+      ticker.style.visibility = 'hidden';
+    }
+
+    drawTvMap(a, color);
+
+    tv.classList.add('open');
+    fitStage();
+    tickClock();
+    clearInterval(tvTimer); tvTimer = setInterval(tickClock, 1000);
+    startDescScroll();
+    document.getElementById('tvClose').focus();
+  }
+
+  function tickClock() {
+    const d = new Date();
+    const p = n => String(n).padStart(2, '0');
+    const c = document.getElementById('tvClock');
+    c.replaceChildren(document.createTextNode(`${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:${p(d.getUTCSeconds())}`), el('small', {}, 'UTC'));
+  }
+
+  // Long descriptions scroll slowly in full, then start again (no truncation)
+  function startDescScroll() {
+    cancelAnimationFrame(tvScroll);
+    const boxes = [document.getElementById('tvDescBox'), document.getElementById('tvAreas')];
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const state = boxes.map(box => { box.scrollTop = 0; box.style.overflowY = reduce ? 'auto' : 'hidden'; return { box, pauseUntil: performance.now() + 4000, pos: 0 }; });
+    if (reduce) return;
+    const step = t => {
+      if (!tv.classList.contains('open')) return;
+      for (const st of state) {
+        const { box } = st;
+        if (box.scrollHeight <= box.clientHeight + 2 || t < st.pauseUntil) continue;
+        if (st.pos + box.clientHeight >= box.scrollHeight - 1) { st.pauseUntil = t + 7000; setTimeout(() => { st.pos = 0; box.scrollTop = 0; }, 3500); }
+        else { st.pos += 0.6; box.scrollTop = st.pos; }
+      }
+      tvScroll = requestAnimationFrame(step);
+    };
+    tvScroll = requestAnimationFrame(step);
+  }
+
+  function drawTvMap(a, color) {
+    const host = document.getElementById('tvMap');
+    host.replaceChildren();
+    const feats = currentGeo ? currentGeo.features.filter(f => f.properties._key === a.key) : [];
+    if (!feats.length || !a.bbox) { host.append(el('div', { class: 'tv-small', style: 'padding:20px' }, 'No area outline in this message.')); return; }
+    let [x0, y0, x1, y1] = a.bbox;
+    const minSpan = 3;
+    if (x1 - x0 < minSpan) { const c = (x0 + x1) / 2; x0 = c - minSpan / 2; x1 = c + minSpan / 2; }
+    if (y1 - y0 < minSpan) { const c = (y0 + y1) / 2; y0 = c - minSpan / 2; y1 = c + minSpan / 2; }
+    const padX = (x1 - x0) * 0.15, padY = (y1 - y0) * 0.15;
+    x0 -= padX; x1 += padX; y0 -= padY; y1 += padY;
+    const W = 560, H = 400;
+    const kx = Math.cos(((y0 + y1) / 2) * Math.PI / 180);
+    const sx = W / ((x1 - x0) * kx), sy = H / (y1 - y0), s = Math.min(sx, sy);
+    const ox = (W - (x1 - x0) * kx * s) / 2, oy = (H - (y1 - y0) * s) / 2;
+    const P = (lon, lat) => `${(ox + (lon - x0) * kx * s).toFixed(1)},${(oy + (y1 - lat) * s).toFixed(1)}`;
+    const ringPath = r => 'M' + r.map(c => P(c[0], c[1])).join('L') + 'Z';
+    const geomPath = g => {
+      if (!g) return '';
+      if (g.type === 'Polygon') return g.coordinates.map(ringPath).join('');
+      if (g.type === 'MultiPolygon') return g.coordinates.map(poly => poly.map(ringPath).join('')).join('');
+      return '';
+    };
+    const inView = g => {
+      let hit = false;
+      const walk = c => { if (hit) return; if (typeof c[0] === 'number') { if (c[0] >= x0 - 5 && c[0] <= x1 + 5 && c[1] >= y0 - 5 && c[1] <= y1 + 5) hit = true; } else c.forEach(walk); };
+      if (g && g.coordinates) walk(g.coordinates);
+      return hit;
+    };
+    const NS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.setAttribute('role', 'img');
+    svg.setAttribute('aria-label', 'Map of the alert area');
+    const path = (d, fill, stroke, op, sw) => {
+      const p = document.createElementNS(NS, 'path');
+      p.setAttribute('d', d); p.setAttribute('fill', fill); p.setAttribute('stroke', stroke);
+      p.setAttribute('fill-opacity', op); p.setAttribute('stroke-width', sw); p.setAttribute('stroke-linejoin', 'round');
+      svg.append(p);
+    };
+    if (landGeo) for (const f of landGeo.features) if (inView(f.geometry)) path(geomPath(f.geometry), '#16233a', '#2b3d5c', 1, 1);
+    for (const f of feats) path(geomPath(f.geometry), color, color, 0.5, 2);
+    host.append(svg);
+  }
+
+  function closeTV() {
+    tv.classList.remove('open');
+    clearInterval(tvTimer); cancelAnimationFrame(tvScroll);
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    if (tvReturn && tvReturn.focus) tvReturn.focus();
+  }
+  document.getElementById('tvClose').addEventListener('click', closeTV);
+  document.getElementById('tvFull').addEventListener('click', () => {
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    else tv.requestFullscreen && tv.requestFullscreen().catch(() => {});
+  });
+  window.addEventListener('resize', () => { if (tv.classList.contains('open')) fitStage(); });
+  document.addEventListener('fullscreenchange', () => { if (tv.classList.contains('open')) setTimeout(fitStage, 50); });
+
   function closePanel() {
     selectedKey = null;
     highlight(null);
@@ -683,7 +984,11 @@
   }
   document.getElementById('pClose').addEventListener('click', closePanel);
   scrim.addEventListener('click', closePanel);
-  document.addEventListener('keydown', e => { if (e.key === 'Escape' && panel.classList.contains('open')) closePanel(); });
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    if (tv.classList.contains('open')) { if (!document.fullscreenElement) closeTV(); }
+    else if (panel.classList.contains('open')) closePanel();
+  });
 
   // ---- Start -------------------------------------------------------------
   initMap();
