@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#070a10">
+<title>CAP24 — Alert on your phone (demonstration)</title>
+<!--
+  CAP24 phone view, demonstration. v0.1, 8 Nov 2026.
+  The page a TV QR code opens: one alert, verbatim, in the languages the authority published.
+  Rules: text as published (never translated or shortened); level from a declared awareness_level
+  parameter, else from CAP severity, and the page says which; actions only from responseType;
+  the authority's web link appears here, never as the QR target. No AI anywhere.
+  Address: a.html?id=<CAP identifier as held by the Alert-Hub layer>. The demo uses the identifier
+  directly; a hash of sender + identifier (demo rule 12) needs a server lookup and comes later.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&family=Noto+Sans:wght@400;600&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #070a10; --panel: #0e1422; --raised: #141c2e; --border: rgba(255,255,255,0.1);
+    --text: #e8edf8; --dim: #9aa6bd; --neon: #00e5ff;
+    --sev: #607080; --ink: #fff;
+    --ff-body: 'Barlow', 'Noto Sans', 'Noto Sans Georgian', system-ui, sans-serif;
+    --ff-head: 'Barlow Condensed', 'Noto Sans', 'Noto Sans Georgian', system-ui, sans-serif;
+    --ff-mono: 'Share Tech Mono', monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--ff-body); font-size: 17px; line-height: 1.5; }
+  a { color: var(--neon); }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--neon); outline-offset: 2px; }
+  .wrap { max-width: 640px; margin: 0 auto; }
+  .demo { background: #1a1205; border-bottom: 1px solid #5a4410; color: #ffe3a1; font-size: 14px; padding: 8px 16px; }
+  .demo strong { color: #fff; }
+  .band { background: var(--sev); color: var(--ink); padding: 18px 18px 16px; }
+  .band .row { display: flex; align-items: center; gap: 12px; }
+  .band svg { width: 34px; height: 34px; flex: none; }
+  .band h1 { font-family: var(--ff-head); font-weight: 700; font-size: 32px; line-height: 1.05; margin: 0; overflow-wrap: anywhere; }
+  .band .sev { display: inline-block; margin-top: 10px; font-family: var(--ff-mono); font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; border: 2px solid currentColor; border-radius: 4px; padding: 2px 8px; }
+  .state { padding: 10px 18px; font-size: 14px; border-bottom: 1px solid var(--border); background: var(--panel); }
+  .state.ended { background: #2a0f12; color: #ffb3bd; }
+  main { padding: 0 18px 32px; }
+  .langs { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 4px; }
+  .langs button { background: none; border: 1px solid rgba(255,255,255,0.25); color: var(--text); border-radius: 999px; padding: 6px 14px; font: inherit; font-size: 15px; cursor: pointer; min-height: 40px; }
+  .langs button[aria-pressed="true"] { border-color: var(--neon); color: var(--neon); }
+  .label { font-family: var(--ff-mono); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); margin: 22px 0 6px; }
+  .headline { font-family: var(--ff-head); font-weight: 600; font-size: 26px; line-height: 1.15; margin: 0; overflow-wrap: anywhere; }
+  .sender { margin-top: 8px; color: var(--dim); }
+  .level { border: 2px solid var(--sev); border-radius: 10px; padding: 14px; margin-top: 18px; background: color-mix(in srgb, var(--sev) 10%, transparent); }
+  .level .lv { font-family: var(--ff-head); font-weight: 700; font-size: 26px; color: var(--sev); }
+  .scale { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 10px 0; }
+  .scale div { height: 10px; border-radius: 3px; opacity: 0.22; }
+  .scale div.on { opacity: 1; outline: 2px solid #fff; }
+  .trip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; font-size: 16px; }
+  .trip em { display: block; font-style: normal; font-family: var(--ff-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); }
+  .levsrc { font-size: 13px; color: var(--dim); margin-top: 8px; }
+  .verb { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .instr { background: var(--raised); border-left: 4px solid var(--sev); padding: 12px 14px; border-radius: 6px; font-weight: 600; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { border: 2px solid var(--text); border-radius: 999px; padding: 4px 12px; font-weight: 600; font-size: 15px; }
+  .map { margin-top: 8px; border: 1px solid #22304a; border-radius: 10px; overflow: hidden; background: #0a1220; aspect-ratio: 4 / 3; }
+  .map svg { display: block; width: 100%; height: 100%; }
+  .small { font-size: 13px; color: var(--dim); }
+  dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; font-size: 15px; margin: 0; }
+  dl.facts dt { color: var(--dim); }
+  dl.facts dd { margin: 0; overflow-wrap: anywhere; }
+  .follow { margin-top: 22px; padding: 14px; border: 1px solid #5a4410; background: #1a1205; color: #ffe3a1; border-radius: 8px; }
+  .follow a { color: #ffe3a1; font-weight: 600; }
+  .links { display: grid; gap: 10px; margin-top: 12px; }
+  .links a { display: block; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; text-decoration: none; background: var(--panel); }
+  footer { border-top: 1px solid var(--border); padding: 18px; font-size: 13px; color: var(--dim); }
+  footer p { margin: 0 0 8px; }
+  .loading { padding: 40px 18px; color: var(--dim); font-family: var(--ff-mono); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="demo" role="note"><strong>Demonstration viewer.</strong> Planned CAP24 feature. Not an official source and may be delayed. Always follow your official warning source.</div>
+  <div id="app"><div class="loading">Loading the alert…</div></div>
+  <footer>
+    <p>Alert data: Alert-Hub.org and the alerting authority, through the public "CAP Alerts Feed" layer hosted by Esri. CAP alerts published by the Alert Hub are in the public domain. Map outlines: Natural Earth.</p>
+    <p>Text is shown exactly as the authority published it, in its own languages. It is never translated or edited, and AI never creates or changes alert content.</p>
+    <p>CAP24 is a demonstration by MTÜ Green Media Foundation (Estonia). <a href="./">See all current alerts</a>.</p>
+  </footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
+<script>
+(() => {
+  'use strict';
+  const LAYER = 'https://services9.arcgis.com/RHVPKKiFTONKtxq3/arcgis/rest/services/CAP_Alerts_Feed/FeatureServer/0/query';
+  const COUNTRIES = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json';
+  const RECHECK_MS = 2 * 60 * 1000;
+  const SEV_ORDER = { Extreme: 4, Severe: 3, Moderate: 2, Minor: 1, Unknown: 0 };
+  const SEV_COLOR = { Extreme: '#ff1744', Severe: '#ff6d00', Moderate: '#ffc400', Minor: '#00b0ff', Unknown: '#607080' };
+  const INK = { Extreme: '#ffffff', Severe: '#0a0d14', Moderate: '#0a0d14', Minor: '#0a0d14', Unknown: '#ffffff' };
+  const LEVEL_COLORS = { green: '#2bd47d', yellow: '#ffc400', orange: '#ff6d00', red: '#ff1744' };
+  const sevOf = s => (s in SEV_ORDER ? s : 'Unknown');
+  const app = document.getElementById('app');
+
+  const el = (tag, attrs = {}, text) => {
+    const n = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs)) { if (k === 'class') n.className = v; else n.setAttribute(k, v); }
+    if (text != null) n.textContent = text;
+    return n;
+  };
+  const fmtTime = ms => {
+    if (ms == null || isNaN(ms)) return '—';
+    const d = new Date(ms);
+    const m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getUTCMonth()];
+    const p = n => String(n).padStart(2, '0');
+    return `${d.getUTCDate()} ${m} ${d.getUTCFullYear()}, ${p(d.getUTCHours())}:${p(d.getUTCMinutes())} UTC`;
+  };
+  const safeUrl = u => { try { const x = new URL(u); return (x.protocol === 'https:' || x.protocol === 'http:') ? x.href : null; } catch (e) { return null; } };
+  const sqlStr = s => "'" + String(s).replace(/'/g, "''") + "'";
+  const parseList = v => { try { const x = JSON.parse(v); return Array.isArray(x) ? x : []; } catch (e) { return []; } };
+  const parseParams = v => { try { return JSON.parse(v) || {}; } catch (e) { return {}; } };
+
+  const id = new URLSearchParams(location.search).get('id');
+  let landGeo = null;
+  let shown = false;
+
+  function message(title, text) {
+    app.replaceChildren();
+    const box = el('main');
+    box.append(el('p', { class: 'label' }, title), el('p', {}, text), (() => { const p = el('p'); p.append(el('a', { href: './' }, 'See all current alerts')); return p; })());
+    app.append(box);
+  }
+
+  async function load() {
+    if (!id) { message('No alert selected', 'This page shows one alert at a time. Open it from a CAP24 TV screen or from the alert list.'); return; }
+    const params = new URLSearchParams({
+      where: `identifier=${sqlStr(id)}`,
+      outFields: 'identifier,infoIndex,areaIndex,language,event,headline,description,instruction,web,senderName,sent,onset,expires,urgency,severity,certainty,areaDesc,msgType,status,responseType,parameter,registerUrl,hubLink,countryCode',
+      returnGeometry: 'true', outSR: '4326', maxAllowableOffset: '0.01', geometryPrecision: '3',
+      orderByFields: 'infoIndex,areaIndex', f: 'geojson'
+    });
+    let feats;
+    try {
+      const j = await fetch(`${LAYER}?${params}`, { cache: 'no-store' }).then(r => r.json());
+      if (j.error) throw new Error('layer');
+      feats = j.features || [];
+    } catch (e) {
+      if (!shown) message('Feed unavailable', 'The alert feed could not be reached. Please try again in a few minutes, and follow your official warning source.');
+      else setState('The feed could not be checked just now. Showing the alert as last loaded.', false);
+      return;
+    }
+    const now = Date.now();
+    const live = feats.filter(f => !(f.properties.expires != null && f.properties.expires < now));
+    if (!live.length) {
+      if (!shown) message('No longer active', 'This alert is no longer in the feed. It may have ended or been replaced by a newer message. Check your official warning source.');
+      else setState('This alert is no longer in the feed. It may have ended or been replaced. Check your official warning source.', true);
+      return;
+    }
+    if (!shown) render(live);
+    else setState(`Still active in the feed. Checked ${fmtTime(Date.now())}.`, false);
+  }
+
+  function setState(text, ended) {
+    const s = document.getElementById('state');
+    if (!s) return;
+    s.textContent = text;
+    s.className = 'state' + (ended ? ' ended' : '');
+  }
+
+  function render(feats) {
+    shown = true;
+    // One block per CAP info element, with its areas and shapes
+    const blocks = new Map();
+    for (const f of feats) {
+      const p = f.properties, k = p.infoIndex ?? 0;
+      if (!blocks.has(k)) blocks.set(k, { ...p, areas: new Set(), shapes: [] });
+      const b = blocks.get(k);
+      if (p.areaDesc) b.areas.add(p.areaDesc);
+      if (f.geometry) b.shapes.push(f.geometry);
+    }
+    const list = [...blocks.values()];
+    // Pick the block matching the phone's language (base tag), else the first as published
+    const prefs = (navigator.languages || [navigator.language || 'en']).map(l => l.toLowerCase());
+    let start = 0;
+    outer: for (const pref of prefs) {
+      for (let i = 0; i < list.length; i++) {
+        const lang = (list[i].language || '').toLowerCase();
+        if (lang && (lang === pref || lang.split('-')[0] === pref.split('-')[0])) { start = i; break outer; }
+      }
+    }
+
+    app.replaceChildren();
+    const band = el('div', { class: 'band' });
+    const state = el('div', { class: 'state', id: 'state', 'aria-live': 'polite' }, `Active in the feed. Checked ${fmtTime(Date.now())}.`);
+    const main = el('main');
+    app.append(band, state, main);
+
+    const langWrap = el('div', { class: 'langs', role: 'group', 'aria-label': 'Language, as published by the authority' });
+    const body = el('div');
+    list.forEach((b, i) => {
+      const bt = el('button', { type: 'button', 'aria-pressed': i === start ? 'true' : 'false' }, b.language || `Version ${i + 1}`);
+      bt.addEventListener('click', () => {
+        langWrap.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', 'false'));
+        bt.setAttribute('aria-pressed', 'true');
+        show(b);
+      });
+      langWrap.append(bt);
+    });
+    if (list.length > 1) main.append(langWrap);
+    main.append(body);
+
+    function show(b) {
+      const sev = sevOf(b.severity);
+      const prm = parseParams(b.parameter);
+      let color = SEV_COLOR[sev], ink = INK[sev], levelText = sev, scaleOn = sev, scale = 'sev',
+          levSrc = 'Colour from CAP severity. This source declares no level parameter.';
+      if (typeof prm.awareness_level === 'string') {
+        const word = (prm.awareness_level.split(';')[1] || '').trim().toLowerCase();
+        if (LEVEL_COLORS[word]) {
+          color = LEVEL_COLORS[word]; ink = word === 'red' ? '#ffffff' : '#0a0d14';
+          levelText = prm.awareness_level; scaleOn = word; scale = 'level';
+          levSrc = 'Level and colour from the awareness_level parameter, as sent.';
+        }
+      }
+      document.documentElement.style.setProperty('--sev', color);
+      document.documentElement.style.setProperty('--ink', ink);
+
+      band.replaceChildren();
+      const row = el('div', { class: 'row' });
+      row.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2 1 21h22L12 2zm0 4.3L19.5 19h-15L12 6.3zM11 10v5h2v-5h-2zm0 6v2h2v-2h-2z"/></svg>';
+      const h1 = el('h1', { dir: 'auto' }, b.event || 'Alert');
+      if (b.language) h1.setAttribute('lang', b.language);
+      row.append(h1);
+      band.append(row, el('span', { class: 'sev' }, sev));
+      document.title = `${b.event || 'Alert'} — CAP24 demonstration`;
+
+      body.replaceChildren();
+      const verb = (tag, text, cls) => {
+        const n = el(tag, { class: cls || 'verb', dir: 'auto' }, text);
+        if (b.language) n.setAttribute('lang', b.language);
+        return n;
+      };
+      if (b.headline) body.append(el('p', { class: 'label' }, 'Headline'), verb('p', b.headline, 'headline'));
+      body.append(el('div', { class: 'sender' }, b.senderName || ''));
+
+      const lv = el('div', { class: 'level' });
+      lv.append(el('div', { class: 'label', style: 'margin-top:0' }, 'Warning level'), el('div', { class: 'lv' }, levelText));
+      const sc = el('div', { class: 'scale', 'aria-hidden': 'true' });
+      const steps = scale === 'level' ? ['green', 'yellow', 'orange', 'red'] : ['Minor', 'Moderate', 'Severe', 'Extreme'];
+      for (const st of steps) {
+        const d = el('div', { style: `background:${scale === 'level' ? LEVEL_COLORS[st] : SEV_COLOR[st]}` });
+        if (st === scaleOn) d.className = 'on';
+        sc.append(d);
+      }
+      const trip = el('div', { class: 'trip' });
+      for (const [k, v] of [['Severity', b.severity], ['Urgency', b.urgency], ['Certainty', b.certainty]]) {
+        const s = el('div'); s.append(el('em', {}, k), document.createTextNode(v || '—')); trip.append(s);
+      }
+      lv.append(sc, trip, el('div', { class: 'levsrc' }, levSrc));
+      body.append(lv);
+
+      if (b.instruction) body.append(el('p', { class: 'label' }, 'Instruction'), verb('p', b.instruction, 'verb instr'));
+      const rts = parseList(b.responseType);
+      if (rts.length) {
+        const c = el('div', { class: 'chips' });
+        for (const r of rts) c.append(el('span', { class: 'chip' }, r));
+        body.append(el('p', { class: 'label' }, 'Response (CAP responseType)'), c);
+      }
+      if (b.description) body.append(el('p', { class: 'label' }, 'Description'), verb('p', b.description));
+
+      body.append(el('p', { class: 'label' }, 'Area'), verb('p', [...b.areas].join('\n')));
+      const mapBox = el('div', { class: 'map' });
+      body.append(mapBox, el('div', { class: 'small' }, 'Area as sent in the alert, simplified for display.'));
+      drawMap(mapBox, b.shapes, color);
+
+      const facts = el('dl', { class: 'facts' });
+      const add = (k, v) => { if (v) facts.append(el('dt', {}, k), el('dd', {}, v)); };
+      add('Message', [b.status, b.msgType].filter(Boolean).join(' · '));
+      add('Sent', fmtTime(b.sent));
+      if (b.onset) add('Onset', fmtTime(b.onset));
+      add('Expires', b.expires ? fmtTime(b.expires) : 'Not stated');
+      add('Language', b.language);
+      body.append(el('p', { class: 'label' }, 'Message details'), facts);
+
+      const follow = el('div', { class: 'follow' });
+      follow.append(document.createTextNode(`Follow your official warning source: ${b.senderName || 'the issuing authority'}.`));
+      body.append(follow);
+      const links = el('div', { class: 'links' });
+      const addLink = (label, url) => { const u = safeUrl(url); if (u) links.append(el('a', { href: u, rel: 'noopener', target: '_blank' }, label)); };
+      addLink('Authority’s page for this alert', b.web);
+      addLink('Original CAP message (Alert-Hub)', b.hubLink);
+      addLink('Authority in the WMO Register of Alerting Authorities', b.registerUrl);
+      if (links.childNodes.length) body.append(links);
+    }
+    show(list[start]);
+  }
+
+  function drawMap(host, shapes, color) {
+    if (!shapes.length) { host.replaceWith(el('p', { class: 'small' }, 'No area outline in this message.')); return; }
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    const walkB = c => { if (typeof c[0] === 'number') { x0 = Math.min(x0, c[0]); x1 = Math.max(x1, c[0]); y0 = Math.min(y0, c[1]); y1 = Math.max(y1, c[1]); } else c.forEach(walkB); };
+    shapes.forEach(g => walkB(g.coordinates));
+    const minSpan = 3;
+    if (x1 - x0 < minSpan) { const c = (x0 + x1) / 2; x0 = c - minSpan / 2; x1 = c + minSpan / 2; }
+    if (y1 - y0 < minSpan) { const c = (y0 + y1) / 2; y0 = c - minSpan / 2; y1 = c + minSpan / 2; }
+    const px = (x1 - x0) * 0.15, py = (y1 - y0) * 0.15; x0 -= px; x1 += px; y0 -= py; y1 += py;
+    const W = 400, H = 300, kx = Math.cos(((y0 + y1) / 2) * Math.PI / 180);
+    const s = Math.min(W / ((x1 - x0) * kx), H / (y1 - y0));
+    const ox = (W - (x1 - x0) * kx * s) / 2, oy = (H - (y1 - y0) * s) / 2;
+    const P = (lon, lat) => `${(ox + (lon - x0) * kx * s).toFixed(1)},${(oy + (y1 - lat) * s).toFixed(1)}`;
+    const ring = r => 'M' + r.map(c => P(c[0], c[1])).join('L') + 'Z';
+    const gpath = g => g.type === 'Polygon' ? g.coordinates.map(ring).join('') : g.type === 'MultiPolygon' ? g.coordinates.map(pl => pl.map(ring).join('')).join('') : '';
+    const inView = g => { let hit = false; const w = c => { if (hit) return; if (typeof c[0] === 'number') { if (c[0] >= x0 - 5 && c[0] <= x1 + 5 && c[1] >= y0 - 5 && c[1] <= y1 + 5) hit = true; } else c.forEach(w); }; if (g && g.coordinates) w(g.coordinates); return hit; };
+    const NS = 'http://www.w3.org/2000/svg';
+    const draw = () => {
+      const svg = document.createElementNS(NS, 'svg');
+      svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('role', 'img'); svg.setAttribute('aria-label', 'Map of the alert area');
+      const add = (d, fill, stroke, op, sw) => { const p = document.createElementNS(NS, 'path'); p.setAttribute('d', d); p.setAttribute('fill', fill); p.setAttribute('stroke', stroke); p.setAttribute('fill-opacity', op); p.setAttribute('stroke-width', sw); p.setAttribute('stroke-linejoin', 'round'); svg.append(p); };
+      if (landGeo) for (const f of landGeo.features) if (inView(f.geometry)) add(gpath(f.geometry), '#16233a', '#2b3d5c', 1, 0.8);
+      for (const g of shapes) add(gpath(g), color, color, 0.5, 1.5);
+      host.replaceChildren(svg);
+    };
+    draw();
+    if (!landGeo) {
+      fetch(COUNTRIES).then(r => r.json()).then(t => { landGeo = topojson.feature(t, t.objects.countries); if (host.isConnected) draw(); }).catch(() => {});
+    }
+  }
+
+  load();
+  setInterval(load, RECHECK_MS);
+})();
+</script>
+</body>
+</html>
