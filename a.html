@@ -2,138 +2,485 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
-<meta name="theme-color" content="#070a10">
+<meta name="theme-color" content="#607080">
 <title>CAP24 — Alert on your phone (demonstration)</title>
 <!--
-  CAP24 phone view, demonstration. v0.1, 8 Nov 2026.
-  The page a TV QR code opens: one alert, verbatim, in the languages the authority published.
-  Rules: text as published (never translated or shortened); level from a declared awareness_level
-  parameter, else from CAP severity, and the page says which; actions only from responseType;
-  the authority's web link appears here, never as the QR target. No AI anywhere.
-  Address: a.html?id=<CAP identifier as held by the Alert-Hub layer>. The demo uses the identifier
-  directly; a hash of sender + identifier (demo rule 12) needs a server lookup and comes later.
+  CAP24 phone view, demonstration. v0.2, 8 Nov 2026. MTÜ Green Media Foundation (reg. 80661721).
+  The page a TV QR code opens: one live alert from the Alert-Hub "CAP Alerts Feed" layer, built on the
+  demo v9m phone layout (cap24 project: demo_cap_enhanced_9m_mobile).
+  Rules (claude/CAP24_Demo_Rules.md):
+   - 1b live site: real alert from a public CAP feed, labelled as a demonstration that may be delayed.
+   - 3 verbatim: text as published in the chosen <info> block; never translated or shortened.
+   - 7 / 7a level: declared awareness_level as sent (colour and 4-step scale); otherwise CAP severity with the
+     CAP24 default colours (no green, no combined scale) and the page says which.
+   - 4 PROPOSED, labelled: signed summary screen (clip slot per code, placeholders), Listen, notification opt-in.
+   - 4b spoken output: authority recording first, then approved pre-recorded clips (none yet: placeholder),
+     then the phone's own voice reading headline and instruction word for word, started by the viewer.
+  Left out from v9m: tap-to-call 112 and "Can't talk?" (country configuration, not in the CAP feed).
+  "Am I in this area?" runs on the phone; the position is never sent.
+  Address: a.html?id=<CAP identifier>. Demo rule 12 (hashed address) needs a server lookup and comes later.
+  No AI anywhere in this page.
 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&family=Noto+Sans:wght@400;600&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Barlow:wght@400;500;600&family=Share+Tech+Mono&family=Noto+Sans:wght@400;600;700&family=Noto+Sans+Georgian:wght@400;600;700&display=swap">
 <style>
-  :root {
-    --bg: #070a10; --panel: #0e1422; --raised: #141c2e; --border: rgba(255,255,255,0.1);
-    --text: #e8edf8; --dim: #9aa6bd; --neon: #00e5ff;
-    --sev: #607080; --ink: #fff;
-    --ff-body: 'Barlow', 'Noto Sans', 'Noto Sans Georgian', system-ui, sans-serif;
-    --ff-head: 'Barlow Condensed', 'Noto Sans', 'Noto Sans Georgian', system-ui, sans-serif;
-    --ff-mono: 'Share Tech Mono', monospace;
-  }
-  * { box-sizing: border-box; }
-  html, body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--ff-body); font-size: 17px; line-height: 1.5; }
-  a { color: var(--neon); }
-  a:focus-visible, button:focus-visible { outline: 2px solid var(--neon); outline-offset: 2px; }
-  .wrap { max-width: 640px; margin: 0 auto; }
-  .demo { background: #1a1205; border-bottom: 1px solid #5a4410; color: #ffe3a1; font-size: 14px; padding: 8px 16px; }
-  .demo strong { color: #fff; }
-  .band { background: var(--sev); color: var(--ink); padding: 18px 18px 16px; }
-  .band .row { display: flex; align-items: center; gap: 12px; }
-  .band svg { width: 34px; height: 34px; flex: none; }
-  .band h1 { font-family: var(--ff-head); font-weight: 700; font-size: 32px; line-height: 1.05; margin: 0; overflow-wrap: anywhere; }
-  .band .sev { display: inline-block; margin-top: 10px; font-family: var(--ff-mono); font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; border: 2px solid currentColor; border-radius: 4px; padding: 2px 8px; }
-  .state { padding: 10px 18px; font-size: 14px; border-bottom: 1px solid var(--border); background: var(--panel); }
-  .state.ended { background: #2a0f12; color: #ffb3bd; }
-  main { padding: 0 18px 32px; }
-  .langs { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 4px; }
-  .langs button { background: none; border: 1px solid rgba(255,255,255,0.25); color: var(--text); border-radius: 999px; padding: 6px 14px; font: inherit; font-size: 15px; cursor: pointer; min-height: 40px; }
-  .langs button[aria-pressed="true"] { border-color: var(--neon); color: var(--neon); }
-  .label { font-family: var(--ff-mono); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); margin: 22px 0 6px; }
-  .headline { font-family: var(--ff-head); font-weight: 600; font-size: 26px; line-height: 1.15; margin: 0; overflow-wrap: anywhere; }
-  .sender { margin-top: 8px; color: var(--dim); }
-  .level { border: 2px solid var(--sev); border-radius: 10px; padding: 14px; margin-top: 18px; background: color-mix(in srgb, var(--sev) 10%, transparent); }
-  .level .lv { font-family: var(--ff-head); font-weight: 700; font-size: 26px; color: var(--sev); }
-  .scale { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 10px 0; }
-  .scale div { height: 10px; border-radius: 3px; opacity: 0.22; }
-  .scale div.on { opacity: 1; outline: 2px solid #fff; }
-  .trip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; font-size: 16px; }
-  .trip em { display: block; font-style: normal; font-family: var(--ff-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); }
-  .levsrc { font-size: 13px; color: var(--dim); margin-top: 8px; }
-  .verb { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
-  .instr { background: var(--raised); border-left: 4px solid var(--sev); padding: 12px 14px; border-radius: 6px; font-weight: 600; }
-  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
-  .chip { border: 2px solid var(--text); border-radius: 999px; padding: 4px 12px; font-weight: 600; font-size: 15px; }
-  .map { margin-top: 8px; border: 1px solid #22304a; border-radius: 10px; overflow: hidden; background: #0a1220; aspect-ratio: 4 / 3; }
-  .map svg { display: block; width: 100%; height: 100%; }
-  .small { font-size: 13px; color: var(--dim); }
-  dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; font-size: 15px; margin: 0; }
-  dl.facts dt { color: var(--dim); }
-  dl.facts dd { margin: 0; overflow-wrap: anywhere; }
-  .follow { margin-top: 22px; padding: 14px; border: 1px solid #5a4410; background: #1a1205; color: #ffe3a1; border-radius: 8px; }
-  .follow a { color: #ffe3a1; font-weight: 600; }
-  .links { display: grid; gap: 10px; margin-top: 12px; }
-  .links a { display: block; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; text-decoration: none; background: var(--panel); }
-  footer { border-top: 1px solid var(--border); padding: 18px; font-size: 13px; color: var(--dim); }
-  footer p { margin: 0 0 8px; }
-  .loading { padding: 40px 18px; color: var(--dim); font-family: var(--ff-mono); }
+
+/* Phone layout of the per-alert page the TV QR code opens (spec v0.3, 5.5).
+   Same look as v7m. Level band → headline → instruction → where/when → description →
+   consequences → map → source → emergency. Controls fixed to the bottom. */
+:root {
+  --ground:#0b1016; --panel:#121a23; --panel-2:#18222d; --line:#243241;
+  --fg:#e8eef4; --muted:#8ea0b2; --cyan:#00e5ff; --sev:#607080; --sev-ink:#ffffff;
+  --ff-head:'Barlow Condensed','Noto Sans Georgian','Arial Narrow','Roboto Condensed',sans-serif;
+  --ff-body:'Barlow','Noto Sans Georgian','Segoe UI',system-ui,sans-serif;
+  --ff-mono:'Share Tech Mono',ui-monospace,'SFMono-Regular',Menlo,monospace;
+  color-scheme: dark;
+}
+* { box-sizing:border-box; }
+html, body { margin:0; background:var(--ground); color:var(--fg); }
+body { font-family:var(--ff-body); font-size:16px; line-height:1.45; -webkit-text-size-adjust:100%; }
+.app { max-width:460px; margin:0 auto; padding-inline:16px;
+  padding-block:0 calc(132px + env(safe-area-inset-bottom,0px)); display:flex; flex-direction:column; gap:10px; }
+
+/* Top strip */
+.strip { position:sticky; top:env(safe-area-inset-top,0px); z-index:20; margin-inline:-16px; padding:8px 16px;
+  background:var(--ground); display:flex; align-items:center; gap:8px; border-bottom:1px solid var(--line); }
+.strip .brand { font-family:var(--ff-head); font-weight:800; letter-spacing:.06em; font-size:17px; white-space:nowrap; }
+.strip .fx { margin-left:auto; font-family:var(--ff-mono); font-size:10px; letter-spacing:.06em; color:var(--ground);
+  background:#ffc400; padding:2px 6px; border-radius:2px; white-space:nowrap; }
+.lang-badge { font-family:var(--ff-mono); font-size:10px; letter-spacing:.06em; padding:2px 6px; border-radius:2px;
+  border:1px solid var(--line); color:var(--muted); white-space:nowrap; }
+.lang-badge.exact { color:#00e676; border-color:rgba(0,230,118,.35); }
+.lang-badge.base { color:#ffc400; border-color:rgba(255,196,0,.35); }
+.lang-badge.tenant, .lang-badge.first { color:var(--cyan); border-color:rgba(0,229,255,.3); }
+@keyframes pulse { 50% { opacity:.15; } }
+@media (prefers-reduced-motion: reduce) { #sev-pulse.flash { animation:none; } }
+
+.fixture { font-family:var(--ff-mono); font-size:11px; color:var(--muted); border:1px dashed #5a4a10;
+  border-radius:4px; padding:7px 9px; line-height:1.5; }
+.fixture b { color:#ffc400; font-weight:400; }
+
+/* Level band */
+.band { background:var(--sev); color:var(--sev-ink); border-radius:6px; padding:10px 12px;
+  display:grid; grid-template-columns:42px 1fr; gap:2px 10px; align-items:center; transition:background .35s, color .35s; }
+.band .hz { grid-row:span 2; width:42px; height:42px; border:2px solid currentColor; border-radius:6px; display:grid; place-items:center; }
+.band .hz svg { width:28px; height:28px; fill:currentColor; }
+.band .hz.yr { border:0; background:rgba(4,6,12,.72); border-radius:50%; }
+.band .hz.yr img { width:30px; height:30px; display:block; }
+.band .event { font-family:var(--ff-head); font-weight:800; font-size:26px; line-height:1; min-width:0; overflow-wrap:anywhere; }
+.band .lvl { font-family:var(--ff-head); font-weight:700; font-size:14px; letter-spacing:.08em; text-transform:uppercase; }
+.band .lvl small { font-weight:600; opacity:.75; letter-spacing:.04em; margin-right:6px; }
+.scale { grid-column:1 / -1; display:flex; gap:4px; height:6px; margin-top:6px; }
+.scale i { flex:1; border-radius:3px; background:currentColor; opacity:.25; }
+.scale i.on { opacity:1; }
+
+/* Headline: verbatim, timestamps included */
+.headline { margin:0; font-family:var(--ff-head); font-weight:700; font-size:24px; line-height:1.08; overflow-wrap:anywhere; }
+
+/* Instruction */
+.instr { background:var(--panel); border-left:4px solid var(--sev); border-radius:0 6px 6px 0; padding:10px 12px; display:flex; flex-direction:column; gap:8px; }
+.label { font-family:var(--ff-head); font-weight:700; font-size:13px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
+.label i { font-style:normal; font-family:var(--ff-mono); font-size:10px; letter-spacing:.04em; text-transform:none; }
+.instr p { margin:0; font-family:var(--ff-head); font-weight:600; font-size:20px; line-height:1.22; white-space:pre-line; }
+.picto { display:flex; flex-wrap:wrap; gap:8px; }
+.pic { display:flex; align-items:center; gap:8px; background:var(--panel-2); border:1px solid var(--line); border-radius:4px; padding:4px 8px 4px 4px; }
+.pic svg { width:22px; height:22px; fill:var(--sev); flex:none; }
+.pic span { font-family:var(--ff-mono); font-size:12px; letter-spacing:.06em; }
+.pic small { display:block; font-size:10px; color:var(--muted); }
+
+/* Where / when */
+.essentials { display:grid; grid-template-columns:auto 1fr; gap:4px 10px; font-size:15px; margin:0; line-height:1.3; }
+.essentials dt { font-family:var(--ff-mono); font-size:11px; letter-spacing:.08em; color:var(--muted); text-transform:uppercase; padding-top:3px; }
+.essentials dd { margin:0; min-width:0; overflow-wrap:anywhere; }
+.essentials dd.mono { font-family:var(--ff-mono); font-size:13px; }
+
+
+.locate { display:flex; flex-direction:column; gap:6px; }
+.act { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:44px; padding:0 14px;
+  background:var(--panel-2); color:var(--fg); border:1px solid var(--line); border-radius:4px;
+  font:600 16px var(--ff-head); letter-spacing:.03em; text-decoration:none; cursor:pointer; }
+.act svg { width:20px; height:20px; fill:var(--sev); flex:none; }
+.loc-out { font-size:15px; background:var(--panel); border-radius:4px; padding:8px 10px; border-left:4px solid var(--muted); }
+.loc-out.in, .loc-out.near { border-left-color:var(--sev); }
+.loc-out small { display:block; font-family:var(--ff-mono); font-size:11px; color:var(--muted); margin-top:4px; }
+
+.fold-hint { font-family:var(--ff-mono); font-size:11px; color:var(--muted); text-align:center; border-top:1px solid var(--line); padding-top:6px; }
+
+/* Text sections */
+.sec { background:var(--panel); border-radius:6px; padding:10px 12px; display:flex; flex-direction:column; gap:6px; }
+.sec p { margin:0; color:#c9d4de; font-size:15.5px; white-space:pre-line; }
+
+/* CAP values */
+.capvals { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:6px; overflow:hidden; margin:0; }
+.capvals div { background:var(--panel); padding:8px 10px; min-width:0; }
+.capvals dt { font-family:var(--ff-mono); font-size:10px; letter-spacing:.1em; color:var(--muted); text-transform:uppercase; }
+.capvals dd { margin:2px 0 0; font-family:var(--ff-head); font-weight:700; font-size:18px; overflow-wrap:anywhere; }
+.note { font-family:var(--ff-mono); font-size:11px; color:var(--muted); line-height:1.5; }
+
+/* Map */
+.areas { background:var(--panel); border-radius:6px; padding:12px 12px 10px; display:flex; flex-direction:column; gap:8px; }
+.map { width:100%; aspect-ratio:400/260; background:#0d141c; border-radius:4px; display:block; }
+.map .grid { stroke:#2a3a4a; stroke-width:.6; vector-effect:non-scaling-stroke; }
+.map .gl { fill:#4a5c6e; font:9px var(--ff-mono); }
+.map .af { fill:var(--sev); fill-opacity:.32; stroke:var(--sev); stroke-width:1.6; vector-effect:non-scaling-stroke; }
+.map.pick { outline:2px solid var(--cyan); cursor:crosshair; }
+.map .me { fill:var(--cyan); stroke:#000; stroke-width:1.5; }
+.map .me-ring { fill:none; stroke:var(--cyan); stroke-opacity:.5; }
+.chips { display:flex; flex-wrap:wrap; gap:6px; }
+.chip { font:600 15px/1.15 var(--ff-head); background:var(--panel-2); color:var(--fg); border:1px solid var(--line); border-radius:3px; padding:7px 10px; overflow-wrap:anywhere; cursor:pointer; min-height:34px; text-align:left; }
+.chip.on { background:var(--sev); color:var(--sev-ink); border-color:var(--sev); }
+.chip.all { font-family:var(--ff-mono); font-weight:400; font-size:11px; letter-spacing:.06em; }
+.map .ol { fill:none; stroke:#6f8396; stroke-width:.8; stroke-opacity:.55; vector-effect:non-scaling-stroke; }
+.map .af.on { fill-opacity:.75; stroke-width:2.4; }
+.map .af.dim { fill-opacity:.12; }
+
+/* Source */
+.src { display:grid; grid-template-columns:auto 1fr; gap:6px 12px; font-size:14px; margin:0; }
+.src dt { font-family:var(--ff-mono); font-size:11px; letter-spacing:.08em; color:var(--muted); text-transform:uppercase; padding-top:2px; }
+.src dd { margin:0; min-width:0; overflow-wrap:anywhere; }
+.src dd.mono { font-family:var(--ff-mono); font-size:12.5px; }
+.src a { color:var(--cyan); }
+.foot { font-family:var(--ff-mono); font-size:11px; color:var(--muted); line-height:1.6; margin:0; }
+
+/* Controls */
+.ctl { position:fixed; left:0; right:0; bottom:0; z-index:30; background:rgba(11,16,22,.96); border-top:1px solid var(--line);
+  padding:8px 12px calc(8px + env(safe-area-inset-bottom,0px)); backdrop-filter:blur(8px); }
+button:focus-visible, select:focus-visible, a:focus-visible { outline:2px solid var(--cyan); outline-offset:2px; }
+
+/* ── v9m: proposed features ── */
+.ptag, .prop-btn em { font-style:normal; font-family:var(--ff-mono); font-size:9.5px; letter-spacing:.08em; color:#0b1016; background:#b388ff; padding:1px 5px; border-radius:2px; text-transform:none; vertical-align:2px; }
+.prop-btn[aria-pressed="true"] { background:var(--sev); color:var(--sev-ink); border-color:var(--sev); }
+.prop-btn[aria-pressed="true"] svg { fill:var(--sev-ink); }
+.sec.prop { border:1px dashed #5e4a8a; }
+#notify-btn { align-self:flex-start; }
+
+/* Signed-summary screen: its own full screen, above the page and the demo controls */
+.signscreen { position:fixed; inset:0; z-index:50; background:var(--ground); overflow-y:auto;
+  padding:calc(10px + env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px));
+  display:flex; flex-direction:column; gap:10px; max-width:460px; margin:0 auto; border-top:4px solid var(--sev); }
+.signscreen[hidden] { display:none; }
+.ss-head { display:flex; align-items:center; gap:10px; }
+.ss-back { min-height:40px; padding:0 10px; }
+.ss-title { font:800 20px var(--ff-head); letter-spacing:.04em; display:flex; align-items:center; gap:8px; }
+.ss-level { background:var(--sev); color:var(--sev-ink); border-radius:4px; padding:6px 10px; font:700 16px var(--ff-head); letter-spacing:.04em; }
+#sign-lang { min-height:38px; background:var(--panel-2); color:var(--fg); border:1px solid var(--line); border-radius:4px; font:13px var(--ff-mono); padding:0 8px; max-width:100%; }
+.stage { position:relative; aspect-ratio:4 / 5; max-height:46vh; width:100%; max-width:100%; margin:0 auto; background:#0d141c; border:2px solid var(--sev); border-radius:6px;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; text-align:center; padding:14px; }
+.stage .code { font:800 34px/1.05 var(--ff-head); letter-spacing:.04em; color:var(--sev); }
+.stage .what { font:600 15px var(--ff-head); color:var(--fg); }
+.stage .todo { font:11px var(--ff-mono); color:var(--muted); max-width:30ch; }
+.stage .figure { width:54px; height:54px; fill:none; stroke:#4a5e72; stroke-width:1.5; }
+.stage video { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; background:#000; border-radius:4px; }
+.prog { height:3px; background:var(--line); }
+.prog i { display:block; height:100%; width:0; background:var(--sev); }
+.ticker { position:relative; overflow:hidden; background:#000; border-top:2px solid var(--sev); border-radius:0 0 4px 4px; min-height:42px; display:flex; align-items:center; cursor:pointer; }
+.ticker .run { display:inline-block; white-space:nowrap; font:600 20px var(--ff-head); color:var(--fg); will-change:transform; padding:8px 0; }
+.ticker.static .run { white-space:normal; padding:8px 10px; }
+.seq { display:flex; gap:6px; flex-wrap:wrap; }
+.seq span { font:11px var(--ff-mono); letter-spacing:.04em; padding:4px 7px; border-radius:3px; border:1px solid var(--line); color:var(--muted); }
+.seq span.on { border-color:var(--sev); color:var(--sev-ink); background:var(--sev); }
+.seq span.miss { border-style:dashed; }
+.ss-ctl { display:flex; gap:8px; flex-wrap:wrap; }
+#sign-play { flex:1 1 auto; }
+#sign-play[aria-pressed="true"] { background:var(--sev); color:var(--sev-ink); border-color:var(--sev); }
+#sign-play[aria-pressed="true"] svg { fill:var(--sev-ink); }
+#sign-sound[aria-pressed="false"] { color:var(--muted); }
+#sign-sound[aria-pressed="false"] svg { fill:var(--muted); }
+body.ss-open { overflow:hidden; }
+
+/* v9m: fixed alert-action bar above the demo controls, always on screen */
+.actbar { max-width:460px; margin:0 auto 8px; display:grid; grid-template-columns:1fr 1fr auto; gap:6px; }
+.actbar:has(> #listen-btn[hidden]) { grid-template-columns:1fr auto; }
+.actbar .act { min-height:42px; padding:0 8px; gap:6px; font-size:15px; }
+.actbar .act[hidden] { display:none; }
+.actbar .act span { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+.actbar .prop-btn { border-color:#5e4a8a; }
+/* sign screen: Play visible without scrolling */
+.stage { max-height:38vh; aspect-ratio:4 / 4.4; }
+.ss-ctl { flex-wrap:nowrap; }
+#sign-play { min-width:0; }
+#sign-play, #sign-sound { white-space:nowrap; }
+
+/* ── Live page additions (v0.2) ── */
+:root {
+  --ff-head:'Barlow Condensed','Noto Sans','Noto Sans Georgian','Arial Narrow','Roboto Condensed',sans-serif;
+  --ff-body:'Barlow','Noto Sans','Noto Sans Georgian','Segoe UI',system-ui,sans-serif;
+}
+.strip { position:sticky; }
+.strip .bar { position:absolute; left:0; right:0; bottom:-3px; height:3px; background:var(--sev); }
+.fixture b { color:#ffc400; }
+.state { font-family:var(--ff-mono); font-size:11px; color:var(--muted); }
+.state.ended { color:var(--fg); background:#3a1d22; border:1px solid #ff1744; border-radius:4px; padding:7px 9px; font-size:12px; }
+.langs { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+.langs .note { margin-right:2px; }
+.langs button { font:13px var(--ff-mono); background:var(--panel); color:var(--fg); border:1px solid var(--line); border-radius:3px; min-height:34px; padding:0 10px; cursor:pointer; }
+.langs button[aria-pressed="true"] { background:var(--fg); color:var(--ground); border-color:var(--fg); }
+.band .lvl span { text-transform:none; letter-spacing:.02em; }
+.band .lvl small { text-transform:uppercase; }
+[dir="auto"] { unicode-bidi:plaintext; }
+.src a { overflow-wrap:anywhere; }
+.tiers { margin:0; padding-left:20px; display:flex; flex-direction:column; gap:6px; font-size:14px; color:#c9d4de; }
+.tiers b { color:var(--fg); font-weight:600; }
+.tiers .st { display:block; font-family:var(--ff-mono); font-size:11px; color:var(--muted); }
+.tiers .st.ok { color:#00e5ff; }
+.listen-status { max-width:460px; margin:0 auto 6px; font:11px var(--ff-mono); color:var(--fg); background:#2a2140; border:1px solid #5e4a8a; border-radius:4px; padding:5px 8px; }
+.actbar { grid-template-columns:1fr 1fr; }
+.actbar:has(> #listen-btn[hidden]) { grid-template-columns:1fr; }
+.app { padding-block:0 calc(80px + env(safe-area-inset-bottom,0px)); }
+.msg-box { margin-top:40px; display:flex; flex-direction:column; gap:10px; }
+.msg-box h1 { font:800 26px var(--ff-head); margin:0; }
+.msg-box p { margin:0; color:#c9d4de; }
+.msg-box a, .foot a { color:var(--cyan); }
+.ctl { padding-top:8px; }
+.ctl .actbar { margin-bottom:0; }
+#content { display:contents; }
+[hidden] { display:none !important; }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="demo" role="note"><strong>Demonstration viewer.</strong> Planned CAP24 feature. Not an official source and may be delayed. Always follow your official warning source.</div>
-  <div id="app"><div class="loading">Loading the alert…</div></div>
-  <footer>
-    <p>Alert data: Alert-Hub.org and the alerting authority, through the public "CAP Alerts Feed" layer hosted by Esri. CAP alerts published by the Alert Hub are in the public domain. Map outlines: Natural Earth.</p>
-    <p>Text is shown exactly as the authority published it, in its own languages. It is never translated or edited, and AI never creates or changes alert content.</p>
-    <p>CAP24 is a demonstration by MTÜ Green Media Foundation (Estonia). <a href="./">See all current alerts</a>.</p>
-  </footer>
-</div>
+<main class="app" id="app">
+  <div class="strip">
+    <div class="brand">CAP24</div>
+    <span class="lang-badge" id="lang-badge" hidden>—</span>
+    <span class="fx">DEMONSTRATION</span>
+    <div class="bar"></div>
+  </div>
+
+  <div class="fixture"><b>REAL ALERT from a public CAP feed via Alert-Hub.org · demonstration · may be delayed.</b>
+    Text as published by the authority, not translated. This page is not an official warning channel: follow your official warning source.</div>
+
+  <div class="state" id="state" aria-live="polite" hidden>—</div>
+
+  <div class="langs" id="langs" role="group" aria-label="Language, as published by the authority" hidden></div>
+
+  <div id="content" hidden>
+  <!-- First screen: what a person needs to act -->
+  <section class="band" aria-live="polite">
+    <div class="hz" id="hazard"></div>
+    <div class="event" id="event" dir="auto">—</div>
+    <div class="lvl"><small id="level-label">—</small><span id="level-name">—</span></div>
+    <div class="scale" id="scale" aria-hidden="true"><i data-k="green"></i><i data-k="yellow"></i><i data-k="orange"></i><i data-k="red"></i></div>
+  </section>
+
+  <h1 class="headline" id="headline" dir="auto">—</h1>
+
+  <section class="instr" id="instr-sec" aria-labelledby="instr-label">
+    <div class="label" id="instr-label">Instruction</div>
+    <p id="instruction" dir="auto">—</p>
+    <div class="picto" id="picto"></div>
+  </section>
+
+  <dl class="essentials">
+    <dt>Where</dt><dd id="where" dir="auto">—</dd>
+    <dt>Valid</dt><dd class="mono" id="valid">—</dd>
+    <dt>From</dt><dd id="from" dir="auto">—</dd>
+  </dl>
+
+  <div class="locate">
+    <button class="act" id="loc-btn" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm9 3h-2.1A7 7 0 0 0 13 5.1V3h-2v2.1A7 7 0 0 0 5.1 11H3v2h2.1a7 7 0 0 0 5.9 5.9V21h2v-2.1a7 7 0 0 0 5.9-5.9H21zm-9 6a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/></svg><span id="loc-label">Am I in this area?</span></button>
+    <div class="loc-out" id="loc-out" hidden></div>
+  </div>
+  <div class="fold-hint">More below: description, map, source, spoken output, notifications</div>
+
+  <!-- Below the first screen -->
+  <section class="sec" id="desc-sec"><div class="label">Description</div><p id="desc" dir="auto">—</p></section>
+
+  <div class="note" id="level-why">—</div>
+  <dl class="capvals" aria-label="CAP values as sent">
+    <div><dt>Severity</dt><dd id="cv-sev">—</dd></div>
+    <div><dt>Urgency</dt><dd id="cv-urg">—</dd></div>
+    <div><dt>Certainty</dt><dd id="cv-cert">—</dd></div>
+  </dl>
+
+  <section class="areas">
+    <div class="label">Affected areas</div>
+    <svg class="map" id="map" viewBox="0 0 400 260" role="img" aria-label="Map of the warning area as sent"></svg>
+    <div class="chips" id="chips"></div>
+    <div class="note" id="area-src">—</div>
+  </section>
+
+  <dl class="src">
+    <dt>Source</dt><dd id="sender" dir="auto">—</dd>
+    <dt>Country</dt><dd id="country">—</dd>
+    <dt>More info</dt><dd id="web">—</dd>
+    <dt>Original</dt><dd id="hub">—</dd>
+    <dt>Register</dt><dd id="register">—</dd>
+    <dt>Message</dt><dd class="mono" id="msgtype">—</dd>
+    <dt>Sent</dt><dd class="mono" id="sent">—</dd>
+    <dt>Onset</dt><dd class="mono" id="onset">—</dd>
+    <dt>Expires</dt><dd class="mono" id="expires">—</dd>
+    <dt>Language</dt><dd class="mono" id="lang">—</dd>
+    <dt>Identifier</dt><dd class="mono" id="ident">—</dd>
+  </dl>
+
+  <section class="sec prop" id="listen-sec">
+    <div class="label">Spoken output <em class="ptag">PROPOSED</em></div>
+    <ol class="tiers">
+      <li><b>The authority's own recording</b>, carried in the alert. <span class="st" id="t1">—</span></li>
+      <li><b>Recordings approved in advance by the authority</b>: a backup message or one clip per code. <span class="st" id="t2">Not recorded yet. This slot stays empty until clips are made and approved.</span></li>
+      <li><b>This phone's own voice</b>, started by you, reading the headline and instruction word for word. <span class="st" id="t3">—</span></li>
+    </ol>
+    <div class="note">Nothing is composed at alert time. No AI writes, rewords, summarises or translates what is spoken (demo rule 4b).</div>
+  </section>
+
+  <section class="sec prop" id="notify-sec">
+    <div class="label">Notify me about warnings for this area <em class="ptag">PROPOSED</em></div>
+    <button class="act" id="notify-btn" type="button" aria-expanded="false" aria-controls="notify-info"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6V11a6 6 0 0 0-5-5.9V4a1 1 0 0 0-2 0v1.1A6 6 0 0 0 6 11v5l-2 2v1h16v-1z"/></svg><span>How it would work</span></button>
+    <div class="note" id="notify-info" hidden>Design intent only: nothing is stored or sent. You would choose an area, with no account and no GPS stored. A notification would carry the authority's headline as sent and open this page. It would be a companion service that may be delayed, and it does not replace official emergency alerts. Needs agreement from the alerting authority and a data-protection review.</div>
+  </section>
+
+  <p class="foot">
+    CAP24 · MTÜ Green Media Foundation (reg. 80661721). Demonstration of the page a CAP24 TV QR code opens. Alert data: Alert-Hub.org "CAP Alerts Feed", official sources only; this page rechecks the feed every two minutes.
+    Text exactly as in the chosen &lt;info&gt; block; nothing is translated. Pictograms only from &lt;responseType&gt;. Level and colour from a declared awareness_level as sent, else CAP severity with CAP24 default colours.
+    Area shapes as sent, simplified for display. Coastlines: Natural Earth (public domain). Emergency number not shown: it differs by country and is not part of the CAP feed.
+    PROPOSED features (signed summary, spoken output, notifications) are shown for discussion. None is agreed with any authority or Deaf association.
+    <a href="./">See all current alerts</a>
+  </p>
+  </div>
+</main>
+
+<section class="signscreen" id="signscreen" role="dialog" aria-modal="true" aria-labelledby="sign-h" hidden>
+  <header class="ss-head">
+    <button class="act ss-back" id="sign-close" type="button" aria-label="Back to the alert"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11H7.8l5.6-5.6L12 4l-8 8 8 8 1.4-1.4L7.8 13H20z"/></svg>Alert</button>
+    <div class="ss-title"><span id="sign-h">Signed summary</span><em class="ptag">PROPOSED</em></div>
+  </header>
+  <div class="ss-level" id="ss-level" dir="auto">—</div>
+  <div class="stage" id="stage" aria-live="polite"></div>
+  <div class="prog"><i id="prog"></i></div>
+  <div class="ss-ctl">
+    <button class="act" id="sign-play" type="button" aria-pressed="false"></button>
+    <button class="act" id="sign-sound" type="button" aria-pressed="true"></button>
+  </div>
+  <div class="ticker" id="ticker" role="button" tabindex="0" aria-label="Pause or resume the ticker"><div class="run" id="ticker-run" dir="auto"></div></div>
+  <div class="note" id="ticker-hint">Tap the ticker to pause.</div>
+  <div class="seq" id="seq"></div>
+  <select id="sign-lang" aria-label="Sign language"></select>
+  <div class="note" id="sign-audio-note">—</div>
+  <div class="note">One pre-recorded clip per CAP code (level or severity, hazard type, each responseType), never the free text. It is a summary of the codes, not the full message: the ticker carries the headline and instruction as sent. Clips are placeholders until recorded by Deaf signers and approved by the national Deaf association and the alerting authority.</div>
+</section>
+
+<nav class="ctl" id="ctl" aria-label="Alert actions" hidden>
+  <div class="listen-status" id="listen-status" role="status" hidden></div>
+  <div class="actbar" role="group" aria-label="Alert actions">
+    <button class="act prop-btn" id="sign-open" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2.5a1.5 1.5 0 0 1 3 0V11h1V4a1.5 1.5 0 0 1 3 0v7h1V5.5a1.5 1.5 0 0 1 3 0V15a7 7 0 0 1-12.9 3.8L2.4 13a1.6 1.6 0 0 1 2.6-1.8L7 13.5z"/></svg><span>Sign language</span><em>PROPOSED</em></button>
+    <button class="act prop-btn" id="listen-btn" type="button" aria-pressed="false" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z"/></svg><span id="listen-label">Listen</span><em>PROPOSED</em></button>
+  </div>
+</nav>
 
 <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
 <script>
 (() => {
   'use strict';
+  // ── Feed and rules ──
   const LAYER = 'https://services9.arcgis.com/RHVPKKiFTONKtxq3/arcgis/rest/services/CAP_Alerts_Feed/FeatureServer/0/query';
-  const COUNTRIES = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json';
+  const LAND = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json';
   const RECHECK_MS = 2 * 60 * 1000;
   const SEV_ORDER = { Extreme: 4, Severe: 3, Moderate: 2, Minor: 1, Unknown: 0 };
-  const SEV_COLOR = { Extreme: '#ff1744', Severe: '#ff6d00', Moderate: '#ffc400', Minor: '#4caf50', Unknown: '#607080' };
-  const INK = { Extreme: '#ffffff', Severe: '#0a0d14', Moderate: '#0a0d14', Minor: '#0a0d14', Unknown: '#ffffff' };
+  // Demo rule 7a: CAP24 default colours from severity (no green); authority level colours shown as sent
+  const SEV_COLOR = { Extreme: '#ff1744', Severe: '#ff1744', Moderate: '#ffc400', Minor: '#ffc400', Unknown: '#607080' };
+  const SEV_INK = { Extreme: '#ffffff', Severe: '#ffffff', Moderate: '#171200', Minor: '#171200', Unknown: '#ffffff' };
   const LEVEL_COLORS = { green: '#4caf50', yellow: '#ffc400', orange: '#ff6d00', red: '#ff1744' };
+  const LEVEL_INK = { green: '#071509', yellow: '#171200', orange: '#170900', red: '#ffffff' };
   const sevOf = s => (s in SEV_ORDER ? s : 'Unknown');
-  const app = document.getElementById('app');
+  const sevLabel = s => (s === 'Unknown' ? 'Severity unknown' : s);
 
+  const RESPONSE_ICONS = {
+    Shelter: '<path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>',
+    Evacuate: '<path d="M13.5 5.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM9.8 8.9 7 23h2.1l1.8-8 2.1 2v6h2v-7.5l-2.1-2 .6-3A7.3 7.3 0 0 0 19 13v-2a5 5 0 0 1-4.3-2.4l-1-1.6a2 2 0 0 0-1.7-1c-.3 0-.5.1-.8.1L6 8.3V13h2V9.6z"/>',
+    Prepare: '<path d="M19 3h-4.2A3 3 0 0 0 12 1a3 3 0 0 0-2.8 2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm-7 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm-2 14-4-4 1.4-1.4L10 14.2l6.6-6.6L18 9z"/>',
+    Monitor: '<path d="M12 4.5C7 4.5 2.7 7.6 1 12c1.7 4.4 6 7.5 11 7.5s9.3-3.1 11-7.5c-1.7-4.4-6-7.5-11-7.5zM12 17a5 5 0 1 1 0-10 5 5 0 0 1 0 10zm0-8a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/>',
+    Avoid: '<path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM4 12a8 8 0 0 1 12.9-6.3L5.7 16.9A8 8 0 0 1 4 12zm8 8a8 8 0 0 1-4.9-1.7L18.3 7.1A8 8 0 0 1 12 20z"/>',
+    _generic: '<path d="M12 2 1 21h22zm1 16h-2v-2h2zm0-4h-2v-4h2z"/>'
+  };
+  const HAZARD_GLYPHS = {
+    wind: '<path d="M3 8h10a3 3 0 1 0-3-3h2a1 1 0 1 1 1 1H3zm0 4h15a3 3 0 1 1-3 3h2a1 1 0 1 0 1-1H3zm0 4h7v2H3z"/>',
+    rain: '<path d="M19.4 8A7.5 7.5 0 0 0 5.4 6 6 6 0 0 0 6 18h13a5 5 0 0 0 .4-10zM8 20l-1 3h2l1-3zm4 0-1 3h2l1-3zm4 0-1 3h2l1-3z"/>',
+    thunderstorm: '<path d="M19.4 8A7.5 7.5 0 0 0 5.4 6 6 6 0 0 0 6 18h3l2-4H9l3-6v4h2l-3 6h8a5 5 0 0 0 .4-10z"/>',
+    met: '<path d="M19.4 10A7.5 7.5 0 0 0 5.4 8 6 6 0 0 0 6 20h13a5 5 0 0 0 .4-10z"/>',
+    _generic: '<path d="M12 2 1 21h22zm1 16h-2v-2h2zm0-4h-2v-4h2z"/>'
+  };
+  HAZARD_GLYPHS.flooding = HAZARD_GLYPHS['rain-flood'] = HAZARD_GLYPHS.rain;
+
+  // Signed summary: one clip slot per fixed code, never the free text (same codes as the TV view)
+  const SIGN_CODES = {
+    level: { yellow: 'YELLOW WARNING', orange: 'ORANGE WARNING', red: 'RED WARNING', green: 'GREEN LEVEL' },
+    severity: { Extreme: 'EXTREME', Severe: 'SEVERE', Moderate: 'MODERATE', Minor: 'MINOR', Unknown: 'SEVERITY UNKNOWN' },
+    hazard: { 'wind': 'STRONG WIND', 'rain': 'HEAVY RAIN', 'thunderstorm': 'THUNDERSTORM', 'flooding': 'FLOOD', 'rain-flood': 'RAIN AND FLOOD',
+              'snow-ice': 'SNOW AND ICE', 'coastalevent': 'COASTAL EVENT', 'fog': 'FOG', 'high-temperature': 'HEAT',
+              'low-temperature': 'COLD', 'forest-fire': 'FOREST FIRE', 'avalanches': 'AVALANCHE' },
+    resp: { Shelter: 'TAKE SHELTER', Evacuate: 'EVACUATE', Prepare: 'PREPARE', Avoid: 'AVOID THE AREA', Monitor: 'FOLLOW UPDATES',
+            Execute: 'ACT NOW', Assess: 'CHECK INFORMATION', AllClear: 'ALL CLEAR', None: 'NO ACTION' }
+  };
+  const SIGN_LANG = { ee: 'Eesti viipekeel · Estonian Sign Language', ge: 'ქართული ჟესტური ენა · Georgian Sign Language',
+                      no: 'Norsk tegnspråk · Norwegian Sign Language', gb: 'BSL · British Sign Language' };
+  // Recorded clips would go here, keyed by sign language and field:code. Empty: no clip is recorded or approved yet.
+  const SIGN_CLIPS = {};
+  const CLIP_MS = 2600;
+  const FIGURE = '<svg class="figure" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="12" r="6"/><path d="M12 44V30a12 12 0 0 1 24 0v14M14 30l-6-8M34 30l6-8"/></svg>';
+
+  // ── Helpers ──
+  const $ = i => document.getElementById(i);
+  const setText = (i, v) => { $(i).textContent = v; };
   const el = (tag, attrs = {}, text) => {
     const n = document.createElement(tag);
     for (const [k, v] of Object.entries(attrs)) { if (k === 'class') n.className = v; else n.setAttribute(k, v); }
     if (text != null) n.textContent = text;
     return n;
   };
+  const p2 = n => String(n).padStart(2, '0');
   const fmtTime = ms => {
     if (ms == null || isNaN(ms)) return '—';
     const d = new Date(ms);
-    const m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getUTCMonth()];
-    const p = n => String(n).padStart(2, '0');
-    return `${d.getUTCDate()} ${m} ${d.getUTCFullYear()}, ${p(d.getUTCHours())}:${p(d.getUTCMinutes())} UTC`;
+    return `${p2(d.getUTCHours())}:${p2(d.getUTCMinutes())} UTC, ${d.getUTCDate()} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getUTCMonth()]} ${d.getUTCFullYear()}`;
   };
-  const safeUrl = u => { try { const x = new URL(u); return (x.protocol === 'https:' || x.protocol === 'http:') ? x.href : null; } catch (e) { return null; } };
+  const safeUrl = u => { try { const x = new URL(String(u).trim()); return (x.protocol === 'https:' || x.protocol === 'http:') ? x.href : null; } catch (e) { return null; } };
   const sqlStr = s => "'" + String(s).replace(/'/g, "''") + "'";
   const parseList = v => { try { const x = JSON.parse(v); return Array.isArray(x) ? x : []; } catch (e) { return []; } };
   const parseParams = v => { try { return JSON.parse(v) || {}; } catch (e) { return {}; } };
+  // The layer flattens <resource> blocks into one string with repeated keys, so read mimeType/uri pairs in order
+  const parseResources = v => {
+    const out = [], re = /"mimeType"\s*:\s*"([^"]*)"\s*,\s*"uri"\s*:\s*"([^"]*)"/g; let m;
+    while ((m = re.exec(String(v || '')))) out.push({ mimeType: m[1], uri: m[2] });
+    return out;
+  };
+  const regionName = (() => {
+    let dn = null;
+    try { dn = new Intl.DisplayNames(['en'], { type: 'region' }); } catch (e) { /* older browsers */ }
+    return cc => { if (!cc) return ''; try { return (dn && dn.of(String(cc).toUpperCase())) || String(cc).toUpperCase(); } catch (e) { return String(cc).toUpperCase(); } };
+  })();
+  const langName = (() => {
+    let dn = null;
+    try { dn = new Intl.DisplayNames(['en'], { type: 'language' }); } catch (e) { /* older browsers */ }
+    return t => { if (!t) return 'this language'; try { const n = dn && dn.of(t); return n && n !== t ? `${n} (${t})` : t; } catch (e) { return t; } };
+  })();
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+  // ── State ──
   const id = new URLSearchParams(location.search).get('id');
-  let landGeo = null;
-  let shown = false;
+  let shown = false, blocks = [], cur = null, curLevelKey = null, areaList = [], areaSel = -1, PROJ = null, here = null, pickMode = false, landGeo = null;
 
   function message(title, text) {
-    app.replaceChildren();
-    const box = el('main');
-    box.append(el('p', { class: 'label' }, title), el('p', {}, text), (() => { const p = el('p'); p.append(el('a', { href: './' }, 'See all current alerts')); return p; })());
-    app.append(box);
+    $('content').hidden = true; $('langs').hidden = true; $('ctl').hidden = true; $('state').hidden = true;
+    const box = el('section', { class: 'msg-box' });
+    const a = el('a', { href: './' }, 'See all current alerts');
+    box.append(el('h1', {}, title), el('p', {}, text), a);
+    const old = document.querySelector('.msg-box'); if (old) old.remove();
+    $('app').append(box);
+    document.title = `${title} — CAP24 demonstration`;
+  }
+  function setState(text, ended) {
+    const s = $('state'); s.hidden = false; s.textContent = text; s.className = 'state' + (ended ? ' ended' : '');
   }
 
+  // ── Load and recheck ──
   async function load() {
     if (!id) { message('No alert selected', 'This page shows one alert at a time. Open it from a CAP24 TV screen or from the alert list.'); return; }
     const params = new URLSearchParams({
       where: `identifier=${sqlStr(id)}`,
-      outFields: 'identifier,infoIndex,areaIndex,language,event,headline,description,instruction,web,senderName,sent,onset,expires,urgency,severity,certainty,areaDesc,msgType,status,responseType,parameter,registerUrl,hubLink,countryCode',
+      outFields: 'identifier,infoIndex,areaIndex,language,event,headline,description,instruction,web,senderName,sent,onset,effective,expires,urgency,severity,certainty,areaDesc,msgType,status,responseType,parameter,resource,registerUrl,hubLink,countryCode',
       returnGeometry: 'true', outSR: '4326', maxAllowableOffset: '0.01', geometryPrecision: '3',
       orderByFields: 'infoIndex,areaIndex', f: 'geojson'
     });
@@ -144,188 +491,433 @@
       feats = j.features || [];
     } catch (e) {
       if (!shown) message('Feed unavailable', 'The alert feed could not be reached. Please try again in a few minutes, and follow your official warning source.');
-      else setState('The feed could not be checked just now. Showing the alert as last loaded.', false);
+      else setState(`The feed could not be checked just now. Showing the alert as last loaded.`, false);
       return;
     }
     const now = Date.now();
     const live = feats.filter(f => !(f.properties.expires != null && f.properties.expires < now));
     if (!live.length) {
       if (!shown) message('No longer active', 'This alert is no longer in the feed. It may have ended or been replaced by a newer message. Check your official warning source.');
-      else setState('This alert is no longer in the feed. It may have ended or been replaced. Check your official warning source.', true);
+      else setState('No longer active: this alert has left the feed. It may have ended or been replaced. Check your official warning source.', true);
       return;
     }
-    if (!shown) render(live);
-    else setState(`Still active in the feed. Checked ${fmtTime(Date.now())}.`, false);
+    if (!shown) build(live);
+    setState(`Active in the feed. Checked ${fmtTime(Date.now())}.`, false);
   }
 
-  function setState(text, ended) {
-    const s = document.getElementById('state');
-    if (!s) return;
-    s.textContent = text;
-    s.className = 'state' + (ended ? ' ended' : '');
-  }
-
-  function render(feats) {
+  // ── Build: one block per CAP <info>, each with its areas and shapes ──
+  function build(feats) {
     shown = true;
-    // One block per CAP info element, with its areas and shapes
-    const blocks = new Map();
+    const map = new Map();
     for (const f of feats) {
       const p = f.properties, k = p.infoIndex ?? 0;
-      if (!blocks.has(k)) blocks.set(k, { ...p, areas: new Set(), shapes: [] });
-      const b = blocks.get(k);
-      if (p.areaDesc) b.areas.add(p.areaDesc);
-      if (f.geometry) b.shapes.push(f.geometry);
+      if (!map.has(k)) map.set(k, { ...p, areas: new Map() });
+      const b = map.get(k), ak = p.areaIndex ?? 0;
+      if (!b.areas.has(ak)) b.areas.set(ak, { name: p.areaDesc || '', geoms: [] });
+      if (f.geometry) b.areas.get(ak).geoms.push(f.geometry);
     }
-    const list = [...blocks.values()];
-    // Pick the block matching the phone's language (base tag), else the first as published
+    blocks = [...map.values()];
+    // Language choice by the phone's preference list (RFC 4647 lookup on base tags); no translation
     const prefs = (navigator.languages || [navigator.language || 'en']).map(l => l.toLowerCase());
-    let start = 0;
+    let start = 0, match = 'first';
     outer: for (const pref of prefs) {
-      for (let i = 0; i < list.length; i++) {
-        const lang = (list[i].language || '').toLowerCase();
-        if (lang && (lang === pref || lang.split('-')[0] === pref.split('-')[0])) { start = i; break outer; }
+      for (let i = 0; i < blocks.length; i++) {
+        const lang = (blocks[i].language || '').toLowerCase();
+        if (lang === pref) { start = i; match = 'exact'; break outer; }
+        if (lang && lang.split('-')[0] === pref.split('-')[0]) { start = i; match = 'base'; break outer; }
       }
     }
-
-    app.replaceChildren();
-    const band = el('div', { class: 'band' });
-    const state = el('div', { class: 'state', id: 'state', 'aria-live': 'polite' }, `Active in the feed. Checked ${fmtTime(Date.now())}.`);
-    const main = el('main');
-    app.append(band, state, main);
-
-    const langWrap = el('div', { class: 'langs', role: 'group', 'aria-label': 'Language, as published by the authority' });
-    const body = el('div');
-    list.forEach((b, i) => {
-      const bt = el('button', { type: 'button', 'aria-pressed': i === start ? 'true' : 'false' }, b.language || `Version ${i + 1}`);
-      bt.addEventListener('click', () => {
-        langWrap.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', 'false'));
-        bt.setAttribute('aria-pressed', 'true');
-        show(b);
+    const lw = $('langs'); lw.replaceChildren();
+    if (blocks.length > 1) {
+      lw.append(el('span', { class: 'note' }, 'As published in:'));
+      blocks.forEach((b, i) => {
+        const bt = el('button', { type: 'button', 'aria-pressed': String(i === start) }, b.language || `Version ${i + 1}`);
+        bt.onclick = () => { lw.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', 'false')); bt.setAttribute('aria-pressed', 'true'); show(b, 'chosen'); };
+        lw.append(bt);
       });
-      langWrap.append(bt);
-    });
-    if (list.length > 1) main.append(langWrap);
-    main.append(body);
+      lw.hidden = false;
+    }
+    $('content').hidden = false; $('ctl').hidden = false;
+    show(blocks[start], match);
+  }
 
-    function show(b) {
-      const sev = sevOf(b.severity);
-      const prm = parseParams(b.parameter);
-      let color = SEV_COLOR[sev], ink = INK[sev], levelText = sev, scaleOn = sev, scale = 'sev',
-          levSrc = 'Colour from CAP severity. This source declares no level parameter.';
-      if (typeof prm.awareness_level === 'string') {
-        const word = (prm.awareness_level.split(';')[1] || '').trim().toLowerCase();
-        if (LEVEL_COLORS[word]) {
-          color = LEVEL_COLORS[word]; ink = word === 'red' ? '#ffffff' : '#0a0d14';
-          levelText = prm.awareness_level; scaleOn = word; scale = 'level';
-          levSrc = 'Level and colour from the awareness_level parameter, as sent.';
+  // ── Show one <info> block ──
+  function show(b, match) {
+    cur = b; stopListen(); stopSign();
+    const lang = b.language || '';
+    document.querySelectorAll('[dir="auto"]').forEach(n => { if (lang) n.setAttribute('lang', lang); else n.removeAttribute('lang'); });
+    const badge = $('lang-badge'); badge.hidden = !lang;
+    badge.className = 'lang-badge ' + (match === 'chosen' ? 'exact' : match);
+    badge.textContent = `${lang.toUpperCase()} · ${match === 'first' ? 'AS PUBLISHED' : match.toUpperCase()}`;
+    badge.title = 'Info block chosen by language preference. No translation.';
+
+    const sev = sevOf(b.severity), prm = parseParams(b.parameter);
+    let color = SEV_COLOR[sev], ink = SEV_INK[sev], levelKey = null;
+    if (typeof prm.awareness_level === 'string') {
+      const w = (prm.awareness_level.split(';')[1] || '').trim().toLowerCase();
+      if (LEVEL_COLORS[w]) { levelKey = w; color = LEVEL_COLORS[w]; ink = LEVEL_INK[w]; }
+    }
+    curLevelKey = levelKey;
+    const rs = document.documentElement.style; rs.setProperty('--sev', color); rs.setProperty('--sev-ink', ink);
+    document.querySelector('meta[name="theme-color"]').setAttribute('content', color);
+
+    const at = typeof prm.awareness_type === 'string' ? (prm.awareness_type.split(';')[1] || '').trim().toLowerCase() : '';
+    $('hazard').innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${HAZARD_GLYPHS[at] || HAZARD_GLYPHS._generic}</svg>`;
+    setText('event', b.event || 'Alert');
+    if (levelKey) {
+      setText('level-label', 'Warning level');
+      setText('level-name', prm.awareness_level);
+      $('scale').hidden = false;
+      document.querySelectorAll('#scale i').forEach(i => i.classList.toggle('on', i.dataset.k === levelKey));
+      setText('level-why', `Level and colour from the authority's awareness_level parameter, as sent: "${prm.awareness_level}".`);
+    } else {
+      setText('level-label', 'Severity');
+      setText('level-name', sevLabel(sev));
+      $('scale').hidden = true;
+      setText('level-why', 'Colour: CAP24 default for this severity. This source declares no warning level, so no level scale is shown.');
+    }
+    document.title = `${b.event || 'Alert'} — CAP24 demonstration`;
+
+    setText('headline', b.headline || b.event || '—');
+    $('instr-sec').hidden = !b.instruction && !parseList(b.responseType).length;
+    setText('instruction', b.instruction || 'No instruction in this message.');
+    const pic = $('picto'); pic.replaceChildren();
+    parseList(b.responseType).forEach(rt => {
+      const d = el('div', { class: 'pic' });
+      d.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${RESPONSE_ICONS[rt] || RESPONSE_ICONS._generic}</svg>`;
+      const sp = el('span', {}, String(rt).toUpperCase()); sp.append(el('small', {}, 'responseType'));
+      d.append(sp); pic.append(d);
+    });
+
+    areaList = [...b.areas.values()].map(a => ({ name: a.name, polys: toPolys(a.geoms) }));
+    setText('where', areaList.map(a => a.name.trim()).filter(Boolean).join(', ') || '—');
+    const from = b.onset || b.effective;
+    setText('valid', `${from ? fmtTime(from) : 'Now'} → ${b.expires ? fmtTime(b.expires) : 'no end time given'}`);
+    setText('from', b.senderName || '—');
+
+    $('desc-sec').hidden = !b.description;
+    setText('desc', b.description || '');
+    setText('cv-sev', b.severity || '—'); setText('cv-urg', b.urgency || '—'); setText('cv-cert', b.certainty || '—');
+
+    const chips = $('chips'); chips.replaceChildren();
+    if (areaList.length > 1) chips.append(el('button', { class: 'chip all', type: 'button', 'data-i': '-1' }, 'ALL'));
+    areaList.forEach((a, i) => chips.append(el('button', { class: 'chip', type: 'button', 'data-i': String(i), dir: 'auto' }, a.name || `Area ${i + 1}`)));
+    const hasShape = areaList.some(a => a.polys.length);
+    setText('area-src', hasShape ? 'Areas drawn as sent in the alert, simplified for display (about 1 km). Near an edge, go by the area names.' : 'This message has no area shape: read the area names.');
+    drawMap();
+    selectArea(areaList.length === 1 ? 0 : -1);
+
+    setText('sender', b.senderName || '—');
+    setText('country', regionName(b.countryCode) || '—');
+    const link = (i, url, label) => { const dd = $(i); dd.replaceChildren(); const u = safeUrl(url);
+      if (!u) { dd.textContent = 'Not in message'; return; }
+      dd.append(el('a', { href: u, target: '_blank', rel: 'noopener' }, label || u)); };
+    link('web', b.web);
+    link('hub', b.hubLink, 'CAP message on Alert-Hub.org');
+    link('register', b.registerUrl, 'WMO Register of Alerting Authorities');
+    setText('msgtype', [b.status, b.msgType].filter(Boolean).join(' · ') || '—');
+    setText('sent', fmtTime(b.sent)); setText('onset', b.onset ? fmtTime(b.onset) : 'Not in message');
+    setText('expires', b.expires ? fmtTime(b.expires) : 'Not in message');
+    setText('lang', lang || 'Not stated'); setText('ident', b.identifier || '—');
+
+    renderListen();
+    renderSign();
+    if (here) checkPosition(here.la, here.lo, here.acc, here.how); else $('loc-out').hidden = true;
+  }
+
+  // GeoJSON [lon,lat] → polygons of rings in [lat,lon]
+  function toPolys(geoms) {
+    const out = [];
+    const ring = r => r.map(([lo, la]) => [la, lo]);
+    for (const g of geoms) {
+      if (g.type === 'Polygon') out.push(g.coordinates.map(ring));
+      else if (g.type === 'MultiPolygon') g.coordinates.forEach(p => out.push(p.map(ring)));
+    }
+    return out;
+  }
+
+  // ── Map: equirectangular, framed on the alert's areas, coastlines for orientation ──
+  const W = 400, H = 260, PAD = 14;
+  function drawMap() {
+    const svg = $('map');
+    const pts = areaList.flatMap(a => a.polys.flatMap(p => p[0] || []));
+    if (!pts.length) { svg.innerHTML = ''; svg.hidden = true; PROJ = null; return; }
+    svg.hidden = false;
+    // Areas across the antimeridian: shift western longitudes by 360°
+    const lons = pts.map(p => p[1]);
+    const wrap = Math.max(...lons) - Math.min(...lons) > 180;
+    const L = lo => (wrap && lo < 0 ? lo + 360 : lo);
+    const lat0 = pts.reduce((s, p) => s + p[0], 0) / pts.length, k = Math.cos(lat0 * Math.PI / 180);
+    const xs = pts.map(p => L(p[1]) * k), ys = pts.map(p => -p[0]);
+    let minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+    const m = Math.max(0.3, Math.max(maxX - minX, maxY - minY) * 0.15);
+    minX -= m; maxX += m; minY -= m; maxY += m;
+    const s = Math.min((W - 2 * PAD) / (maxX - minX), (H - 2 * PAD) / (maxY - minY));
+    const ox = (W - (maxX - minX) * s) / 2, oy = (H - (maxY - minY) * s) / 2;
+    PROJ = {
+      toXY: (la, lo) => [ox + (L(lo) * k - minX) * s, oy + (-la - minY) * s],
+      fromXY: (x, y) => { const la = -((y - oy) / s + minY); let lo = ((x - ox) / s + minX) / k; if (lo > 180) lo -= 360; return [la, lo]; }
+    };
+    const vx0 = -ox / s + minX, vx1 = (W - ox) / s + minX, vy0 = -oy / s + minY, vy1 = (H - oy) / s + minY;
+    const d = rings => rings.map(r => 'M' + r.map(([la, lo]) => PROJ.toXY(la, lo).map(n => n.toFixed(1)).join(',')).join('L') + 'Z').join('');
+    let g = '';
+    if (landGeo) {
+      for (const f of landGeo.features) {
+        const geo = f.geometry; if (!geo) continue;
+        const polys = geo.type === 'Polygon' ? [geo.coordinates] : geo.type === 'MultiPolygon' ? geo.coordinates : [];
+        for (const p of polys) for (const r of p) {
+          const rr = r.map(([lo, la]) => [la, lo]);
+          const rx = rr.map(q => L(q[1]) * k), ry = rr.map(q => -q[0]);
+          const x0 = Math.min(...rx), x1 = Math.max(...rx), y0 = Math.min(...ry), y1 = Math.max(...ry);
+          if (x1 - x0 > 180 * k || x1 < vx0 || x0 > vx1 || y1 < vy0 || y0 > vy1) continue;
+          g += `<path class="ol" d="${d([rr])}"/>`;
         }
       }
-      document.documentElement.style.setProperty('--sev', color);
-      document.documentElement.style.setProperty('--ink', ink);
-
-      band.replaceChildren();
-      const row = el('div', { class: 'row' });
-      row.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2 1 21h22L12 2zm0 4.3L19.5 19h-15L12 6.3zM11 10v5h2v-5h-2zm0 6v2h2v-2h-2z"/></svg>';
-      const h1 = el('h1', { dir: 'auto' }, b.event || 'Alert');
-      if (b.language) h1.setAttribute('lang', b.language);
-      row.append(h1);
-      band.append(row, el('span', { class: 'sev' }, sev));
-      document.title = `${b.event || 'Alert'} — CAP24 demonstration`;
-
-      body.replaceChildren();
-      const verb = (tag, text, cls) => {
-        const n = el(tag, { class: cls || 'verb', dir: 'auto' }, text);
-        if (b.language) n.setAttribute('lang', b.language);
-        return n;
-      };
-      if (b.headline) body.append(el('p', { class: 'label' }, 'Headline'), verb('p', b.headline, 'headline'));
-      body.append(el('div', { class: 'sender' }, b.senderName || ''));
-
-      const lv = el('div', { class: 'level' });
-      lv.append(el('div', { class: 'label', style: 'margin-top:0' }, 'Warning level'), el('div', { class: 'lv' }, levelText));
-      const sc = el('div', { class: 'scale', 'aria-hidden': 'true' });
-      const steps = scale === 'level' ? ['green', 'yellow', 'orange', 'red'] : ['Minor', 'Moderate', 'Severe', 'Extreme'];
-      for (const st of steps) {
-        const d = el('div', { style: `background:${scale === 'level' ? LEVEL_COLORS[st] : SEV_COLOR[st]}` });
-        if (st === scaleOn) d.className = 'on';
-        sc.append(d);
-      }
-      const trip = el('div', { class: 'trip' });
-      for (const [k, v] of [['Severity', b.severity], ['Urgency', b.urgency], ['Certainty', b.certainty]]) {
-        const s = el('div'); s.append(el('em', {}, k), document.createTextNode(v || '—')); trip.append(s);
-      }
-      lv.append(sc, trip, el('div', { class: 'levsrc' }, levSrc));
-      body.append(lv);
-
-      if (b.instruction) body.append(el('p', { class: 'label' }, 'Instruction'), verb('p', b.instruction, 'verb instr'));
-      const rts = parseList(b.responseType);
-      if (rts.length) {
-        const c = el('div', { class: 'chips' });
-        for (const r of rts) c.append(el('span', { class: 'chip' }, r));
-        body.append(el('p', { class: 'label' }, 'Response (CAP responseType)'), c);
-      }
-      if (b.description) body.append(el('p', { class: 'label' }, 'Description'), verb('p', b.description));
-
-      body.append(el('p', { class: 'label' }, 'Area'), verb('p', [...b.areas].join('\n')));
-      const mapBox = el('div', { class: 'map' });
-      body.append(mapBox, el('div', { class: 'small' }, 'Area as sent in the alert, simplified for display.'));
-      drawMap(mapBox, b.shapes, color);
-
-      const facts = el('dl', { class: 'facts' });
-      const add = (k, v) => { if (v) facts.append(el('dt', {}, k), el('dd', {}, v)); };
-      add('Message', [b.status, b.msgType].filter(Boolean).join(' · '));
-      add('Sent', fmtTime(b.sent));
-      if (b.onset) add('Onset', fmtTime(b.onset));
-      add('Expires', b.expires ? fmtTime(b.expires) : 'Not stated');
-      add('Language', b.language);
-      body.append(el('p', { class: 'label' }, 'Message details'), facts);
-
-      const follow = el('div', { class: 'follow' });
-      follow.append(document.createTextNode(`Follow your official warning source: ${b.senderName || 'the issuing authority'}.`));
-      body.append(follow);
-      const links = el('div', { class: 'links' });
-      const addLink = (label, url) => { const u = safeUrl(url); if (u) links.append(el('a', { href: u, rel: 'noopener', target: '_blank' }, label)); };
-      addLink('Authority’s page for this alert', b.web);
-      addLink('Original CAP message (Alert-Hub)', b.hubLink);
-      addLink('Authority in the WMO Register of Alerting Authorities', b.registerUrl);
-      if (links.childNodes.length) body.append(links);
     }
-    show(list[start]);
+    g += areaList.map((a, i) => a.polys.length ? `<path class="af" data-i="${i}" fill-rule="evenodd" d="${d(a.polys.flat())}"/>` : '').join('');
+    svg.innerHTML = g;
+    selectArea(areaSel);
+    drawHere();
+    if (!landGeo && window.topojson) {
+      fetch(LAND).then(r => r.json()).then(t => { landGeo = topojson.feature(t, t.objects.countries); drawMap(); }).catch(() => {});
+      landGeo = { features: [] };   // fetch once
+    }
+  }
+  function selectArea(i) {
+    areaSel = i;
+    document.querySelectorAll('#map .af').forEach(p => { const j = +p.dataset.i; p.classList.toggle('on', j === i); p.classList.toggle('dim', i >= 0 && j !== i); });
+    document.querySelectorAll('#chips .chip').forEach(c => c.classList.toggle('on', +c.dataset.i === i));
+  }
+  $('chips').addEventListener('click', e => { const b = e.target.closest('.chip'); if (b) selectArea(+b.dataset.i); });
+  function drawHere() {
+    const svg = $('map'); svg.querySelectorAll('.me, .me-ring').forEach(n => n.remove());
+    if (!here || !PROJ) return;
+    const [x, y] = PROJ.toXY(here.la, here.lo);
+    if (x < -20 || x > W + 20 || y < -20 || y > H + 20) return;
+    svg.insertAdjacentHTML('beforeend', `<circle class="me-ring" cx="${x}" cy="${y}" r="11"/><circle class="me" cx="${x}" cy="${y}" r="5"/>`);
   }
 
-  function drawMap(host, shapes, color) {
-    if (!shapes.length) { host.replaceWith(el('p', { class: 'small' }, 'No area outline in this message.')); return; }
-    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-    const walkB = c => { if (typeof c[0] === 'number') { x0 = Math.min(x0, c[0]); x1 = Math.max(x1, c[0]); y0 = Math.min(y0, c[1]); y1 = Math.max(y1, c[1]); } else c.forEach(walkB); };
-    shapes.forEach(g => walkB(g.coordinates));
-    const minSpan = 3;
-    if (x1 - x0 < minSpan) { const c = (x0 + x1) / 2; x0 = c - minSpan / 2; x1 = c + minSpan / 2; }
-    if (y1 - y0 < minSpan) { const c = (y0 + y1) / 2; y0 = c - minSpan / 2; y1 = c + minSpan / 2; }
-    const px = (x1 - x0) * 0.15, py = (y1 - y0) * 0.15; x0 -= px; x1 += px; y0 -= py; y1 += py;
-    const W = 400, H = 300, kx = Math.cos(((y0 + y1) / 2) * Math.PI / 180);
-    const s = Math.min(W / ((x1 - x0) * kx), H / (y1 - y0));
-    const ox = (W - (x1 - x0) * kx * s) / 2, oy = (H - (y1 - y0) * s) / 2;
-    const P = (lon, lat) => `${(ox + (lon - x0) * kx * s).toFixed(1)},${(oy + (y1 - lat) * s).toFixed(1)}`;
-    const ring = r => 'M' + r.map(c => P(c[0], c[1])).join('L') + 'Z';
-    const gpath = g => g.type === 'Polygon' ? g.coordinates.map(ring).join('') : g.type === 'MultiPolygon' ? g.coordinates.map(pl => pl.map(ring).join('')).join('') : '';
-    const inView = g => { let hit = false; const w = c => { if (hit) return; if (typeof c[0] === 'number') { if (c[0] >= x0 - 5 && c[0] <= x1 + 5 && c[1] >= y0 - 5 && c[1] <= y1 + 5) hit = true; } else c.forEach(w); }; if (g && g.coordinates) w(g.coordinates); return hit; };
-    const NS = 'http://www.w3.org/2000/svg';
-    const draw = () => {
-      const svg = document.createElementNS(NS, 'svg');
-      svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('role', 'img'); svg.setAttribute('aria-label', 'Map of the alert area');
-      const add = (d, fill, stroke, op, sw) => { const p = document.createElementNS(NS, 'path'); p.setAttribute('d', d); p.setAttribute('fill', fill); p.setAttribute('stroke', stroke); p.setAttribute('fill-opacity', op); p.setAttribute('stroke-width', sw); p.setAttribute('stroke-linejoin', 'round'); svg.append(p); };
-      if (landGeo) for (const f of landGeo.features) if (inView(f.geometry)) add(gpath(f.geometry), '#16233a', '#2b3d5c', 1, 0.8);
-      for (const g of shapes) add(gpath(g), color, color, 0.5, 1.5);
-      host.replaceChildren(svg);
+  // ── Am I in this area? Computed on the phone; the position is never sent ──
+  function pointInRing(la, lo, ring) {
+    let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const [ya, xa] = ring[i], [yb, xb] = ring[j];
+      if ((ya > la) !== (yb > la) && lo < (xb - xa) * (la - ya) / (yb - ya) + xa) inside = !inside;
+    }
+    return inside;
+  }
+  const inPoly = (la, lo, poly) => poly.reduce((acc, r) => (pointInRing(la, lo, r) ? !acc : acc), false);   // holes subtract
+  function kmToRing(la, lo, ring) {
+    const k = Math.cos(la * Math.PI / 180), KM = 111.32; let best = Infinity;
+    for (let i = 0; i < ring.length - 1; i++) {
+      const ax = (ring[i][1] - lo) * k * KM, ay = (ring[i][0] - la) * KM, bx = (ring[i + 1][1] - lo) * k * KM, by = (ring[i + 1][0] - la) * KM;
+      const dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy, t = L2 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / L2)) : 0;
+      best = Math.min(best, Math.hypot(ax + t * dx, ay + t * dy));
+    }
+    return best;
+  }
+  function checkPosition(la, lo, accKm, how) {
+    here = { la, lo, acc: accKm, how };
+    const out = $('loc-out'); out.hidden = false; out.className = 'loc-out';
+    const idx = areaList.findIndex(a => a.polys.some(p => inPoly(la, lo, p)));
+    let near = null;
+    areaList.forEach((a, i) => a.polys.forEach(p => p.forEach(r => { const d = kmToRing(la, lo, r); if (!near || d < near.d) near = { i, d }; })));
+    const edge = Math.max(5, accKm || 0), nm = i => (areaList[i].name || `area ${i + 1}`).trim();
+    const act = cur && cur.instruction ? 'Follow the instruction above.' : 'Read the alert above and follow your official warning source.';
+    let msg;
+    if (idx >= 0) { out.classList.add('in'); msg = `You are inside the warning area: ${nm(idx)}. ${act}`; selectArea(idx); }
+    else if (near && near.d < edge) { out.classList.add('near'); msg = `You are near the warning area, about ${Math.max(1, Math.round(near.d))} km from ${nm(near.i)}. ${act}`; selectArea(near.i); }
+    else if (near) { msg = `Your position is outside the areas in this warning. The nearest is ${nm(near.i)}, about ${Math.round(near.d).toLocaleString('en')} km away. Conditions can change: keep following official updates.`; selectArea(-1); }
+    else msg = 'This warning has no map area, so your position cannot be checked. Read the area names above.';
+    out.textContent = msg;
+    out.append(el('small', {}, how === 'gps' ? 'Position from this phone. It stays on this phone and is not sent anywhere.' : 'Position you tapped on the map. It stays on this phone.'));
+    drawHere();
+  }
+  $('loc-btn').onclick = () => {
+    const pick = why => {
+      if (!PROJ) { const o = $('loc-out'); o.hidden = false; o.className = 'loc-out'; o.textContent = why + ' This warning has no map area: read the area names above.'; return; }
+      pickMode = true; $('map').classList.add('pick'); const o = $('loc-out'); o.hidden = false; o.className = 'loc-out';
+      o.textContent = why + ' Tap where you are on the map below.'; $('map').scrollIntoView({ block: 'center' });
     };
-    draw();
-    if (!landGeo) {
-      fetch(COUNTRIES).then(r => r.json()).then(t => { landGeo = topojson.feature(t, t.objects.countries); if (host.isConnected) draw(); }).catch(() => {});
-    }
+    if (!('geolocation' in navigator)) { pick('Location is not available on this device.'); return; }
+    setText('loc-label', 'Finding your position…');
+    navigator.geolocation.getCurrentPosition(
+      p => { setText('loc-label', 'Check again'); checkPosition(p.coords.latitude, p.coords.longitude, (p.coords.accuracy || 0) / 1000, 'gps'); },
+      () => { setText('loc-label', 'Am I in this area?'); pick('Location is off or not allowed.'); },
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 });
+  };
+  $('map').addEventListener('click', e => {
+    if (!pickMode || !PROJ) return;
+    const svg = $('map'), pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
+    const q = pt.matrixTransform(svg.getScreenCTM().inverse());
+    const [la, lo] = PROJ.fromXY(q.x, q.y);
+    pickMode = false; svg.classList.remove('pick');
+    checkPosition(la, lo, 0, 'tap'); $('loc-out').scrollIntoView({ block: 'center' });
+  });
+  $('notify-btn').onclick = () => { const i = $('notify-info'), open = i.hidden; i.hidden = !open; $('notify-btn').setAttribute('aria-expanded', String(open)); };
+
+  // ── Spoken output (demo rule 4b): authority recording → approved clips (none yet) → this phone's voice ──
+  const VOICE_BASE = { no: ['no', 'nb', 'nn'], nb: ['no', 'nb', 'nn'], nn: ['no', 'nb', 'nn'] };   // voice choice only; the text is unchanged
+  function voiceFor(lang) {
+    try { if (!lang) return null; const base = lang.split('-')[0].toLowerCase(), ok = VOICE_BASE[base] || [base];
+      return speechSynthesis.getVoices().find(v => v.lang && ok.includes(v.lang.toLowerCase().split(/[-_]/)[0])) || null; }
+    catch (e) { return null; }
   }
+  function audioPlan(b) {
+    const res = parseResources(b.resource).find(r => /^audio\//i.test(r.mimeType) && safeUrl(r.uri));
+    if (res) return { kind: 'resource', uri: safeUrl(res.uri) };
+    const v = 'speechSynthesis' in window ? voiceFor(b.language) : null;
+    const text = [b.headline, b.instruction].filter(Boolean).join('. ');
+    if (v && text) return { kind: 'voice', voice: v, text };
+    return null;
+  }
+  let listenAudio = null, listening = false;
+  function stopSpeech() { try { speechSynthesis.cancel(); } catch (e) {} }
+  function setListen(on, plan) {
+    listening = on; $('listen-btn').setAttribute('aria-pressed', String(on)); setText('listen-label', on ? 'Stop' : 'Listen');
+    const st = $('listen-status'); st.hidden = !on;
+    if (on) st.textContent = plan.kind === 'resource' ? "Playing the authority's own recording from the alert."
+      : `Reading with this phone's own synthetic voice (${plan.voice.lang}), word for word: headline, then instruction.`;
+  }
+  function stopListen() { if (listenAudio) { listenAudio.pause(); listenAudio = null; } if (listening) stopSpeech(); setListen(false); }
+  $('listen-btn').onclick = () => {
+    if (listening) { stopListen(); return; }
+    const plan = cur && audioPlan(cur); if (!plan) return;
+    stopSign(); setListen(true, plan);
+    if (plan.kind === 'resource') { listenAudio = new Audio(plan.uri); listenAudio.onended = () => setListen(false); listenAudio.play().catch(() => setListen(false)); }
+    else { stopSpeech(); const u = new SpeechSynthesisUtterance(plan.text); u.lang = plan.voice.lang; u.voice = plan.voice; u.onend = u.onerror = () => setListen(false); speechSynthesis.speak(u); }
+  };
+  function renderListen() {
+    if (!cur) return;
+    const plan = audioPlan(cur), hasRes = plan && plan.kind === 'resource';
+    $('listen-btn').hidden = !plan;
+    $('listen-btn').title = !plan ? '' : hasRes ? "PROPOSED. Plays the authority's own recording from the alert."
+      : `PROPOSED. This phone's own synthetic ${plan.voice.lang} voice reads the headline and instruction as written.`;
+    const t1 = $('t1'), t3 = $('t3');
+    t1.textContent = hasRes ? 'Found in this alert. Listen plays it. (Its digest is not checked in this demo.)' : 'None in this alert.';
+    t1.className = 'st' + (hasRes ? ' ok' : '');
+    const lang = langName(cur.language);
+    if (hasRes) { t3.textContent = 'Not needed: the authority recording comes first.'; t3.className = 'st'; }
+    else if (!('speechSynthesis' in window)) { t3.textContent = 'This browser has no speech voices, so the Listen button is hidden.'; t3.className = 'st'; }
+    else if (plan) { t3.textContent = `Available: ${plan.voice.name} (${plan.voice.lang}). Press Listen at the bottom of the screen.`; t3.className = 'st ok'; }
+    else { t3.textContent = `This phone has no voice for ${lang}, so the Listen button is hidden. Read the text above.`; t3.className = 'st'; }
+    updateAudioNote();
+  }
+  try { speechSynthesis.onvoiceschanged = () => { if (!listening && !signPlaying) renderListen(); }; } catch (e) {}
+
+  // ── Signed summary screen (PROPOSED): one clip slot per code, with a ticker of the text as sent ──
+  let signSeq = [], signStep = -1, signTimer = null, signPlaying = false, soundOn = true, signAudio = null, audioDone = true, passDone = false, signLang = '';
+  function buildSignSeq(b) {
+    const sev = sevOf(b.severity), prm = parseParams(b.parameter);
+    const seq = [curLevelKey ? { field: 'level', code: curLevelKey, gloss: SIGN_CODES.level[curLevelKey] || null }
+                             : { field: 'severity', code: sev, gloss: SIGN_CODES.severity[sev] }];
+    const t = typeof prm.awareness_type === 'string' ? (prm.awareness_type.split(';')[1] || '').trim().toLowerCase() : '';
+    seq.push(t && SIGN_CODES.hazard[t] ? { field: 'hazard', code: t, gloss: SIGN_CODES.hazard[t] }
+                                       : { field: 'hazard', code: null, gloss: null, miss: 'No hazard code in this message, so no hazard clip.' });
+    for (const r of parseList(b.responseType)) seq.push({ field: 'responseType', code: r, gloss: SIGN_CODES.resp[r] || null });
+    return seq;
+  }
+  const signLangName = () => { const o = $('sign-lang').selectedOptions[0]; return o ? o.textContent : ''; };
+  function showSignStep(i) {
+    signStep = i; const st = $('stage'), it = signSeq[i];
+    st.replaceChildren();
+    if (!it) { st.insertAdjacentHTML('beforeend', FIGURE); st.append(el('div', { class: 'what' }, `${signSeq.length} clips · ${signLangName()}`), el('div', { class: 'todo' }, 'Press Play to step through the clip slots for this alert.')); }
+    else if (!it.gloss) st.append(el('div', { class: 'what' }, it.miss || `${it.field} = ${it.code}: no clip for this code.`), el('div', { class: 'todo' }, 'Nothing is signed for it. Read the text.'));
+    else {
+      st.insertAdjacentHTML('beforeend', FIGURE);
+      st.append(el('div', { class: 'code' }, it.gloss), el('div', { class: 'what' }, `${it.field} = ${it.code}`),
+        el('div', { class: 'todo' }, signLang === 'none' ? 'No sign language set up for this country yet. Clip not recorded.' : `Clip not recorded yet. To be signed in ${signLangName().split(' · ')[0]} by a Deaf signer.`));
+    }
+    document.querySelectorAll('#seq span').forEach((x, j) => x.classList.toggle('on', j === i));
+  }
+  function setProg(ms) { const bar = $('prog'); bar.style.transition = 'none'; bar.style.width = '0'; if (!ms || reduceMotion) return; void bar.offsetWidth; bar.style.transition = `width ${ms}ms linear`; bar.style.width = '100%'; }
+  function playStep(i) { showSignStep(i); setProg(CLIP_MS); signTimer = setTimeout(advanceSign, CLIP_MS); }
+  function advanceSign() {
+    if (signTimer) { clearTimeout(signTimer); signTimer = null; }
+    const next = signStep + 1;
+    if (next >= signSeq.length) { passDone = true; if (audioDone) { stopSign(); showSignStep(-1); return; } playStep(0); return; }
+    playStep(next);
+  }
+  function startSignAudio() {
+    audioDone = true; if (!soundOn || !cur) return;
+    const plan = audioPlan(cur); if (!plan) return;
+    audioDone = false;
+    const finish = () => { audioDone = true; if (passDone && signPlaying) { stopSign(); showSignStep(-1); } };
+    if (plan.kind === 'resource') { signAudio = new Audio(plan.uri); signAudio.onended = finish; signAudio.play().catch(finish); }
+    else { stopSpeech(); const u = new SpeechSynthesisUtterance(plan.text); u.lang = plan.voice.lang; u.voice = plan.voice; u.onend = u.onerror = finish; speechSynthesis.speak(u); }
+  }
+  function stopSignAudio() { audioDone = true; if (signAudio) { signAudio.pause(); signAudio = null; } stopSpeech(); }
+  const ICON_PLAY = '<path d="M8 5v14l11-7z"/>', ICON_STOP = '<path d="M6 6h12v12H6z"/>',
+    ICON_SOUND = '<path d="M3 9v6h4l5 5V4L7 9zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z"/>',
+    ICON_MUTE = '<path d="M3 9v6h4l5 5V4L7 9zm13.6 3 2.7-2.7-1.4-1.4-2.7 2.7-2.7-2.7-1.4 1.4 2.7 2.7-2.7 2.7 1.4 1.4 2.7-2.7 2.7 2.7 1.4-1.4z"/>';
+  function stopSign() {
+    const was = signPlaying;
+    signPlaying = false; if (signTimer) { clearTimeout(signTimer); signTimer = null; }
+    if (was) stopSignAudio(); setProg(0);
+    $('sign-play').setAttribute('aria-pressed', 'false');
+    $('sign-play').innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${ICON_PLAY}</svg>Play clips and text`;
+  }
+  function updateAudioNote() {
+    const plan = cur ? audioPlan(cur) : null;
+    setText('sign-audio-note', !soundOn ? 'Sound off: clips and ticker only.'
+      : !plan ? `No sound: no recording in the alert, no approved clips yet, and no ${cur ? langName(cur.language) : ''} voice on this phone. Clips and ticker only.`
+      : plan.kind === 'resource' ? "Sound: the authority's own recording from the alert."
+      : `Sound: this phone's own synthetic ${plan.voice.lang} voice reads the headline and instruction word for word. Approved recordings would replace it.`);
+    $('sign-sound').setAttribute('aria-pressed', String(soundOn));
+    $('sign-sound').innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${soundOn ? ICON_SOUND : ICON_MUTE}</svg>${soundOn ? 'Sound on' : 'Sound off'}`;
+  }
+  function renderSign() {
+    stopSign();
+    const cc = String(cur.countryCode || '').toLowerCase(), sel = $('sign-lang');
+    sel.replaceChildren();
+    if (SIGN_LANG[cc]) sel.append(el('option', { value: cc }, SIGN_LANG[cc]));
+    else sel.append(el('option', { value: 'none' }, `National sign language of ${regionName(cc) || 'this country'} · not set up`));
+    if (cc !== 'gb') sel.append(el('option', { value: 'gb' }, 'BSL · British Sign Language (UK example)'));
+    signLang = sel.value;
+    signSeq = buildSignSeq(cur);
+    setText('ss-level', `${curLevelKey ? parseParams(cur.parameter).awareness_level : sevLabel(sevOf(cur.severity))} · ${cur.event || ''}`);
+    const seq = $('seq'); seq.replaceChildren();
+    signSeq.forEach(it => { const sp = el('span', {}, it.gloss ? `${it.field}: ${it.code}` : `${it.field}: —`); if (!it.gloss) sp.classList.add('miss'); seq.append(sp); });
+    setTickerText([cur.headline, cur.instruction].filter(Boolean).join('  ·  '));
+    showSignStep(-1); updateAudioNote();
+  }
+  $('sign-play').onclick = () => {
+    if (signPlaying) { stopSign(); return; }
+    stopListen(); signPlaying = true; passDone = false;
+    $('sign-play').setAttribute('aria-pressed', 'true');
+    $('sign-play').innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${ICON_STOP}</svg>Stop`;
+    if (tk.paused) toggleTicker();
+    startSignAudio(); playStep(0);
+  };
+  $('sign-sound').onclick = () => { soundOn = !soundOn; if (!soundOn) stopSignAudio(); else if (signPlaying) startSignAudio(); updateAudioNote(); };
+  $('sign-lang').onchange = e => { signLang = e.target.value; stopSign(); showSignStep(-1); };
+  let signReturnFocus = null;
+  function openSign() { stopListen(); signReturnFocus = document.activeElement; $('signscreen').hidden = false; document.body.classList.add('ss-open'); tk.x = $('ticker').clientWidth * 0.2; $('sign-close').focus(); }
+  function closeSign() { stopSign(); $('signscreen').hidden = true; document.body.classList.remove('ss-open'); if (signReturnFocus) signReturnFocus.focus(); }
+  $('sign-open').onclick = openSign;
+  $('sign-close').onclick = closeSign;
+  $('signscreen').addEventListener('keydown', e => { if (e.key === 'Escape') closeSign(); });
+
+  // Ticker: moves with requestAnimationFrame, tap to pause; stands still when the phone asks for reduced motion
+  const tk = { x: 0, last: 0, paused: false, speed: 60 };
+  function tickerLoop(t) {
+    const box = $('ticker'), run = $('ticker-run');
+    if (!$('signscreen').hidden && !box.classList.contains('static') && !tk.paused) {
+      const dt = tk.last ? Math.min(0.05, (t - tk.last) / 1000) : 0;
+      tk.x -= tk.speed * dt; if (tk.x < -run.offsetWidth) tk.x = box.clientWidth;
+      run.style.transform = `translateX(${tk.x}px)`;
+    }
+    tk.last = t; requestAnimationFrame(tickerLoop);
+  }
+  function setTickerText(txt) { $('ticker-run').textContent = txt; tk.x = $('ticker').clientWidth * 0.2; }
+  function toggleTicker() { tk.paused = !tk.paused; setText('ticker-hint', tk.paused ? 'Paused. Tap the ticker to resume.' : 'Tap the ticker to pause.'); }
+  $('ticker').addEventListener('click', toggleTicker);
+  $('ticker').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleTicker(); } });
+  if (reduceMotion) { $('ticker').classList.add('static'); setText('ticker-hint', 'This phone is set to reduce motion, so the text stands still.'); }
+  requestAnimationFrame(tickerLoop);
 
   load();
-  setInterval(load, RECHECK_MS);
+  setInterval(() => { if (shown) load(); }, RECHECK_MS);
 })();
 </script>
 </body>
