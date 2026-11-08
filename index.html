@@ -60,7 +60,10 @@
   .map-status { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-family: var(--ff-mono); color: var(--text-dim); font-size: 14px; pointer-events: none; text-align: center; }
 
   .legend { position: absolute; left: 16px; bottom: 16px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 13px; z-index: 2; }
-  .legend .row { display: flex; align-items: center; gap: 8px; margin: 3px 0; }
+  .legend .row { display: flex; align-items: center; gap: 8px; margin: 2px 0; width: 100%; background: none; border: 1px solid transparent; border-radius: 4px; color: var(--text); font: inherit; font-size: 13px; padding: 2px 6px; cursor: pointer; text-align: left; }
+  .legend .row:hover { border-color: var(--border-hi); }
+  .legend .row[aria-pressed="true"] { border-color: var(--neon); background: rgba(0,229,255,0.08); }
+  .legend.filtered .row[aria-pressed="false"] { opacity: 0.45; }
   .sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; flex: none; }
   .sev-Extreme { background: var(--sev-extreme); } .sev-Severe { background: var(--sev-severe); }
   .sev-Moderate { background: var(--sev-moderate); } .sev-Minor { background: var(--sev-minor); }
@@ -210,12 +213,12 @@
   <div class="stage">
     <div id="map" role="region" aria-label="Globe of current official CAP alerts. The alert list next to it carries the same alerts.">
       <div class="map-status" id="mapStatus">Loading globe…</div>
-      <div class="legend" aria-hidden="true">
-        <div class="row"><span class="sw sev-Extreme"></span>Extreme</div>
-        <div class="row"><span class="sw sev-Severe"></span>Severe</div>
-        <div class="row"><span class="sw sev-Moderate"></span>Moderate</div>
-        <div class="row"><span class="sw sev-Minor"></span>Minor</div>
-        <div class="row"><span class="sw sev-Unknown"></span>Unknown</div>
+      <div class="legend" role="group" aria-label="Show one severity on the globe and in the list">
+        <button type="button" class="row" data-sev="Extreme" aria-pressed="false"><span class="sw sev-Extreme"></span>Extreme</button>
+        <button type="button" class="row" data-sev="Severe" aria-pressed="false"><span class="sw sev-Severe"></span>Severe</button>
+        <button type="button" class="row" data-sev="Moderate" aria-pressed="false"><span class="sw sev-Moderate"></span>Moderate</button>
+        <button type="button" class="row" data-sev="Minor" aria-pressed="false"><span class="sw sev-Minor"></span>Minor</button>
+        <button type="button" class="row" data-sev="Unknown" aria-pressed="false"><span class="sw sev-Unknown"></span>Unknown</button>
       </div>
     </div>
 
@@ -578,8 +581,41 @@
     ul.append(frag);
     document.getElementById('listCount').textContent =
       shown.length === alerts.length ? `${alerts.length} alerts` : `${shown.length} of ${alerts.length} alerts`;
+    applyMapFilter(shown, { fs, fc, q });
+  }
+
+  // The globe shows exactly what the list shows
+  let lastCountry = '';
+  function applyMapFilter(shown, f) {
+    // legend reflects the severity filter
+    const legend = document.querySelector('.legend');
+    legend.classList.toggle('filtered', !!f.fs);
+    legend.querySelectorAll('button[data-sev]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.sev === f.fs)));
+    if (!mapReady) return;
+    let filter = null;
+    if (f.q) filter = ['in', ['get', '_key'], ['literal', shown.map(a => a.key)]];
+    else {
+      const parts = [];
+      if (f.fs) parts.push(['==', ['get', '_sev'], f.fs]);
+      if (f.fc) parts.push(['==', ['get', 'countryCode'], f.fc]);
+      if (parts.length) filter = parts.length === 1 ? parts[0] : ['all', ...parts];
+    }
+    map.setFilter('alert-fill', filter);
+    map.setFilter('alert-line', filter);
+    // choosing a country zooms to its alerts
+    if (f.fc && f.fc !== lastCountry && shown.length) {
+      let b = null;
+      for (const a of shown) if (a.bbox) b = b ? [Math.min(b[0], a.bbox[0]), Math.min(b[1], a.bbox[1]), Math.max(b[2], a.bbox[2]), Math.max(b[3], a.bbox[3])] : a.bbox.slice();
+      if (b) { stopSpin(); map.stop(); map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: 50, maxZoom: 6, duration: 1200 }); }
+    }
+    lastCountry = f.fc;
   }
   ['q', 'fSev', 'fCountry'].forEach(id => document.getElementById(id).addEventListener('input', renderList));
+  document.querySelectorAll('.legend button[data-sev]').forEach(b => b.addEventListener('click', () => {
+    const sel = document.getElementById('fSev');
+    sel.value = sel.value === b.dataset.sev ? '' : b.dataset.sev;
+    renderList();
+  }));
 
   // ---- Globe -------------------------------------------------------------
   // Country outlines for the TV view map (1:50m, more detail than the globe fallback)
@@ -669,6 +705,7 @@
       mapReady = true;
       document.getElementById('mapStatus').textContent = '';
       if (pendingGeo) { map.getSource('alerts').setData(pendingGeo); pendingGeo = null; }
+      if (alerts.length) renderList();
       if (pendingFly) { const k = pendingFly; pendingFly = null; highlight(k); flyTo(k); }
       else if (!reduce) spin();
     });
