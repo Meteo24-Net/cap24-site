@@ -179,6 +179,7 @@ button:focus-visible, select:focus-visible, a:focus-visible { outline:2px solid 
 .ticker { position:relative; overflow:hidden; background:#000; border-top:2px solid var(--sev); border-radius:0 0 4px 4px; min-height:42px; display:flex; align-items:center; cursor:pointer; }
 .ticker .run { display:inline-block; white-space:nowrap; font:600 20px var(--ff-head); color:var(--fg); will-change:transform; padding:8px 0; }
 .ticker.static .run { white-space:normal; padding:8px 10px; }
+.ticker.static.rtl { justify-content:flex-end; }
 .seq { display:flex; gap:6px; flex-wrap:wrap; }
 .seq span { font:11px var(--ff-mono); letter-spacing:.04em; padding:4px 7px; border-radius:3px; border:1px solid var(--line); color:var(--muted); }
 .seq span.on { border-color:var(--sev); color:var(--sev-ink); background:var(--sev); }
@@ -454,7 +455,7 @@ body.ss-open { overflow:hidden; }
   const langName = (() => {
     let dn = null;
     try { dn = new Intl.DisplayNames(['en'], { type: 'language' }); } catch (e) { /* older browsers */ }
-    return t => { if (!t) return 'this language'; try { const n = dn && dn.of(t); return n && n !== t ? `${n} (${t})` : t; } catch (e) { return t; } };
+    return t => { if (!t) return 'this language'; try { const b = t.split('-')[0], n = dn && dn.of(b); return n && n !== b ? `${n} (${t})` : t; } catch (e) { return t; } };   // base language only: authorities sometimes send odd region subtags (e.g. ar-AR)
   })();
   const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -892,24 +893,34 @@ body.ss-open { overflow:hidden; }
   $('sign-sound').onclick = () => { soundOn = !soundOn; if (!soundOn) stopSignAudio(); else if (signPlaying) startSignAudio(); updateAudioNote(); };
   $('sign-lang').onchange = e => { signLang = e.target.value; stopSign(); showSignStep(-1); };
   let signReturnFocus = null;
-  function openSign() { stopListen(); signReturnFocus = document.activeElement; $('signscreen').hidden = false; document.body.classList.add('ss-open'); tk.x = $('ticker').clientWidth * 0.2; $('sign-close').focus(); }
+  function openSign() { stopListen(); signReturnFocus = document.activeElement; $('signscreen').hidden = false; document.body.classList.add('ss-open'); tickerStart(); $('sign-close').focus(); }
   function closeSign() { stopSign(); $('signscreen').hidden = true; document.body.classList.remove('ss-open'); if (signReturnFocus) signReturnFocus.focus(); }
   $('sign-open').onclick = openSign;
   $('sign-close').onclick = closeSign;
   $('signscreen').addEventListener('keydown', e => { if (e.key === 'Escape') closeSign(); });
 
   // Ticker: moves with requestAnimationFrame, tap to pause; stands still when the phone asks for reduced motion
-  const tk = { x: 0, last: 0, paused: false, speed: 60 };
+  const tk = { x: 0, last: 0, paused: false, speed: 60, rtl: false };
   function tickerLoop(t) {
     const box = $('ticker'), run = $('ticker-run');
     if (!$('signscreen').hidden && !box.classList.contains('static') && !tk.paused) {
       const dt = tk.last ? Math.min(0.05, (t - tk.last) / 1000) : 0;
-      tk.x -= tk.speed * dt; if (tk.x < -run.offsetWidth) tk.x = box.clientWidth;
+      // Left-to-right scripts move leftward; right-to-left scripts (Arabic, Hebrew, Persian, Urdu…) move rightward,
+      // so the first words always enter first
+      if (tk.rtl) { tk.x += tk.speed * dt; if (tk.x > box.clientWidth) tk.x = -run.offsetWidth; }
+      else { tk.x -= tk.speed * dt; if (tk.x < -run.offsetWidth) tk.x = box.clientWidth; }
       run.style.transform = `translateX(${tk.x}px)`;
     }
     tk.last = t; requestAnimationFrame(tickerLoop);
   }
-  function setTickerText(txt) { $('ticker-run').textContent = txt; tk.x = $('ticker').clientWidth * 0.2; }
+  function tickerStart() { const box = $('ticker'), run = $('ticker-run'); tk.x = tk.rtl ? box.clientWidth * 0.8 - run.offsetWidth : box.clientWidth * 0.2; }
+  function setTickerText(txt) {
+    const run = $('ticker-run'); run.textContent = txt;
+    if (cur && cur.language) run.setAttribute('lang', cur.language);
+    tk.rtl = getComputedStyle(run).direction === 'rtl';
+    $('ticker').classList.toggle('rtl', tk.rtl);
+    tickerStart();
+  }
   function toggleTicker() { tk.paused = !tk.paused; setText('ticker-hint', tk.paused ? 'Paused. Tap the ticker to resume.' : 'Tap the ticker to pause.'); }
   $('ticker').addEventListener('click', toggleTicker);
   $('ticker').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleTicker(); } });

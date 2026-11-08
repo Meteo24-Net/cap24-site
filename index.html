@@ -197,6 +197,8 @@
   .tv-ticker .tw { overflow: hidden; white-space: nowrap; min-width: 0; }
   .tv-ticker .tt { display: inline-block; font-size: 36px; font-weight: 600; padding-left: 100%; animation: tvTick linear infinite; }
   @keyframes tvTick { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+  /* Right-to-left scripts (Arabic, Hebrew, Persian, Urdu…): the ticker moves left to right, so the first words enter first */
+  .tv-ticker .tt.rtl { animation-direction: reverse; }
   @media (prefers-reduced-motion: reduce) { .tv-ticker .tt { animation: none; padding-left: 0; white-space: normal; font-size: 26px; } }
 
   @media (max-width: 860px) {
@@ -269,7 +271,7 @@
   <section class="about" id="about">
     <h2>What you are looking at</h2>
     <p>Alerting authorities around the world already publish their warnings in CAP, the international standard for public alerts (OASIS CAP 1.2, ITU-T X.1303). CAP24 relays such alerts verbatim to broadcast, IPTV and phone screens, under the approval of each country's authorities and as part of its national warning system. This page shows the alerts as published. AI never creates, translates or changes alert content.</p>
-    <p>Open any alert and choose <em>View as TV overlay</em> to see it fill a broadcast screen. Coming next: the same alert on a phone reached by QR code, and in a visual-only view for deaf viewers.</p>
+    <p>Open any alert and choose <em>View as TV overlay</em> to see it fill a broadcast screen. Its QR code opens the same alert on a phone (or choose <em>Open phone view</em>). Both show a proposed signed summary for deaf viewers, with clip slots that are placeholders until recorded and approved.</p>
   </section>
 </main>
 
@@ -1084,6 +1086,8 @@
     if (b.instruction) {
       ticker.style.visibility = '';
       instr.textContent = b.instruction;
+      if (b.language) instr.setAttribute('lang', b.language); else instr.removeAttribute('lang');
+      instr.classList.toggle('rtl', getComputedStyle(instr).direction === 'rtl');
       instr.style.animationDuration = Math.max(12, Math.round((b.instruction.length * 18 + 1500) / 160)) + 's';
     } else {
       ticker.style.visibility = 'hidden';
