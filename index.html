@@ -270,6 +270,7 @@
   let lastGood = null;
   let map = null, mapReady = false, pendingGeo = null;
   let spinning = true;
+  let pendingFly = null;   // alert chosen before the globe finished loading
   const stopSpin = () => { spinning = false; };
 
   // ---- Data --------------------------------------------------------------
@@ -491,7 +492,8 @@
       mapReady = true;
       document.getElementById('mapStatus').textContent = '';
       if (pendingGeo) { map.getSource('alerts').setData(pendingGeo); pendingGeo = null; }
-      if (!reduce) spin();
+      if (pendingFly) { const k = pendingFly; pendingFly = null; highlight(k); flyTo(k); }
+      else if (!reduce) spin();
     });
 
     // Hover and click
@@ -546,6 +548,15 @@
     for (const id of highlighted) map.setFeatureState({ source: 'alerts', id }, { sel: true });
   }
 
+  function flyTo(key) {
+    const a = byKey.get(key);
+    if (!a || !a.bbox || !mapReady) return;
+    map.stop();
+    const wide = window.innerWidth > 860;
+    map.fitBounds([[a.bbox[0], a.bbox[1]], [a.bbox[2], a.bbox[3]]],
+      { padding: { top: 40, bottom: 40, left: 40, right: wide ? 140 : 40 }, maxZoom: 5, duration: 1200 });
+  }
+
   // ---- Alert panel -------------------------------------------------------
   const panel = document.getElementById('panel');
   const scrim = document.getElementById('scrim');
@@ -560,12 +571,7 @@
     const btn = document.querySelector(`ul.alerts button[data-key="${CSS.escape(key)}"]`);
     if (btn) btn.setAttribute('aria-current', 'true');
     stopSpin();
-    if (fly && mapReady && a.bbox) {
-      map.stop();
-      const wide = window.innerWidth > 860;
-      map.fitBounds([[a.bbox[0], a.bbox[1]], [a.bbox[2], a.bbox[3]]],
-        { padding: { top: 40, bottom: 40, left: 40, right: wide ? 140 : 40 }, maxZoom: 5, duration: 1200 });
-    }
+    if (fly) { if (mapReady) flyTo(key); else pendingFly = key; }
 
     returnFocus = document.activeElement;
     const sevChip = el('span', { class: 'sev-chip', style: `background:${SEV_COLOR[a.severity]}` }, a.severity);
