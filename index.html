@@ -23,7 +23,7 @@
     --sev-extreme: #ff1744;
     --sev-severe: #ff6d00;
     --sev-moderate: #ffc400;
-    --sev-minor: #00b0ff;
+    --sev-minor: #4caf50;
     --sev-unknown: #607080;
     --ff-body: 'Barlow', 'Noto Sans', 'Noto Sans Georgian', system-ui, sans-serif;
     --ff-head: 'Barlow Condensed', 'Noto Sans', 'Noto Sans Georgian', system-ui, sans-serif;
@@ -118,7 +118,7 @@
   .maplibregl-ctrl-attrib { background: rgba(7,10,16,0.7) !important; color: var(--text-dim); }
   .maplibregl-ctrl-attrib a { color: var(--text-dim); }
 
-  /* ---------- TV view ---------- */
+  /* ---------- TV view (layout of demo v9: full screen, three columns, signed summary PROPOSED) ---------- */
   .view-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 4px 0 6px; }
   .phone-link { display: inline-flex; padding: 8px 14px; border: 1px solid var(--neon); border-radius: 6px; text-decoration: none; font-weight: 600; }
   .open-tv { display: inline-flex; align-items: center; gap: 8px; margin: 0; background: var(--neon); color: #001318; border: 0; border-radius: 6px; padding: 9px 14px; font: inherit; font-weight: 600; cursor: pointer; }
@@ -126,53 +126,78 @@
   .tv-modal.open { display: flex; }
   .tv-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 14px; background: #05070b; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text-dim); }
   .tv-bar button { background: none; border: 1px solid var(--border-hi); color: var(--text); border-radius: 6px; padding: 6px 12px; font: inherit; cursor: pointer; margin-left: 6px; }
-  .tv-fit { flex: 1; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
-  .tv-stage { position: absolute; left: 50%; top: 50%; width: 1920px; height: 1080px; transform-origin: center center; background: #070a10; color: #e8edf8; font-family: var(--ff-body); display: grid; grid-template-rows: 120px 1fr 96px 44px; overflow: hidden; }
-  .tv-head { display: flex; align-items: center; justify-content: space-between; padding: 0 48px; gap: 28px; }
-  .tv-head .l { display: flex; align-items: center; gap: 24px; min-width: 0; }
-  .tv-glyph { width: 74px; height: 74px; flex: none; }
-  .tv-event { font-family: var(--ff-head); font-weight: 700; font-size: 62px; line-height: 1; }
-  .tv-sevbadge { font-family: var(--ff-mono); font-size: 26px; letter-spacing: 0.08em; text-transform: uppercase; padding: 6px 14px; border: 3px solid currentColor; border-radius: 6px; white-space: nowrap; }
-  .tv-clock { font-family: var(--ff-mono); font-size: 40px; text-align: right; line-height: 1.1; }
-  .tv-clock small { display: block; font-size: 20px; opacity: 0.8; }
-  .tv-body { display: grid; grid-template-columns: 560px 1fr 560px; gap: 36px; padding: 32px 48px 24px; min-height: 0; }
-  .tv-col { display: flex; flex-direction: column; gap: 22px; min-height: 0; }
-  .tv-label { font-family: var(--ff-mono); font-size: 20px; letter-spacing: 0.12em; text-transform: uppercase; color: #8fa0bd; }
-  .tv-source { font-size: 26px; }
-  .tv-source b { font-weight: 600; }
-  .tv-headline { font-family: var(--ff-head); font-weight: 600; font-size: 50px; line-height: 1.08; margin: 0; overflow-wrap: anywhere; }
-  .tv-qr { border: 2px solid #22304a; border-radius: 12px; display: grid; grid-template-columns: 220px 1fr; gap: 20px; align-items: center; padding: 16px; color: #b9c4d8; font-size: 22px; line-height: 1.3; flex: none; }
-  .tv-qr .code { background: #fff; padding: 10px; border-radius: 6px; width: 220px; height: 220px; }
-  .tv-qr .code svg { display: block; width: 100%; height: 100%; }
-  .tv-qr b { display: block; font-family: var(--ff-mono); letter-spacing: 0.12em; color: #ffc400; font-size: 20px; margin-bottom: 8px; }
-  .tv-meta { margin-top: auto; display: grid; grid-template-columns: max-content 1fr; gap: 6px 18px; font-size: 19px; color: #b9c4d8; }
-  .tv-meta dt { color: #8fa0bd; }
-  .tv-meta dd { margin: 0; overflow-wrap: anywhere; }
-  .tv-level { border: 3px solid var(--tv-sev); border-radius: 12px; padding: 20px 24px; background: color-mix(in srgb, var(--tv-sev) 12%, transparent); flex: none; }
-  .tv-level .lv { font-family: var(--ff-head); font-weight: 700; font-size: 46px; color: var(--tv-sev); line-height: 1.05; }
-  .tv-scale { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 14px 0 12px; }
-  .tv-scale div { height: 16px; border-radius: 4px; opacity: 0.22; }
-  .tv-scale div.on { opacity: 1; outline: 3px solid #fff; }
-  .tv-trip { display: flex; gap: 36px; font-size: 24px; }
-  .tv-trip em { font-style: normal; color: #8fa0bd; display: block; font-size: 18px; font-family: var(--ff-mono); letter-spacing: 0.08em; text-transform: uppercase; }
-  .tv-levsrc { margin-top: 10px; font-size: 18px; color: #8fa0bd; }
-  .tv-desc { flex: 1; min-height: 0; overflow: hidden; position: relative; }
-  .tv-desc p { margin: 0; font-size: 31px; line-height: 1.35; white-space: pre-wrap; }
+  .tv-fit { flex: 1; position: relative; overflow: hidden; }
+  .tv-stage { --sev-color: #607080; --sev-ink: #fff; position: absolute; left: 50%; top: 50%; width: 1920px; height: 1080px; transform-origin: center center; background: rgba(8,12,20,0.97); color: #e8edf8; font-family: var(--ff-body); display: flex; flex-direction: column; overflow: hidden; }
+  .tv-head { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 0 32px; height: 104px; flex: none; background: var(--sev-color); color: var(--sev-ink); }
+  .tv-head .l { display: flex; align-items: center; gap: 20px; min-width: 0; }
+  .tv-glyph { width: 64px; height: 64px; flex: none; }
+  .tv-event { font-family: var(--ff-head); font-weight: 700; font-size: 58px; line-height: 1; letter-spacing: 0.5px; }
+  .tv-badge { font-family: var(--ff-mono); font-size: 22px; letter-spacing: 0.08em; text-transform: uppercase; padding: 4px 12px; border: 3px solid currentColor; border-radius: 6px; white-space: nowrap; }
+  .tv-lang { font-family: var(--ff-mono); font-size: 18px; padding: 3px 10px; border: 1px solid currentColor; border-radius: 4px; opacity: 0.85; white-space: nowrap; }
+  .tv-clock { font-family: var(--ff-mono); font-size: 38px; text-align: right; line-height: 1.1; white-space: nowrap; }
+  .tv-clock small { display: block; font-size: 18px; opacity: 0.8; }
+  .tv-honesty { display: flex; gap: 24px; align-items: center; padding: 6px 32px; background: #05070c; border-bottom: 1px solid rgba(255,255,255,0.08); font-family: var(--ff-mono); font-size: 15px; letter-spacing: 1px; flex: none; }
+  .tv-honesty .wm { color: #ffc400; white-space: nowrap; }
+  .tv-honesty .prov { color: rgba(255,255,255,0.6); min-width: 0; overflow-wrap: anywhere; }
+  .tv-body { flex: 1; min-height: 0; display: flex; }
+  .tv-main { flex: 1; min-width: 0; padding: 22px 30px 18px; display: flex; flex-direction: column; gap: 16px; overflow: hidden; }
+  .tv-source { font-family: var(--ff-mono); font-size: 18px; letter-spacing: 1px; color: #8fa0bd; }
+  .tv-source b { color: #e8edf8; font-family: var(--ff-body); font-size: 22px; letter-spacing: 0; font-weight: 600; }
+  .tv-headline { font-family: var(--ff-head); font-weight: 600; font-size: 40px; line-height: 1.1; margin: 0; overflow-wrap: anywhere; flex: none; }
+  .tv-qrrow { display: flex; gap: 22px; align-items: flex-start; min-height: 0; flex: 1; }
+  .tv-qrleft { width: 210px; flex: none; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
+  .tv-qrleft .code { background: #fff; padding: 10px; border-radius: 6px; width: 210px; height: 210px; }
+  .tv-qrleft .code svg { display: block; width: 100%; height: 100%; }
+  .tv-qrleft .cap { font-family: var(--ff-mono); font-size: 13px; color: #b9c4d8; line-height: 1.35; }
+  .tv-qrleft .cap b { display: block; color: #ffc400; font-size: 15px; letter-spacing: 1px; margin-bottom: 2px; }
+  .tv-qrright { flex: 1; min-width: 0; min-height: 0; height: 100%; display: flex; flex-direction: column; gap: 14px; }
+  .tv-level { border: 2px solid var(--sev-color); border-radius: 8px; padding: 14px 18px; background: color-mix(in srgb, var(--sev-color) 12%, transparent); flex: none; }
+  .tv-level .lbl { font-family: var(--ff-mono); font-size: 15px; letter-spacing: 2px; color: #8fa0bd; }
+  .tv-level .lv { font-family: var(--ff-head); font-weight: 700; font-size: 38px; color: var(--sev-color); line-height: 1.05; }
+  .tv-scale { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 10px 0; }
+  .tv-scale div { height: 12px; border-radius: 3px; opacity: 0.22; }
+  .tv-scale div.on { opacity: 1; outline: 2px solid #fff; }
+  .tv-trip { display: flex; gap: 32px; font-size: 21px; }
+  .tv-trip em { font-style: normal; color: #8fa0bd; display: block; font-size: 13px; font-family: var(--ff-mono); letter-spacing: 1px; text-transform: uppercase; }
+  .tv-levsrc { margin-top: 8px; font-family: var(--ff-mono); font-size: 13px; color: #8fa0bd; }
+  .tv-desc { flex: 1; min-height: 0; overflow: hidden; }
+  .tv-desc p { margin: 0; font-size: 24px; line-height: 1.4; white-space: pre-wrap; overflow-wrap: anywhere; }
   .tv-resp { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; flex: none; }
-  .tv-resp span.chip { font-size: 24px; font-weight: 600; padding: 6px 16px; border: 2px solid #e8edf8; border-radius: 999px; }
-  .tv-map { flex: none; height: 400px; border: 1px solid #22304a; border-radius: 10px; background: #0a1220; overflow: hidden; }
+  .tv-resp .chip { font-size: 20px; font-weight: 600; padding: 5px 14px; border: 2px solid #e8edf8; border-radius: 999px; }
+  .tv-resp .lbl { font-family: var(--ff-mono); font-size: 14px; letter-spacing: 1px; color: #8fa0bd; }
+  .tv-meta { display: grid; grid-template-columns: repeat(4, auto); gap: 4px 28px; justify-content: start; font-size: 16px; color: #b9c4d8; flex: none; }
+  .tv-meta span em { display: block; font-style: normal; font-family: var(--ff-mono); font-size: 12px; letter-spacing: 1px; color: #8fa0bd; text-transform: uppercase; }
+  .tv-ident { font-family: var(--ff-mono); font-size: 12px; color: rgba(255,255,255,0.35); overflow-wrap: anywhere; flex: none; }
+  .tv-loc { width: 520px; flex: none; border-left: 1px solid rgba(255,255,255,0.07); padding: 22px 22px 18px; display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+  .tv-loc .hd { font-family: var(--ff-mono); font-size: 16px; letter-spacing: 2px; color: #8fa0bd; }
+  .tv-map { flex: none; height: 330px; border: 1px solid #22304a; border-radius: 6px; background: #0a1220; overflow: hidden; }
   .tv-map svg { width: 100%; height: 100%; display: block; }
-  .tv-areas { flex: 1; min-height: 0; overflow: hidden; overflow-wrap: anywhere; font-size: 24px; line-height: 1.35; white-space: pre-wrap; }
-  .tv-small { font-size: 16px; color: #8fa0bd; }
-  .tv-ticker { display: grid; grid-template-columns: 250px 1fr; align-items: center; background: #0f1626; border-top: 3px solid var(--tv-sev); min-width: 0; }
-  .tv-ticker .tl { font-family: var(--ff-mono); font-size: 22px; letter-spacing: 0.12em; color: var(--tv-sev); padding-left: 48px; }
+  .tv-small { font-family: var(--ff-mono); font-size: 12px; color: #8fa0bd; }
+  .tv-areas { flex: 1; min-height: 0; overflow: hidden; font-size: 21px; line-height: 1.35; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .tv-sign { width: 360px; flex: none; background: rgba(16,22,36,0.98); border-left: 1px solid rgba(255,255,255,0.07); padding: 18px 20px; display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+  .sign-panel { background: #0b111c; border: 2px solid var(--sev-color); border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .sp-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-family: var(--ff-head); font-weight: 700; font-size: 20px; letter-spacing: 1.5px; color: #fff; }
+  .ptag { font-style: normal; font-family: var(--ff-mono); font-size: 12px; letter-spacing: 1px; font-weight: 400; color: #0b1016; background: #b388ff; padding: 2px 7px; border-radius: 2px; }
+  .sp-lang { font-family: var(--ff-mono); font-size: 13px; color: #81d4fa; letter-spacing: 0.5px; }
+  .sp-stage { position: relative; aspect-ratio: 4 / 5; width: 100%; background: #05080e; border: 1px dashed #3a4c5e; border-radius: 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; padding: 16px; }
+  .sp-stage .figure { width: 72px; height: 72px; fill: none; stroke: #4a5e72; stroke-width: 1.5; }
+  .sp-stage .code { font-family: var(--ff-head); font-weight: 700; font-size: 36px; line-height: 1.05; color: var(--sev-color); letter-spacing: 1px; }
+  .sp-stage .what { font-family: var(--ff-mono); font-size: 14px; color: #fff; }
+  .sp-stage .todo { font-family: var(--ff-mono); font-size: 12px; color: rgba(255,255,255,0.5); max-width: 26ch; }
+  .sp-prog { height: 4px; background: rgba(255,255,255,0.08); }
+  .sp-prog i { display: block; height: 100%; width: 0; background: var(--sev-color); }
+  .sp-seq { display: flex; flex-wrap: wrap; gap: 5px; }
+  .sp-seq span { font-family: var(--ff-mono); font-size: 12px; padding: 3px 7px; border: 1px solid rgba(255,255,255,0.15); border-radius: 3px; color: rgba(255,255,255,0.6); }
+  .sp-seq span.on { background: var(--sev-color); color: var(--sev-ink); border-color: var(--sev-color); }
+  .sp-seq span.miss { border-style: dashed; }
+  .sp-note { font-family: var(--ff-mono); font-size: 11px; line-height: 1.5; color: rgba(255,255,255,0.45); }
+  .tv-ticker { display: grid; grid-template-columns: 230px 1fr; align-items: center; height: 92px; flex: none; background: #0f1626; border-top: 3px solid var(--sev-color); min-width: 0; }
+  .tv-ticker .tl { font-family: var(--ff-mono); font-size: 20px; letter-spacing: 2px; color: var(--sev-color); padding-left: 32px; line-height: 1.2; }
+  .tv-ticker .tl small { display: block; font-size: 13px; color: #8fa0bd; letter-spacing: 1px; }
   .tv-ticker .tw { overflow: hidden; white-space: nowrap; min-width: 0; }
-  .tv-ticker .tt { display: inline-block; font-size: 38px; font-weight: 600; padding-left: 100%; animation: tvTick linear infinite; }
-  .tv-ticker .tt.static { padding-left: 0; animation: none; white-space: normal; font-size: 30px; }
+  .tv-ticker .tt { display: inline-block; font-size: 36px; font-weight: 600; padding-left: 100%; animation: tvTick linear infinite; }
   @keyframes tvTick { from { transform: translateX(0); } to { transform: translateX(-100%); } }
-  .tv-foot { display: flex; justify-content: space-between; align-items: center; padding: 0 48px; background: #05070b; font-family: var(--ff-mono); font-size: 17px; color: #8fa0bd; letter-spacing: 0.04em; }
-  .tv-foot .wm { color: #ffc400; }
-  @media (prefers-reduced-motion: reduce) { .tv-ticker .tt { animation: none; padding-left: 0; white-space: normal; font-size: 30px; } }
+  @media (prefers-reduced-motion: reduce) { .tv-ticker .tt { animation: none; padding-left: 0; white-space: normal; font-size: 26px; } }
 
   @media (max-width: 860px) {
     header.site { padding: 12px 16px; }
@@ -274,48 +299,58 @@
   </div>
   <div class="tv-fit" id="tvFit">
     <div class="tv-stage" id="tvStage">
-      <div class="tv-head" id="tvHead">
+      <div class="tv-head">
         <div class="l">
           <svg class="tv-glyph" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2 1 21h22L12 2zm0 4.3L19.5 19h-15L12 6.3zM11 10v5h2v-5h-2zm0 6v2h2v-2h-2z"/></svg>
           <div class="tv-event" id="tvEvent" dir="auto"></div>
-          <span class="tv-sevbadge" id="tvSev"></span>
+          <span class="tv-badge" id="tvSev"></span>
+          <span class="tv-lang" id="tvLang"></span>
         </div>
         <div class="tv-clock" id="tvClock"></div>
       </div>
+      <div class="tv-honesty"><span class="wm">CAP24 · GMF — DEMONSTRATION · NOT FOR BROADCAST</span><span class="prov">REAL ALERT from a public CAP feed via Alert-Hub.org · text as published, not translated</span></div>
       <div class="tv-body">
-        <div class="tv-col">
-          <div class="tv-source"><span class="tv-label">Source</span><br><b id="tvSender"></b></div>
+        <div class="tv-main">
+          <div class="tv-source">SOURCE: <b id="tvSender"></b></div>
           <h2 class="tv-headline" id="tvHeadline" dir="auto"></h2>
-          <div class="tv-qr" id="tvQr"></div>
-          <dl class="tv-meta" id="tvMeta"></dl>
-        </div>
-        <div class="tv-col">
-          <div class="tv-level">
-            <div class="tv-label">Warning level</div>
-            <div class="lv" id="tvLevel"></div>
-            <div class="tv-scale" id="tvScale"></div>
-            <div class="tv-trip" id="tvTrip"></div>
-            <div class="tv-levsrc" id="tvLevSrc"></div>
+          <div class="tv-qrrow">
+            <div class="tv-qrleft" id="tvQr"></div>
+            <div class="tv-qrright">
+              <div class="tv-level">
+                <div class="lbl">WARNING LEVEL</div>
+                <div class="lv" id="tvLevel"></div>
+                <div class="tv-scale" id="tvScale"></div>
+                <div class="tv-trip" id="tvTrip"></div>
+                <div class="tv-levsrc" id="tvLevSrc"></div>
+              </div>
+              <div class="tv-desc" id="tvDescBox"><p id="tvDesc" dir="auto"></p></div>
+            </div>
           </div>
-          <div class="tv-label">Description</div>
-          <div class="tv-desc" id="tvDescBox"><p id="tvDesc" dir="auto"></p></div>
           <div class="tv-resp" id="tvResp"></div>
+          <div class="tv-meta" id="tvMeta"></div>
+          <div class="tv-ident" id="tvIdent"></div>
         </div>
-        <div class="tv-col">
-          <div class="tv-label">Area</div>
+        <div class="tv-loc">
+          <div class="hd">AFFECTED ZONES</div>
           <div class="tv-map" id="tvMap"></div>
           <div class="tv-small">Area as sent in the alert, simplified for display. Outlines: Natural Earth.</div>
           <div class="tv-areas" id="tvAreas" dir="auto"></div>
         </div>
+        <div class="tv-sign">
+          <div class="sign-panel">
+            <div class="sp-head"><span>SIGNED SUMMARY</span><em class="ptag">PROPOSED</em></div>
+            <div class="sp-lang" id="spLang"></div>
+            <div class="sp-stage" id="spStage" aria-live="off"></div>
+            <div class="sp-prog"><i id="spProg"></i></div>
+            <div class="sp-seq" id="spSeq"></div>
+            <div class="sp-note">One pre-recorded clip per code, never the free text. Placeholders until recorded by Deaf signers and approved by the Deaf association and the alerting authority.</div>
+          </div>
+          <div class="sp-note">Emergency number: not shown. It differs by country and is not part of the CAP feed.</div>
+        </div>
       </div>
       <div class="tv-ticker" id="tvTicker">
-        <div class="tl">INSTRUCTION</div>
-        <div class="tw"><span class="tt" id="tvInstr"></span></div>
-      </div>
-      <div class="tv-foot">
-        <span class="wm">DEMONSTRATION · NOT FOR BROADCAST</span>
-        <span>Real alert from a public CAP feed via Alert-Hub.org · Text as published, not translated</span>
-        <span>CAP24 · Green Media Foundation</span>
+        <div class="tl">INSTRUCTION<small>CAP24</small></div>
+        <div class="tw"><span class="tt" id="tvInstr" dir="auto"></span></div>
       </div>
     </div>
   </div>
@@ -338,7 +373,7 @@
   const PAGE = 2000;
 
   const SEV_ORDER = { Extreme: 4, Severe: 3, Moderate: 2, Minor: 1, Unknown: 0 };
-  const SEV_COLOR = { Extreme: '#ff1744', Severe: '#ff6d00', Moderate: '#ffc400', Minor: '#00b0ff', Unknown: '#607080' };
+  const SEV_COLOR = { Extreme: '#ff1744', Severe: '#ff6d00', Moderate: '#ffc400', Minor: '#4caf50', Unknown: '#607080' };
   const sevOf = s => (s in SEV_ORDER ? s : 'Unknown');
 
   const regionName = (() => {
@@ -901,8 +936,9 @@
   const tv = document.getElementById('tv');
   const tvStage = document.getElementById('tvStage');
   let tvTimer = null, tvScroll = null, tvReturn = null;
-  const INK = { Extreme: '#ffffff', Severe: '#0a0d14', Moderate: '#0a0d14', Minor: '#0a0d14', Unknown: '#ffffff' };
-  const LEVEL_COLORS = { green: '#2bd47d', yellow: '#ffc400', orange: '#ff6d00', red: '#ff1744' };
+  const LEVEL_COLORS = { green: '#4caf50', yellow: '#ffc400', orange: '#ff6d00', red: '#ff1744' };
+  const LEVEL_INK = { green: '#071509', yellow: '#171200', orange: '#170900', red: '#ffffff', unknown: '#ffffff' };
+  const SEVERITY_TO_LEVEL = { Extreme: 'red', Severe: 'orange', Moderate: 'yellow', Minor: 'green' };
 
   const parseList = v => { try { const x = JSON.parse(v); return Array.isArray(x) ? x : []; } catch (e) { return []; } };
   const parseParams = v => { try { return JSON.parse(v) || {}; } catch (e) { return {}; } };
@@ -913,43 +949,92 @@
     tvStage.style.transform = `translate(-50%, -50%) scale(${k})`;
   }
 
+  // ---- Signed summary (PROPOSED, demo rule 4a): one clip slot per fixed code, never the free text ----
+  const SIGN_CODES = {
+    level: { yellow: 'YELLOW WARNING', orange: 'ORANGE WARNING', red: 'RED WARNING', green: 'GREEN · LOW' },
+    hazard: { 'wind': 'STRONG WIND', 'rain': 'HEAVY RAIN', 'thunderstorm': 'THUNDERSTORM', 'flooding': 'FLOOD', 'rain-flood': 'RAIN AND FLOOD',
+              'snow-ice': 'SNOW AND ICE', 'coastalevent': 'COASTAL EVENT', 'fog': 'FOG', 'high-temperature': 'HEAT',
+              'low-temperature': 'COLD', 'forest-fire': 'FOREST FIRE', 'avalanches': 'AVALANCHE' },
+    resp: { Shelter: 'TAKE SHELTER', Evacuate: 'EVACUATE', Prepare: 'PREPARE', Avoid: 'AVOID THE AREA', Monitor: 'FOLLOW UPDATES',
+            Execute: 'ACT NOW', Assess: 'CHECK INFORMATION', AllClear: 'ALL CLEAR', None: 'NO ACTION' }
+  };
+  const SIGN_LANG = { ee: 'Eesti viipekeel · Estonian Sign Language', ge: 'ქართული ჟესტური ენა · Georgian Sign Language',
+                      no: 'Norsk tegnspråk · Norwegian Sign Language', gb: 'BSL · British Sign Language' };
+  const SIGN_MS = 2600;
+  const SIGN_FIGURE = '<svg class="figure" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="12" r="6"/><path d="M12 44V30a12 12 0 0 1 24 0v14M14 30l-6-8M34 30l6-8"/></svg>';
+  let signSeq = [], signStep = -1, signTimer = null;
+
+  function buildSignSeq(b, levelKey, params) {
+    const seq = [{ field: 'level', code: levelKey, gloss: SIGN_CODES.level[levelKey] || null }];
+    const t = typeof params.awareness_type === 'string' ? (params.awareness_type.split(';')[1] || '').trim().toLowerCase() : '';
+    seq.push(t && SIGN_CODES.hazard[t] ? { field: 'hazard', code: t, gloss: SIGN_CODES.hazard[t] }
+                                       : { field: 'hazard', code: null, gloss: null, miss: 'No hazard code in this message' });
+    for (const r of parseList(b.responseType)) seq.push({ field: 'responseType', code: r, gloss: SIGN_CODES.resp[r] || null });
+    return seq;
+  }
+  function showSignStep(i) {
+    signStep = i;
+    const st = document.getElementById('spStage'), it = signSeq[i];
+    st.replaceChildren();
+    if (!it) return;
+    if (!it.gloss) {
+      st.append(el('div', { class: 'what' }, it.miss || `${it.field} = ${it.code}: no clip for this code`), el('div', { class: 'todo' }, 'Nothing is signed for it.'));
+    } else {
+      st.insertAdjacentHTML('beforeend', SIGN_FIGURE);
+      st.append(el('div', { class: 'code' }, it.gloss), el('div', { class: 'what' }, `${it.field} = ${it.code}`), el('div', { class: 'todo' }, 'Clip not recorded yet'));
+    }
+    document.querySelectorAll('#spSeq span').forEach((x, j) => x.classList.toggle('on', j === i));
+    const bar = document.getElementById('spProg');
+    bar.style.transition = 'none'; bar.style.width = '0'; void bar.offsetWidth;
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) { bar.style.transition = `width ${SIGN_MS}ms linear`; bar.style.width = '100%'; }
+  }
+  function renderSign(a, b, levelKey, params) {
+    clearInterval(signTimer);
+    signSeq = buildSignSeq(b, levelKey, params);
+    const cc = String(a.country || '').toLowerCase();
+    document.getElementById('spLang').textContent = SIGN_LANG[cc] || `National sign language of ${regionName(a.country)} · not set up`;
+    const seq = document.getElementById('spSeq'); seq.replaceChildren();
+    for (const it of signSeq) { const sp = el('span', {}, it.gloss ? `${it.field}: ${it.code}` : `${it.field}: —`); if (!it.gloss) sp.classList.add('miss'); seq.append(sp); }
+    showSignStep(0);
+    signTimer = setInterval(() => showSignStep((signStep + 1) % signSeq.length), SIGN_MS);
+  }
+
   function openTV(a, b) {
     tvReturn = document.activeElement;
     const sev = sevOf(b.severity);
     const params = parseParams(b.parameter);
-    // Level: from a declared awareness_level parameter if the source sends one, else from CAP severity
-    let color = SEV_COLOR[sev], ink = INK[sev], levelText = sev, levSrc = 'Colour from CAP severity. This source declares no level parameter.', scaleOn = null, scale = 'sev';
-    const al = params.awareness_level;
-    if (typeof al === 'string') {
-      const word = (al.split(';')[1] || '').trim().toLowerCase();
-      if (LEVEL_COLORS[word]) {
-        color = LEVEL_COLORS[word]; ink = word === 'red' ? '#ffffff' : '#0a0d14';
-        levelText = al; levSrc = 'Level and colour from the awareness_level parameter, as sent.'; scaleOn = word; scale = 'level';
-      }
+    // Level: from a declared awareness_level parameter if the source sends one, else from CAP severity (as demo v9)
+    let levelKey = SEVERITY_TO_LEVEL[sev] || 'unknown', levelText = sev, scale = 'sev',
+        levSrc = 'Colour from CAP severity. This source declares no level parameter.';
+    if (typeof params.awareness_level === 'string') {
+      const word = (params.awareness_level.split(';')[1] || '').trim().toLowerCase();
+      if (LEVEL_COLORS[word]) { levelKey = word; levelText = params.awareness_level; scale = 'level'; levSrc = 'Level and colour from the awareness_level parameter, as sent.'; }
     }
-    tvStage.style.setProperty('--tv-sev', color);
-    const head = document.getElementById('tvHead');
-    head.style.background = color; head.style.color = ink;
+    const color = LEVEL_COLORS[levelKey] || SEV_COLOR.Unknown, ink = LEVEL_INK[levelKey] || '#ffffff';
+    tvStage.style.setProperty('--sev-color', color);
+    tvStage.style.setProperty('--sev-ink', ink);
 
     const ev = b.event || a.event || '';
     const evEl = document.getElementById('tvEvent');
     evEl.textContent = ev;
-    evEl.style.fontSize = ev.length <= 24 ? '62px' : ev.length <= 44 ? '46px' : '34px';
+    evEl.style.fontSize = ev.length <= 24 ? '58px' : ev.length <= 44 ? '44px' : '32px';
+    if (b.language) evEl.setAttribute('lang', b.language);
     document.getElementById('tvSev').textContent = sev;
+    document.getElementById('tvLang').textContent = b.language || '—';
     document.getElementById('tvSender').textContent = b.senderName || a.sender;
+
     const hl = b.headline || b.event || '';
     const hlEl = document.getElementById('tvHeadline');
     hlEl.textContent = hl;
-    hlEl.style.fontSize = hl.length <= 60 ? '50px' : hl.length <= 110 ? '42px' : hl.length <= 180 ? '34px' : '28px';
-    document.getElementById('tvLevel').textContent = levelText;
+    hlEl.style.fontSize = hl.length <= 70 ? '40px' : hl.length <= 130 ? '34px' : hl.length <= 200 ? '28px' : '24px';
 
+    document.getElementById('tvLevel').textContent = levelText;
     const sc = document.getElementById('tvScale'); sc.replaceChildren();
-    const steps = scale === 'level'
-      ? [['green', LEVEL_COLORS.green], ['yellow', LEVEL_COLORS.yellow], ['orange', LEVEL_COLORS.orange], ['red', LEVEL_COLORS.red]]
-      : [['Minor', SEV_COLOR.Minor], ['Moderate', SEV_COLOR.Moderate], ['Severe', SEV_COLOR.Severe], ['Extreme', SEV_COLOR.Extreme]];
-    for (const [name, c] of steps) {
+    const steps = scale === 'level' ? ['green', 'yellow', 'orange', 'red'] : ['Minor', 'Moderate', 'Severe', 'Extreme'];
+    for (const name of steps) {
+      const c = scale === 'level' ? LEVEL_COLORS[name] : SEV_COLOR[name];
       const d = el('div', { title: name, style: `background:${c}` });
-      if ((scale === 'level' && name === scaleOn) || (scale === 'sev' && name === sev)) d.className = 'on';
+      if ((scale === 'level' && name === levelKey) || (scale === 'sev' && name === sev)) d.className = 'on';
       sc.append(d);
     }
     const trip = document.getElementById('tvTrip'); trip.replaceChildren();
@@ -957,50 +1042,45 @@
       const sp = el('span'); sp.append(el('em', {}, k), document.createTextNode(v || '—')); trip.append(sp);
     }
     document.getElementById('tvLevSrc').textContent = levSrc;
-
     document.getElementById('tvDesc').textContent = b.description || 'No description in this message.';
 
     const resp = document.getElementById('tvResp'); resp.replaceChildren();
     const rts = parseList(b.responseType);
-    if (rts.length) {
-      resp.append(el('span', { class: 'tv-label' }, 'Response'));
-      for (const r of rts) resp.append(el('span', { class: 'chip' }, r));
-    }
+    if (rts.length) { resp.append(el('span', { class: 'lbl' }, 'RESPONSE')); for (const r of rts) resp.append(el('span', { class: 'chip' }, r)); }
+
+    const meta = document.getElementById('tvMeta'); meta.replaceChildren();
+    const addM = (k, v) => { if (!v) return; const sp = el('span'); sp.append(el('em', {}, k), document.createTextNode(v)); meta.append(sp); };
+    addM('CAP msgType', [b.status, b.msgType].filter(Boolean).join(' · '));
+    addM('This message sent', fmtTime(b.sent));
+    addM('Valid (onset → expires)', `${b.onset ? fmtTime(b.onset) : fmtTime(b.effective || b.sent)} → ${b.expires ? fmtTime(b.expires) : 'not stated'}`);
+    if (typeof params.eventEndingTime === 'string') addM('Event expected to end', params.eventEndingTime);
+    document.getElementById('tvIdent').textContent = 'Identifier ' + (a.identifier || '—');
 
     document.getElementById('tvAreas').textContent = [...b.areas].join('\n');
 
-    const meta = document.getElementById('tvMeta'); meta.replaceChildren();
-    const addM = (k, v) => { if (v) meta.append(el('dt', {}, k), el('dd', {}, v)); };
-    addM('Message', [b.status, b.msgType].filter(Boolean).join(' · '));
-    addM('Sent', fmtTime(b.sent));
-    if (b.onset) addM('Onset', fmtTime(b.onset));
-    addM('Expires', b.expires ? fmtTime(b.expires) : 'Not stated');
-    addM('Language', b.language);
+    const qrBox = document.getElementById('tvQr'); qrBox.replaceChildren();
+    const svgQ = a.identifier ? qrSvg(phoneUrl(a.identifier)) : null;
+    if (svgQ) {
+      const code = el('div', { class: 'code' }); code.append(svgQ);
+      const cap = el('div', { class: 'cap' });
+      cap.append(el('b', {}, 'SCAN'), document.createTextNode('Opens this alert on a phone · demonstration page'));
+      qrBox.append(code, cap);
+    } else {
+      qrBox.append(el('div', { class: 'cap' }, 'QR code unavailable for this alert.'));
+    }
 
     const instr = document.getElementById('tvInstr');
     const ticker = document.getElementById('tvTicker');
     if (b.instruction) {
       ticker.style.visibility = '';
       instr.textContent = b.instruction;
-      instr.classList.remove('static');
-      // speed: about 160 px per second at stage scale
-      instr.style.animationDuration = Math.max(12, Math.round((b.instruction.length * 19 + 1500) / 160)) + 's';
+      instr.style.animationDuration = Math.max(12, Math.round((b.instruction.length * 18 + 1500) / 160)) + 's';
     } else {
       ticker.style.visibility = 'hidden';
     }
 
-    const qrBox = document.getElementById('tvQr'); qrBox.replaceChildren();
-    const svgQ = a.identifier ? qrSvg(phoneUrl(a.identifier)) : null;
-    if (svgQ) {
-      const code = el('div', { class: 'code' }); code.append(svgQ);
-      const cap = el('div');
-      cap.append(el('div', { class: 'tv-label', style: 'color:#ffc400' }, 'Demonstration'), document.createTextNode('Scan to open this alert on your phone, in the languages the authority published.'));
-      qrBox.append(code, cap);
-    } else {
-      qrBox.append(el('div', {}, 'QR code unavailable for this alert.'));
-    }
-
     drawTvMap(a, color);
+    renderSign(a, b, levelKey, params);
 
     tv.classList.add('open');
     fitStage();
@@ -1048,7 +1128,7 @@
     if (y1 - y0 < minSpan) { const c = (y0 + y1) / 2; y0 = c - minSpan / 2; y1 = c + minSpan / 2; }
     const padX = (x1 - x0) * 0.15, padY = (y1 - y0) * 0.15;
     x0 -= padX; x1 += padX; y0 -= padY; y1 += padY;
-    const W = 560, H = 400;
+    const W = 476, H = 330;
     const kx = Math.cos(((y0 + y1) / 2) * Math.PI / 180);
     const sx = W / ((x1 - x0) * kx), sy = H / (y1 - y0), s = Math.min(sx, sy);
     const ox = (W - (x1 - x0) * kx * s) / 2, oy = (H - (y1 - y0) * s) / 2;
@@ -1084,7 +1164,7 @@
 
   function closeTV() {
     tv.classList.remove('open');
-    clearInterval(tvTimer); cancelAnimationFrame(tvScroll);
+    clearInterval(tvTimer); clearInterval(signTimer); cancelAnimationFrame(tvScroll);
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     if (tvReturn && tvReturn.focus) tvReturn.focus();
   }
