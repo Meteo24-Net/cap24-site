@@ -604,7 +604,18 @@
 
   const SEV_MATCH = ['match', ['get', '_sev'], 'Extreme', SEV_COLOR.Extreme, 'Severe', SEV_COLOR.Severe, 'Moderate', SEV_COLOR.Moderate, 'Minor', SEV_COLOR.Minor, SEV_COLOR.Unknown];
 
+  // Tint the base map to the CAP24 navy (land, water), keeping its detail
+  function tintBase() {
+    for (const l of (map.getStyle().layers || [])) {
+      try {
+        if (l.type === 'background') map.setPaintProperty(l.id, 'background-color', '#101a2c');
+        else if (l.type === 'fill' && /water|ocean|lake/i.test(l.id)) map.setPaintProperty(l.id, 'fill-color', '#060b15');
+      } catch (e) { /* layer without that property */ }
+    }
+  }
+
   function addAlertLayers() {
+    tintBase();
     // Alerts sit under the base map's place names, so towns stay readable
     const firstLabel = (map.getStyle().layers || []).find(l => l.type === 'symbol');
     const before = firstLabel ? firstLabel.id : undefined;
