@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>CAP24 — Official alerts on every screen (demonstration)</title>
+<meta name="description" content="Demonstration of how official CAP alerts can appear on TV, phone and accessible screens. Not a warning service.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&family=Noto+Sans:wght@400;600&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link href="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.css" rel="stylesheet">
+<style>
+  :root {
+    --bg-base: #070a10;
+    --bg-panel: rgba(8,12,20,0.97);
+    --bg-raised: rgba(16,22,36,0.98);
+    --border: rgba(255,255,255,0.08);
+    --border-hi: rgba(255,255,255,0.18);
+    --text: #e8edf8;
+    --text-dim: #9aa6bd;
+    --neon: #00e5ff;
+    --sev-extreme: #ff1744;
+    --sev-severe: #ff6d00;
+    --sev-moderate: #ffc400;
+    --sev-minor: #00b0ff;
+    --sev-unknown: #607080;
+    --ff-body: 'Barlow', 'Noto Sans', 'Noto Sans Georgian', system-ui, sans-serif;
+    --ff-head: 'Barlow Condensed', 'Noto Sans', 'Noto Sans Georgian', system-ui, sans-serif;
+    --ff-mono: 'Share Tech Mono', monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg-base); color: var(--text); font-family: var(--ff-body); font-size: 16px; line-height: 1.45; }
+  a { color: var(--neon); }
+  a:focus-visible, button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--neon); outline-offset: 2px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* Demonstration banner: always visible */
+  .demo-banner { position: sticky; top: 0; z-index: 50; background: #1a1205; border-bottom: 1px solid #5a4410; color: #ffe3a1; font-size: 14px; padding: 8px 16px; text-align: center; }
+  .demo-banner strong { color: #fff; font-weight: 600; }
+
+  header.site { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 24px; border-bottom: 1px solid var(--border); }
+  .brand { display: flex; align-items: baseline; gap: 12px; }
+  .brand .word { font-family: var(--ff-head); font-weight: 700; font-size: 28px; letter-spacing: 0.04em; }
+  .brand .word span { color: var(--neon); }
+  .brand .tag { font-family: var(--ff-mono); font-size: 12px; color: var(--text-dim); letter-spacing: 0.08em; text-transform: uppercase; }
+  .by { font-size: 13px; color: var(--text-dim); text-align: right; }
+
+  .hero-head { padding: 22px 24px 8px; max-width: 1100px; }
+  .hero-head h1 { font-family: var(--ff-head); font-weight: 600; font-size: clamp(26px, 3.4vw, 40px); line-height: 1.1; margin: 0 0 8px; }
+  .hero-head p { margin: 0; color: var(--text-dim); max-width: 760px; }
+
+  .live-line { font-family: var(--ff-mono); font-size: 13px; color: var(--text-dim); padding: 10px 24px; display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; }
+  .live-line .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--neon); margin-right: 6px; vertical-align: middle; }
+  .live-line .dot.err { background: var(--sev-severe); }
+  .live-line .val { color: var(--text); }
+
+  .stage { display: grid; grid-template-columns: minmax(0, 1fr) 380px; height: calc(100vh - 210px); min-height: 520px; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  #map { position: relative; min-height: 420px; background: radial-gradient(ellipse at center, #0d1626 0%, #070a10 70%); }
+  .map-status { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-family: var(--ff-mono); color: var(--text-dim); font-size: 14px; pointer-events: none; text-align: center; }
+
+  .legend { position: absolute; left: 16px; bottom: 16px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 13px; z-index: 2; }
+  .legend .row { display: flex; align-items: center; gap: 8px; margin: 3px 0; }
+  .sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; flex: none; }
+  .sev-Extreme { background: var(--sev-extreme); } .sev-Severe { background: var(--sev-severe); }
+  .sev-Moderate { background: var(--sev-moderate); } .sev-Minor { background: var(--sev-minor); }
+  .sev-Unknown { background: var(--sev-unknown); }
+
+  aside.list { background: var(--bg-panel); border-left: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; }
+  .list-tools { padding: 12px; border-bottom: 1px solid var(--border); display: grid; gap: 8px; }
+  .list-tools input, .list-tools select { width: 100%; background: var(--bg-raised); color: var(--text); border: 1px solid var(--border-hi); border-radius: 6px; padding: 8px 10px; font: inherit; font-size: 14px; }
+  .list-tools .two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .list-count { font-family: var(--ff-mono); font-size: 12px; color: var(--text-dim); }
+  ul.alerts { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; }
+  ul.alerts li button { all: unset; box-sizing: border-box; display: grid; grid-template-columns: 6px 1fr; gap: 10px; width: 100%; padding: 10px 12px; border-bottom: 1px solid var(--border); cursor: pointer; }
+  ul.alerts li button:hover, ul.alerts li button[aria-current="true"] { background: rgba(0,229,255,0.06); }
+  ul.alerts li button:focus-visible { outline: 2px solid var(--neon); outline-offset: -2px; }
+  .bar { border-radius: 3px; }
+  .a-event { font-weight: 600; font-size: 15px; }
+  .a-meta { font-size: 13px; color: var(--text-dim); }
+  .a-sev { font-family: var(--ff-mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; }
+
+  /* Alert panel */
+  .panel { position: fixed; top: 0; right: 0; height: 100%; width: min(520px, 100%); background: var(--bg-raised); border-left: 1px solid var(--border-hi); z-index: 60; transform: translateX(105%); transition: transform 0.2s ease; display: flex; flex-direction: column; }
+  .panel.open { transform: none; }
+  .panel-head { padding: 16px 20px 12px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+  .panel-head h2 { font-family: var(--ff-head); font-size: 26px; font-weight: 600; margin: 0; line-height: 1.15; }
+  .panel-close { background: none; border: 1px solid var(--border-hi); color: var(--text); border-radius: 6px; padding: 6px 10px; font: inherit; cursor: pointer; }
+  .panel-body { padding: 16px 20px 28px; overflow-y: auto; flex: 1; }
+  .sev-chip { display: inline-flex; align-items: center; gap: 6px; font-family: var(--ff-mono); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; color: #0a0d14; font-weight: 600; }
+  .follow { margin: 14px 0; padding: 10px 12px; border: 1px solid #5a4410; background: #1a1205; color: #ffe3a1; border-radius: 6px; font-size: 14px; }
+  .langs { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 4px; }
+  .langs button { background: none; border: 1px solid var(--border-hi); color: var(--text); border-radius: 999px; padding: 3px 10px; font: inherit; font-size: 13px; cursor: pointer; }
+  .langs button[aria-pressed="true"] { border-color: var(--neon); color: var(--neon); }
+  dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 14px 0; font-size: 14px; }
+  dl.facts dt { color: var(--text-dim); }
+  dl.facts dd { margin: 0; }
+  .verbatim h3 { font-family: var(--ff-head); font-weight: 600; font-size: 15px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-dim); margin: 18px 0 4px; }
+  .verbatim p { margin: 0; white-space: pre-wrap; }
+  .verbatim .headline { font-size: 18px; font-weight: 600; }
+  .src-note { font-size: 12px; color: var(--text-dim); margin-top: 18px; }
+  .links { display: grid; gap: 6px; margin-top: 16px; font-size: 14px; }
+  .scrim { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 55; display: none; }
+  .scrim.open { display: block; }
+  @media (min-width: 861px) { .scrim.open { display: none; } }
+
+  section.about { max-width: 1100px; padding: 28px 24px; }
+  section.about h2 { font-family: var(--ff-head); font-weight: 600; font-size: 26px; margin: 0 0 10px; }
+  section.about p { color: var(--text-dim); max-width: 780px; }
+  footer { border-top: 1px solid var(--border); padding: 20px 24px 40px; font-size: 13px; color: var(--text-dim); display: grid; gap: 8px; max-width: 1100px; }
+  footer p { margin: 0; }
+
+  .maplibregl-popup-content { background: var(--bg-raised); color: var(--text); border: 1px solid var(--border-hi); font-family: var(--ff-body); font-size: 13px; padding: 8px 10px; }
+  .maplibregl-popup-tip { display: none; }
+  .maplibregl-ctrl-attrib { background: rgba(7,10,16,0.7) !important; color: var(--text-dim); }
+  .maplibregl-ctrl-attrib a { color: var(--text-dim); }
+
+  @media (max-width: 860px) {
+    header.site { padding: 12px 16px; }
+    .by { display: none; }
+    .hero-head, .live-line { padding-left: 16px; padding-right: 16px; }
+    .stage { grid-template-columns: 1fr; height: auto; }
+    #map { height: 56vh; }
+    aside.list { border-left: 0; border-top: 1px solid var(--border); max-height: 70vh; }
+  }
+  @media (prefers-reduced-motion: reduce) { .panel { transition: none; } }
+</style>
+</head>
+<body>
+
+<div class="demo-banner" role="note">
+  <strong>Demonstration</strong> of how CAP alerts can appear on screen. Alerts may be delayed or incomplete. Always follow your official warning source.
+</div>
+
+<header class="site">
+  <div class="brand">
+    <div class="word">CAP<span>24</span></div>
+    <div class="tag">Official alerts · every screen</div>
+  </div>
+  <div class="by">A Green Media Foundation demonstration</div>
+</header>
+
+<main>
+  <div class="hero-head">
+    <h1>Official alerts are already published in CAP. CAP24 shows how they can reach every screen.</h1>
+    <p>The globe shows alerts that official alerting authorities are publishing right now in the Common Alerting Protocol (CAP 1.2). Select any alert to read it exactly as its authority issued it.</p>
+  </div>
+
+  <div class="live-line" aria-live="polite">
+    <span><span class="dot" id="liveDot"></span><span id="liveText">Loading official alerts…</span></span>
+    <span id="liveTime"></span>
+  </div>
+
+  <div class="stage">
+    <div id="map" role="region" aria-label="Globe of current official CAP alerts. The alert list next to it carries the same alerts.">
+      <div class="map-status" id="mapStatus">Loading globe…</div>
+      <div class="legend" aria-hidden="true">
+        <div class="row"><span class="sw sev-Extreme"></span>Extreme</div>
+        <div class="row"><span class="sw sev-Severe"></span>Severe</div>
+        <div class="row"><span class="sw sev-Moderate"></span>Moderate</div>
+        <div class="row"><span class="sw sev-Minor"></span>Minor</div>
+        <div class="row"><span class="sw sev-Unknown"></span>Unknown</div>
+      </div>
+    </div>
+
+    <aside class="list" aria-label="List of current official alerts">
+      <div class="list-tools">
+        <label class="sr-only" for="q">Search alerts</label>
+        <input id="q" type="search" placeholder="Search event, country or authority" autocomplete="off">
+        <div class="two">
+          <label class="sr-only" for="fSev">Severity</label>
+          <select id="fSev">
+            <option value="">All severities</option>
+            <option>Extreme</option><option>Severe</option><option>Moderate</option><option>Minor</option><option>Unknown</option>
+          </select>
+          <label class="sr-only" for="fCountry">Country</label>
+          <select id="fCountry"><option value="">All countries</option></select>
+        </div>
+        <div class="list-count" id="listCount"></div>
+      </div>
+      <ul class="alerts" id="alertList"></ul>
+    </aside>
+  </div>
+
+  <section class="about" id="about">
+    <h2>What you are looking at</h2>
+    <p>Alerting authorities around the world already publish their warnings in CAP, the international standard for public alerts (OASIS CAP 1.2, ITU-T X.1303). CAP24 relays such alerts verbatim to broadcast, IPTV and phone screens, under the approval of each country's authorities and as part of its national warning system. This page shows the alerts as published. AI never creates, translates or changes alert content.</p>
+    <p>Coming next on this page: the same alert as a full-screen TV overlay, on a phone reached by QR code, and in a visual-only view for deaf viewers.</p>
+  </section>
+</main>
+
+<footer>
+  <p><strong>Data.</strong> Alerts: <a href="https://alert-hub.org" rel="noopener">Alert-Hub.org</a> and the alerting authorities, through the public "CAP Alerts Feed" layer hosted by Esri. CAP alerts published by the Alert Hub are in the public domain. Only sources marked official in the <a href="https://alert-hub.s3.amazonaws.com/cap-sources.html" rel="noopener">Alert-Hub source catalogue</a> (listed in the WMO Register of Alerting Authorities) are shown. Country outlines: Natural Earth. Map: MapLibre GL JS.</p>
+  <p><strong>Who.</strong> CAP24 is developed by MTÜ Green Media Foundation (Estonia, registry 80661721), with Smartnet (Georgia) as technology provider and Infozavri Group LLC (Georgia) as delivery partner. Teimuraz Tsagareishvili founded Green Media Foundation and Smartnet; Infozavri is independently owned.</p>
+  <p>This page is a demonstration, not a warning service and not an official source.</p>
+</footer>
+
+<div class="scrim" id="scrim"></div>
+<div class="panel" id="panel" role="dialog" aria-modal="false" aria-labelledby="pTitle" aria-hidden="true">
+  <div class="panel-head">
+    <div>
+      <div id="pSev"></div>
+      <h2 id="pTitle"></h2>
+      <div class="a-meta" id="pSub"></div>
+    </div>
+    <button class="panel-close" id="pClose" type="button">Close</button>
+  </div>
+  <div class="panel-body" id="pBody"></div>
+</div>
+
+<script src="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
+<script>
+(() => {
+  'use strict';
+
+  // ---- Sources -----------------------------------------------------------
+  const LAYER = 'https://services9.arcgis.com/RHVPKKiFTONKtxq3/arcgis/rest/services/CAP_Alerts_Feed/FeatureServer/0/query';
+  const CATALOGUE = 'https://alert-hub-sources.s3.amazonaws.com/json';
+  const COUNTRIES = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json';
+  const REFRESH_MS = 5 * 60 * 1000;
+  const PAGE = 2000;
+
+  const SEV_ORDER = { Extreme: 4, Severe: 3, Moderate: 2, Minor: 1, Unknown: 0 };
+  const SEV_COLOR = { Extreme: '#ff1744', Severe: '#ff6d00', Moderate: '#ffc400', Minor: '#00b0ff', Unknown: '#607080' };
+  const sevOf = s => (s in SEV_ORDER ? s : 'Unknown');
+
+  const regionName = (() => {
+    let dn = null;
+    try { dn = new Intl.DisplayNames(['en'], { type: 'region' }); } catch (e) { /* older browsers */ }
+    return code => {
+      if (!code) return 'Unknown country';
+      const c = String(code).toUpperCase();
+      try { return (dn && dn.of(c)) || c; } catch (e) { return c; }
+    };
+  })();
+
+  const fmtTime = ms => {
+    if (ms == null || isNaN(ms)) return '—';
+    const d = new Date(ms);
+    const m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getUTCMonth()];
+    const hh = String(d.getUTCHours()).padStart(2, '0');
+    const mm = String(d.getUTCMinutes()).padStart(2, '0');
+    return `${d.getUTCDate()} ${m} ${d.getUTCFullYear()}, ${hh}:${mm} UTC`;
+  };
+  const el = (tag, attrs = {}, text) => {
+    const n = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs)) {
+      if (k === 'class') n.className = v; else n.setAttribute(k, v);
+    }
+    if (text != null) n.textContent = text;
+    return n;
+  };
+  const safeUrl = u => {
+    try { const x = new URL(u); return (x.protocol === 'https:' || x.protocol === 'http:') ? x.href : null; }
+    catch (e) { return null; }
+  };
+  // Senders often already start with the country ("Kazakhstan: Kazhydromet"); avoid repeating it
+  const senderLine = a => {
+    const c = regionName(a.country), snd = a.sender || '';
+    return snd.toLowerCase().startsWith(c.toLowerCase()) ? snd : `${c} · ${snd}`;
+  };
+  const sqlStr = s => "'" + String(s).replace(/'/g, "''") + "'";
+
+  // ---- State -------------------------------------------------------------
+  let officialIds = null;      // Set of official sourceIds from the catalogue
+  let alerts = [];             // grouped alerts
+  let byKey = new Map();       // identifier -> alert
+  let selectedKey = null;
+  let lastGood = null;
+  let map = null, mapReady = false, pendingGeo = null;
+  let spinning = true;
+  const stopSpin = () => { spinning = false; };
+
+  // ---- Data --------------------------------------------------------------
+  async function loadCatalogue() {
+    try {
+      const j = await fetch(CATALOGUE, { cache: 'no-store' }).then(r => r.json());
+      const s = new Set();
+      for (const item of (j.sources || [])) {
+        const src = item.source || item;
+        if (src && src.sourceIsOfficial === true && src.sourceId) s.add(src.sourceId);
+      }
+      if (s.size) officialIds = s;
+    } catch (e) {
+      officialIds = null; // fall back to the layer's Register link
+    }
+  }
+
+  async function fetchPage(offset) {
+    const where = "status='Actual' AND msgType IN ('Alert','Update')";
+    const params = new URLSearchParams({
+      where,
+      outFields: 'OBJECTID,identifier,sourceId,registerUrl,countryCode,severity,event,senderName,orgName,sent,expires,language,infoIndex',
+      returnGeometry: 'true',
+      outSR: '4326',
+      maxAllowableOffset: '0.03',
+      geometryPrecision: '3',
+      orderByFields: 'OBJECTID',
+      resultOffset: String(offset),
+      resultRecordCount: String(PAGE),
+      f: 'geojson'
+    });
+    const r = await fetch(`${LAYER}?${params}`, { cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const j = await r.json();
+    if (j.error) throw new Error(j.error.message || 'layer error');
+    return j;
+  }
+
+  async function loadAlerts() {
+    const features = [];
+    for (let offset = 0, guard = 0; guard < 10; guard++, offset += PAGE) {
+      const j = await fetchPage(offset);
+      const fs = j.features || [];
+      features.push(...fs);
+      const more = (j.properties && j.properties.exceededTransferLimit) || j.exceededTransferLimit;
+      if (!more && fs.length < PAGE) break;
+      if (!fs.length) break;
+    }
+    const now = Date.now();
+    const isOfficial = p => officialIds ? officialIds.has(p.sourceId) : !!p.registerUrl;
+    const kept = features.filter(f => {
+      const p = f.properties || {};
+      if (!isOfficial(p)) return false;
+      if (p.expires != null && p.expires < now) return false;
+      return true;
+    });
+
+    // Group areas and info blocks into alerts by CAP identifier
+    const groups = new Map();
+    for (const f of kept) {
+      const p = f.properties;
+      const key = p.identifier || ('oid-' + p.OBJECTID);
+      let g = groups.get(key);
+      if (!g) {
+        g = { key, identifier: p.identifier, sourceId: p.sourceId, country: p.countryCode, sender: p.senderName || p.orgName || '', org: p.orgName || '', sent: p.sent, expires: p.expires, events: new Set(), severity: 'Unknown', oids: [], bbox: null, hasGeom: false };
+        groups.set(key, g);
+      }
+      if (p.event) g.events.add(p.event);
+      const s = sevOf(p.severity);
+      if (SEV_ORDER[s] > SEV_ORDER[g.severity]) g.severity = s;
+      g.oids.push(p.OBJECTID);
+      if (f.geometry) { g.hasGeom = true; g.bbox = extendBbox(g.bbox, f.geometry); }
+      p._key = key;
+      p._sev = s;
+      p._rank = SEV_ORDER[s];
+    }
+    const list = [...groups.values()].map(g => ({ ...g, event: [...g.events][0] || 'Alert', eventCount: g.events.size }));
+    list.sort((a, b) => (SEV_ORDER[b.severity] - SEV_ORDER[a.severity]) || ((b.sent || 0) - (a.sent || 0)));
+    return { list, geo: { type: 'FeatureCollection', features: kept.filter(f => f.geometry) } };
+  }
+
+  function extendBbox(b, geom) {
+    const walk = (c) => {
+      if (typeof c[0] === 'number') {
+        const [x, y] = c;
+        if (!b) b = [x, y, x, y];
+        else { b[0] = Math.min(b[0], x); b[1] = Math.min(b[1], y); b[2] = Math.max(b[2], x); b[3] = Math.max(b[3], y); }
+      } else c.forEach(walk);
+    };
+    if (geom && geom.coordinates) walk(geom.coordinates);
+    return b;
+  }
+
+  async function refresh() {
+    try {
+      if (!officialIds) await loadCatalogue();
+      const { list, geo } = await loadAlerts();
+      alerts = list;
+      byKey = new Map(list.map(a => [a.key, a]));
+      lastGood = Date.now();
+      const authorities = new Set(list.map(a => a.sourceId)).size;
+      document.getElementById('liveDot').classList.remove('err');
+      document.getElementById('liveText').innerHTML = '';
+      const t = document.getElementById('liveText');
+      if (!list.length) {
+        t.textContent = 'No official alerts in the feed right now.';
+      } else {
+        t.append(el('span', { class: 'val' }, String(list.length)), document.createTextNode(' official alerts from '),
+                 el('span', { class: 'val' }, String(authorities)), document.createTextNode(' alerting authorities'));
+      }
+      document.getElementById('liveTime').textContent = 'Updated ' + fmtTime(lastGood);
+      fillCountries();
+      renderList();
+      setGeo(geo);
+    } catch (e) {
+      document.getElementById('liveDot').classList.add('err');
+      const msg = lastGood
+        ? `The alert feed could not be reached. Showing alerts from ${fmtTime(lastGood)}. Retrying in 5 minutes.`
+        : 'The alert feed could not be reached. Retrying in 5 minutes.';
+      document.getElementById('liveText').textContent = msg;
+      if (!lastGood) document.getElementById('mapStatus').textContent = 'Alert feed unavailable';
+    }
+  }
+
+  // ---- List --------------------------------------------------------------
+  function fillCountries() {
+    const sel = document.getElementById('fCountry');
+    const cur = sel.value;
+    const codes = [...new Set(alerts.map(a => a.country).filter(Boolean))]
+      .map(c => [c, regionName(c)]).sort((a, b) => a[1].localeCompare(b[1]));
+    sel.length = 1;
+    for (const [c, name] of codes) sel.append(el('option', { value: c }, name));
+    sel.value = codes.some(([c]) => c === cur) ? cur : '';
+  }
+
+  function renderList() {
+    const q = document.getElementById('q').value.trim().toLowerCase();
+    const fs = document.getElementById('fSev').value;
+    const fc = document.getElementById('fCountry').value;
+    const ul = document.getElementById('alertList');
+    const shown = alerts.filter(a => {
+      if (fs && a.severity !== fs) return false;
+      if (fc && a.country !== fc) return false;
+      if (q) {
+        const hay = (a.event + ' ' + a.sender + ' ' + regionName(a.country)).toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+    ul.replaceChildren();
+    const frag = document.createDocumentFragment();
+    for (const a of shown) {
+      const li = el('li');
+      const b = el('button', { type: 'button', 'data-key': a.key });
+      if (a.key === selectedKey) b.setAttribute('aria-current', 'true');
+      const bar = el('span', { class: 'bar sev-' + a.severity, 'aria-hidden': 'true' });
+      const body = el('span');
+      body.append(
+        el('div', { class: 'a-sev', style: `color:${SEV_COLOR[a.severity]}` }, a.severity),
+        el('div', { class: 'a-event' }, a.event + (a.eventCount > 1 ? ` (+${a.eventCount - 1})` : '')),
+        el('div', { class: 'a-meta' }, senderLine(a)),
+        el('div', { class: 'a-meta' }, 'Sent ' + fmtTime(a.sent))
+      );
+      b.append(bar, body);
+      b.addEventListener('click', () => openAlert(a.key, true));
+      li.append(b);
+      frag.append(li);
+    }
+    ul.append(frag);
+    document.getElementById('listCount').textContent =
+      shown.length === alerts.length ? `${alerts.length} alerts` : `${shown.length} of ${alerts.length} alerts`;
+  }
+  ['q', 'fSev', 'fCountry'].forEach(id => document.getElementById(id).addEventListener('input', renderList));
+
+  // ---- Globe -------------------------------------------------------------
+  async function initMap() {
+    if (!window.maplibregl) { document.getElementById('mapStatus').textContent = 'Globe could not load. Use the alert list.'; return; }
+    let land = { type: 'FeatureCollection', features: [] };
+    try {
+      const topo = await fetch(COUNTRIES).then(r => r.json());
+      land = topojson.feature(topo, topo.objects.countries);
+    } catch (e) { /* globe still works without outlines */ }
+
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    map = new maplibregl.Map({
+      container: 'map',
+      style: {
+        version: 8,
+        projection: { type: 'globe' },
+        sources: {
+          land: { type: 'geojson', data: land, attribution: 'Natural Earth' },
+          alerts: { type: 'geojson', data: { type: 'FeatureCollection', features: [] }, attribution: 'Alerts: Alert-Hub.org, alerting authorities, Esri' }
+        },
+        layers: [
+          { id: 'bg', type: 'background', paint: { 'background-color': '#0a1220' } },
+          { id: 'land', type: 'fill', source: 'land', paint: { 'fill-color': '#16233a' } },
+          { id: 'borders', type: 'line', source: 'land', paint: { 'line-color': '#2b3d5c', 'line-width': 0.6 } },
+          { id: 'alert-fill', type: 'fill', source: 'alerts',
+            layout: { 'fill-sort-key': ['get', '_rank'] },
+            paint: {
+              'fill-color': ['match', ['get', '_sev'], 'Extreme', SEV_COLOR.Extreme, 'Severe', SEV_COLOR.Severe, 'Moderate', SEV_COLOR.Moderate, 'Minor', SEV_COLOR.Minor, SEV_COLOR.Unknown],
+              'fill-opacity': ['case', ['boolean', ['feature-state', 'sel'], false], 0.7, 0.32]
+            } },
+          { id: 'alert-line', type: 'line', source: 'alerts',
+            paint: {
+              'line-color': ['match', ['get', '_sev'], 'Extreme', SEV_COLOR.Extreme, 'Severe', SEV_COLOR.Severe, 'Moderate', SEV_COLOR.Moderate, 'Minor', SEV_COLOR.Minor, SEV_COLOR.Unknown],
+              'line-width': ['case', ['boolean', ['feature-state', 'sel'], false], 2, 0.6],
+              'line-opacity': 0.9
+            } }
+        ]
+      },
+      center: [24, 30],
+      zoom: 1.4,
+      attributionControl: { compact: true }
+    });
+    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+
+    map.on('load', () => {
+      mapReady = true;
+      document.getElementById('mapStatus').textContent = '';
+      if (pendingGeo) { map.getSource('alerts').setData(pendingGeo); pendingGeo = null; }
+      if (!reduce) spin();
+    });
+
+    // Hover and click
+    const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 8 });
+    map.on('mousemove', 'alert-fill', e => {
+      map.getCanvas().style.cursor = 'pointer';
+      const p = e.features[0].properties;
+      popup.setLngLat(e.lngLat).setText(`${p.event || 'Alert'} · ${regionName(p.countryCode)}`).addTo(map);
+    });
+    map.on('mouseleave', 'alert-fill', () => { map.getCanvas().style.cursor = ''; popup.remove(); });
+    map.on('click', 'alert-fill', e => {
+      // pick the most severe alert under the pointer
+      const f = [...e.features].sort((a, b) => (b.properties._rank || 0) - (a.properties._rank || 0))[0];
+      if (f) openAlert(f.properties._key, false);
+    });
+
+    // Gentle rotation until the visitor interacts
+    ['mousedown', 'touchstart', 'wheel', 'dragstart'].forEach(ev => map.on(ev, stopSpin));
+    function spin() {
+      if (!spinning) return;
+      const c = map.getCenter();
+      map.easeTo({ center: [c.lng + 6, c.lat], duration: 1000, easing: t => t });
+      map.once('moveend', () => { if (spinning) spin(); });
+    }
+  }
+
+  function setGeo(geo) {
+    // promoteId lets us highlight every area of the selected alert
+    geo.features.forEach((f, i) => { f.id = f.properties.OBJECTID || i; });
+    if (mapReady) map.getSource('alerts').setData(geo); else pendingGeo = geo;
+    if (selectedKey) highlight(selectedKey);
+  }
+
+  let highlighted = [];
+  function highlight(key) {
+    if (!mapReady) return;
+    for (const id of highlighted) map.setFeatureState({ source: 'alerts', id }, { sel: false });
+    const a = byKey.get(key);
+    highlighted = a ? a.oids : [];
+    for (const id of highlighted) map.setFeatureState({ source: 'alerts', id }, { sel: true });
+  }
+
+  // ---- Alert panel -------------------------------------------------------
+  const panel = document.getElementById('panel');
+  const scrim = document.getElementById('scrim');
+  let returnFocus = null;
+
+  async function openAlert(key, fly) {
+    const a = byKey.get(key);
+    if (!a) return;
+    selectedKey = key;
+    highlight(key);
+    document.querySelectorAll('ul.alerts button[aria-current]').forEach(b => b.removeAttribute('aria-current'));
+    const btn = document.querySelector(`ul.alerts button[data-key="${CSS.escape(key)}"]`);
+    if (btn) btn.setAttribute('aria-current', 'true');
+    stopSpin();
+    if (fly && mapReady && a.bbox) {
+      map.stop();
+      const wide = window.innerWidth > 860;
+      map.fitBounds([[a.bbox[0], a.bbox[1]], [a.bbox[2], a.bbox[3]]],
+        { padding: { top: 40, bottom: 40, left: 40, right: wide ? 140 : 40 }, maxZoom: 6, duration: 1200 });
+    }
+
+    returnFocus = document.activeElement;
+    const sevChip = el('span', { class: 'sev-chip', style: `background:${SEV_COLOR[a.severity]}` }, a.severity);
+    document.getElementById('pSev').replaceChildren(sevChip);
+    document.getElementById('pTitle').textContent = a.event;
+    document.getElementById('pSub').textContent = senderLine(a);
+    const body = document.getElementById('pBody');
+    body.replaceChildren(el('p', { class: 'a-meta' }, 'Loading the alert as published…'));
+    panel.classList.add('open'); panel.setAttribute('aria-hidden', 'false');
+    scrim.classList.add('open');
+    document.getElementById('pClose').focus();
+
+    try {
+      const params = new URLSearchParams({
+        where: a.identifier ? `identifier=${sqlStr(a.identifier)}` : `OBJECTID IN (${a.oids.join(',')})`,
+        outFields: 'identifier,infoIndex,areaIndex,language,event,headline,description,instruction,web,contact,senderName,sender,sent,effective,onset,expires,urgency,severity,certainty,areaDesc,msgType,registerUrl,hubLink,orgName',
+        returnGeometry: 'false',
+        orderByFields: 'infoIndex,areaIndex',
+        f: 'json'
+      });
+      const j = await fetch(`${LAYER}?${params}`).then(r => r.json());
+      if (selectedKey !== key) return;
+      const rows = (j.features || []).map(f => f.attributes);
+      renderDetail(a, rows);
+    } catch (e) {
+      body.replaceChildren(el('p', {}, 'The full alert could not be loaded. Please try again.'));
+    }
+  }
+
+  function renderDetail(a, rows) {
+    const body = document.getElementById('pBody');
+    body.replaceChildren();
+    if (!rows.length) { body.append(el('p', {}, 'This alert is no longer in the feed.')); return; }
+
+    // One entry per CAP info block, with its areas
+    const infos = new Map();
+    for (const r of rows) {
+      const k = r.infoIndex ?? 0;
+      if (!infos.has(k)) infos.set(k, { ...r, areas: new Set() });
+      if (r.areaDesc) infos.get(k).areas.add(r.areaDesc);
+    }
+    const blocks = [...infos.values()];
+    const first = rows[0];
+
+    body.append(el('div', { class: 'follow' }, `Follow your official warning source: ${first.senderName || a.sender}. This page is a demonstration and may be delayed.`));
+
+    const langWrap = el('div', { class: 'langs', role: 'group', 'aria-label': 'Language of the alert as published' });
+    const content = el('div');
+    blocks.forEach((b, i) => {
+      const bt = el('button', { type: 'button', 'aria-pressed': i === 0 ? 'true' : 'false' }, b.language || `Info ${i + 1}`);
+      bt.addEventListener('click', () => {
+        langWrap.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', 'false'));
+        bt.setAttribute('aria-pressed', 'true');
+        showBlock(b);
+      });
+      langWrap.append(bt);
+    });
+    if (blocks.length > 1) body.append(langWrap);
+    body.append(content);
+
+    function showBlock(b) {
+      content.replaceChildren();
+      const facts = el('dl', { class: 'facts' });
+      const add = (k, v) => { if (v == null || v === '') return; facts.append(el('dt', {}, k), el('dd', {}, v)); };
+      add('Event', b.event);
+      add('Severity', b.severity);
+      add('Urgency', b.urgency);
+      add('Certainty', b.certainty);
+      add('Area', [...b.areas].join('; '));
+      add('Sent', fmtTime(b.sent));
+      if (b.onset) add('Onset', fmtTime(b.onset));
+      add('Expires', b.expires ? fmtTime(b.expires) : 'Not stated');
+      add('Sender', b.senderName || a.sender);
+      add('Message type', b.msgType);
+      content.append(facts);
+
+      const v = el('div', { class: 'verbatim' });
+      if (b.language) v.setAttribute('lang', b.language);
+      const sec = (title, text, cls) => {
+        if (!text) return;
+        v.append(el('h3', {}, title), el('p', cls ? { class: cls } : {}, text));
+      };
+      sec('Headline', b.headline, 'headline');
+      sec('Description', b.description);
+      sec('Instruction', b.instruction);
+      content.append(v);
+      content.append(el('p', { class: 'src-note' }, 'Text shown exactly as published by the authority, in its original language. Not translated or edited.'));
+
+      const links = el('div', { class: 'links' });
+      const addLink = (label, url) => {
+        const u = safeUrl(url);
+        if (u) { const p = el('div'); p.append(el('a', { href: u, rel: 'noopener', target: '_blank' }, label)); links.append(p); }
+      };
+      addLink('Authority’s page for this alert', b.web);
+      addLink('Original CAP message (Alert-Hub)', b.hubLink);
+      addLink('Authority in the WMO Register of Alerting Authorities', b.registerUrl);
+      if (links.childNodes.length) content.append(links);
+    }
+    showBlock(blocks[0]);
+  }
+
+  function closePanel() {
+    panel.classList.remove('open'); panel.setAttribute('aria-hidden', 'true');
+    scrim.classList.remove('open');
+    if (returnFocus && returnFocus.focus) returnFocus.focus();
+  }
+  document.getElementById('pClose').addEventListener('click', closePanel);
+  scrim.addEventListener('click', closePanel);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && panel.classList.contains('open')) closePanel(); });
+
+  // ---- Start -------------------------------------------------------------
+  initMap();
+  refresh();
+  setInterval(refresh, REFRESH_MS);
+})();
+</script>
+</body>
+</html>
