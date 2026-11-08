@@ -476,7 +476,7 @@
           { id: 'alert-line', type: 'line', source: 'alerts',
             paint: {
               'line-color': ['match', ['get', '_sev'], 'Extreme', SEV_COLOR.Extreme, 'Severe', SEV_COLOR.Severe, 'Moderate', SEV_COLOR.Moderate, 'Minor', SEV_COLOR.Minor, SEV_COLOR.Unknown],
-              'line-width': ['case', ['boolean', ['feature-state', 'sel'], false], 2, 0.6],
+              'line-width': ['case', ['boolean', ['feature-state', 'sel'], false], 2.5, 0.6],
               'line-opacity': 0.9
             } }
         ]
@@ -525,9 +525,21 @@
     if (selectedKey) highlight(selectedKey);
   }
 
+  const FILL_NORMAL = ['case', ['boolean', ['feature-state', 'sel'], false], 0.7, 0.32];
+  const FILL_FOCUS = ['case', ['boolean', ['feature-state', 'sel'], false], 0.8, 0.08];
+  const LINE_NORMAL = ['match', ['get', '_sev'], 'Extreme', SEV_COLOR.Extreme, 'Severe', SEV_COLOR.Severe, 'Moderate', SEV_COLOR.Moderate, 'Minor', SEV_COLOR.Minor, SEV_COLOR.Unknown];
+  const LINE_FOCUS = ['case', ['boolean', ['feature-state', 'sel'], false], '#ffffff', LINE_NORMAL];
+  function setFocus(on) {
+    if (!mapReady) return;
+    map.setPaintProperty('alert-fill', 'fill-opacity', on ? FILL_FOCUS : FILL_NORMAL);
+    map.setPaintProperty('alert-line', 'line-color', on ? LINE_FOCUS : LINE_NORMAL);
+    map.setPaintProperty('alert-line', 'line-opacity', on ? ['case', ['boolean', ['feature-state', 'sel'], false], 1, 0.3] : 0.9);
+  }
+
   let highlighted = [];
   function highlight(key) {
     if (!mapReady) return;
+    setFocus(!!key);
     for (const id of highlighted) map.setFeatureState({ source: 'alerts', id }, { sel: false });
     const a = byKey.get(key);
     highlighted = a ? a.oids : [];
@@ -552,7 +564,7 @@
       map.stop();
       const wide = window.innerWidth > 860;
       map.fitBounds([[a.bbox[0], a.bbox[1]], [a.bbox[2], a.bbox[3]]],
-        { padding: { top: 40, bottom: 40, left: 40, right: wide ? 140 : 40 }, maxZoom: 6, duration: 1200 });
+        { padding: { top: 40, bottom: 40, left: 40, right: wide ? 140 : 40 }, maxZoom: 5, duration: 1200 });
     }
 
     returnFocus = document.activeElement;
@@ -656,6 +668,9 @@
   }
 
   function closePanel() {
+    selectedKey = null;
+    highlight(null);
+    document.querySelectorAll('ul.alerts button[aria-current]').forEach(b => b.removeAttribute('aria-current'));
     panel.classList.remove('open'); panel.setAttribute('aria-hidden', 'true');
     scrim.classList.remove('open');
     if (returnFocus && returnFocus.focus) returnFocus.focus();
