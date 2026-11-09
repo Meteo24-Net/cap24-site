@@ -45,6 +45,15 @@
   .brand .word span { color: var(--neon); }
   .brand .tag { font-family: var(--ff-mono); font-size: 12px; color: var(--text-dim); letter-spacing: 0.08em; text-transform: uppercase; }
   .by { font-size: 13px; color: var(--text-dim); text-align: right; }
+  nav.modes { display: flex; gap: 4px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 999px; padding: 3px; }
+  nav.modes a { color: var(--text); text-decoration: none; font-size: 14px; padding: 5px 14px; border-radius: 999px; white-space: nowrap; }
+  nav.modes a:hover { background: rgba(255,255,255,0.06); }
+  nav.modes a[aria-current="page"] { background: var(--neon); color: #04121a; font-weight: 600; }
+  .legend .hd { font-family: var(--ff-mono); font-size: 11px; letter-spacing: 0.06em; color: var(--text-dim); margin: 0 0 4px 6px; }
+  .sw.round { border-radius: 50%; }
+  .quake-note { margin: 12px 0; padding: 10px 12px; border: 1px solid var(--border-hi); border-radius: 6px; font-size: 14px; color: var(--text); }
+  .pager-chip { display: inline-block; font-family: var(--ff-mono); font-size: 12px; padding: 1px 7px; border-radius: 3px; margin-right: 6px; font-weight: 600; text-transform: uppercase; }
+  dl.facts dd small { display: block; color: var(--text-dim); font-size: 12.5px; }
 
   .hero-head { padding: 22px 24px 8px; max-width: 1100px; }
   .hero-head h1 { font-family: var(--ff-head); font-weight: 600; font-size: clamp(26px, 3.4vw, 40px); line-height: 1.1; margin: 0 0 8px; }
@@ -204,6 +213,9 @@
   @media (max-width: 860px) {
     header.site { padding: 12px 16px; }
     .by { display: none; }
+    header.site { flex-wrap: wrap; }
+    nav.modes { order: 3; width: 100%; justify-content: space-between; }
+    nav.modes a { flex: 1; text-align: center; padding: 6px 8px; }
     .hero-head, .live-line { padding-left: 16px; padding-right: 16px; }
     .stage { grid-template-columns: 1fr; height: auto; }
     #map { height: 56vh; }
@@ -214,7 +226,7 @@
 </head>
 <body>
 
-<div class="demo-banner" role="note">
+<div class="demo-banner" role="note" id="demoBanner">
   <strong>Demonstration</strong> of how CAP alerts can appear on screen. Alerts may be delayed or incomplete. Always follow your official warning source.
 </div>
 
@@ -223,13 +235,18 @@
     <div class="word">CAP<span>24</span></div>
     <div class="tag">Official alerts · every screen</div>
   </div>
+  <nav class="modes" aria-label="Views">
+    <a href="/" data-mode="all">All alerts</a>
+    <a href="/weather" data-mode="weather">Weather</a>
+    <a href="/seismic" data-mode="seismic">Earthquakes</a>
+  </nav>
   <div class="by">A Green Media Foundation demonstration</div>
 </header>
 
 <main>
   <div class="hero-head">
-    <h1>Official alerts are already published in CAP. CAP24 shows how they can reach every screen.</h1>
-    <p>The globe shows alerts that official alerting authorities are publishing right now in the Common Alerting Protocol (CAP 1.2). Select any alert to read it exactly as its authority issued it.</p>
+    <h1 id="heroH">Official alerts are already published in CAP. CAP24 shows how they can reach every screen.</h1>
+    <p id="heroP">The globe shows alerts that official alerting authorities are publishing right now in the Common Alerting Protocol (CAP 1.2). Select any alert to read it exactly as its authority issued it.</p>
   </div>
 
   <div class="live-line" aria-live="polite">
@@ -240,7 +257,7 @@
   <div class="stage">
     <div id="map" role="region" aria-label="Globe of current official CAP alerts. The alert list next to it carries the same alerts.">
       <div class="map-status" id="mapStatus">Loading globe…</div>
-      <div class="legend" role="group" aria-label="Show one severity on the globe and in the list">
+      <div class="legend" id="legend" role="group" aria-label="Show one severity on the globe and in the list">
         <button type="button" class="row" data-sev="Extreme" aria-pressed="false"><span class="sw sev-Extreme"></span>Extreme</button>
         <button type="button" class="row" data-sev="Severe" aria-pressed="false"><span class="sw sev-Severe"></span>Severe</button>
         <button type="button" class="row" data-sev="Moderate" aria-pressed="false"><span class="sw sev-Moderate"></span>Moderate</button>
@@ -249,11 +266,11 @@
       </div>
     </div>
 
-    <aside class="list" aria-label="List of current official alerts">
+    <aside class="list" id="listAside" aria-label="List of current official alerts">
       <div class="list-tools">
         <label class="sr-only" for="q">Search alerts</label>
         <input id="q" type="search" placeholder="Search event, country or authority" autocomplete="off">
-        <div class="two">
+        <div class="two" id="listFilters">
           <label class="sr-only" for="fSev">Severity</label>
           <select id="fSev">
             <option value="">All severities</option>
@@ -270,13 +287,15 @@
 
   <section class="about" id="about">
     <h2>What you are looking at</h2>
+    <div id="aboutBody">
     <p>Alerting authorities around the world already publish their warnings in CAP, the international standard for public alerts (OASIS CAP 1.2, ITU-T X.1303). CAP24 relays such alerts verbatim to broadcast, IPTV and phone screens, under the approval of each country's authorities and as part of its national warning system. This page shows the alerts as published. AI never creates, translates or changes alert content.</p>
     <p>Open any alert and choose <em>View as TV overlay</em> to see it fill a broadcast screen. Its QR code opens the same alert on a phone (or choose <em>Open phone view</em>). Both show a proposed signed summary for deaf viewers, with clip slots that are placeholders until recorded and approved.</p>
+    </div>
   </section>
 </main>
 
 <footer>
-  <p><strong>Data.</strong> Alerts: <a href="https://alert-hub.org" rel="noopener">Alert-Hub.org</a> and the alerting authorities, through the public "CAP Alerts Feed" layer hosted by Esri. CAP alerts published by the Alert Hub are in the public domain. Only sources marked official in the <a href="https://alert-hub.s3.amazonaws.com/cap-sources.html" rel="noopener">Alert-Hub source catalogue</a> (listed in the WMO Register of Alerting Authorities) are shown. Base map: OpenFreeMap, © OpenMapTiles, data © OpenStreetMap contributors. TV view outlines: Natural Earth. Map software: MapLibre GL JS.</p>
+  <p id="dataNote"><strong>Data.</strong> Alerts: <a href="https://alert-hub.org" rel="noopener">Alert-Hub.org</a> and the alerting authorities, through the public "CAP Alerts Feed" layer hosted by Esri. CAP alerts published by the Alert Hub are in the public domain. Only sources marked official in the <a href="https://alert-hub.s3.amazonaws.com/cap-sources.html" rel="noopener">Alert-Hub source catalogue</a> (listed in the WMO Register of Alerting Authorities) are shown. Base map: OpenFreeMap, © OpenMapTiles, data © OpenStreetMap contributors. TV view outlines: Natural Earth. Map software: MapLibre GL JS.</p>
   <p><strong>Who.</strong> CAP24 is developed by MTÜ Green Media Foundation (Estonia, registry 80661721), with Smartnet (Georgia) as technology provider and Infozavri Group LLC (Georgia) as delivery partner. Teimuraz Tsagareishvili founded Green Media Foundation and Smartnet; Infozavri is independently owned.</p>
   <p>This page is a demonstration, not a warning service and not an official source.</p>
 </footer>
@@ -373,6 +392,11 @@
   const BASE_STYLE = 'https://tiles.openfreemap.org/styles/dark';
   const REFRESH_MS = 5 * 60 * 1000;
   const PAGE = 2000;
+  // One globe, three addresses: / (all official CAP alerts), /weather (CAP category Met), /seismic (USGS earthquakes)
+  const MODE = (() => {
+    const p = location.pathname.replace(/\/+$/, '').toLowerCase();
+    return /\/seismic(\.html)?$/.test(p) ? 'seismic' : /\/weather(\.html)?$/.test(p) ? 'weather' : 'all';
+  })();
 
   const SEV_ORDER = { Extreme: 4, Severe: 3, Moderate: 2, Minor: 1, Unknown: 0 };
   // Default colours when no level is declared (demo rule 7a, spec 5.2): no green; colour never carries meaning alone
@@ -416,7 +440,7 @@
     const c = regionName(a.country), snd = a.sender || '';
     return snd.toLowerCase().startsWith(c.toLowerCase()) ? snd : `${c} · ${snd}`;
   };
-  const phoneUrl = identifier => new URL('a.html?id=' + encodeURIComponent(identifier || ''), location.href).href;
+  const phoneUrl = identifier => new URL('/a.html?id=' + encodeURIComponent(identifier || ''), location.href).href;
   // QR as inline SVG, drawn from the module matrix (no external images)
   function qrSvg(text) {
     if (typeof qrcode !== 'function') return null;
@@ -468,7 +492,7 @@
   }
 
   async function fetchPage(offset) {
-    const where = "status='Actual' AND msgType IN ('Alert','Update')";
+    const where = "status='Actual' AND msgType IN ('Alert','Update')" + (MODE === 'weather' ? ` AND category LIKE '%"Met"%'` : '');
     const params = new URLSearchParams({
       where,
       outFields: 'OBJECTID,identifier,sourceId,registerUrl,countryCode,severity,event,senderName,orgName,sent,expires,language,infoIndex',
@@ -555,9 +579,9 @@
       document.getElementById('liveText').innerHTML = '';
       const t = document.getElementById('liveText');
       if (!list.length) {
-        t.textContent = 'No official alerts in the feed right now.';
+        t.textContent = MODE === 'weather' ? 'No official weather alerts in the feed right now.' : 'No official alerts in the feed right now.';
       } else {
-        t.append(el('span', { class: 'val' }, String(list.length)), document.createTextNode(' official alerts from '),
+        t.append(el('span', { class: 'val' }, String(list.length)), document.createTextNode(MODE === 'weather' ? ' official weather alerts from ' : ' official alerts from '),
                  el('span', { class: 'val' }, String(authorities)), document.createTextNode(' alerting authorities'));
       }
       document.getElementById('liveTime').textContent = 'Updated ' + fmtTime(lastGood);
@@ -586,6 +610,7 @@
   }
 
   function renderList() {
+    if (MODE === 'seismic') { renderQuakeList(); return; }
     const q = document.getElementById('q').value.trim().toLowerCase();
     const fs = document.getElementById('fSev').value;
     const fc = document.getElementById('fCountry').value;
@@ -728,6 +753,16 @@
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
 
     map.once('style.load', () => {
+      if (MODE === 'seismic') {
+        addQuakeLayers();
+        mapReady = true;
+        document.getElementById('mapStatus').textContent = '';
+        if (pendingGeo) { map.getSource('quakes').setData(pendingGeo); pendingGeo = null; }
+        if (quakes.length) renderQuakeList();
+        if (pendingFly) { const k = pendingFly; pendingFly = null; highlightQuake(k); flyQuake(k); }
+        else if (!reduce) spin();
+        return;
+      }
       addAlertLayers();
       // Hover and click (registered once the alert layers exist)
       const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 8 });
@@ -776,6 +811,7 @@
 
   let highlighted = [];
   function highlight(key) {
+    if (MODE === 'seismic') { highlightQuake(key); return; }
     if (!mapReady) return;
     setFocus(!!key);
     for (const id of highlighted) map.setFeatureState({ source: 'alerts', id }, { sel: false });
@@ -788,6 +824,7 @@
   }
 
   function flyTo(key) {
+    if (MODE === 'seismic') { flyQuake(key); return; }
     const a = byKey.get(key);
     if (!a || !a.bbox || !mapReady) return;
     map.stop();
@@ -1206,11 +1243,274 @@
     else if (panel.classList.contains('open')) closePanel();
   });
 
+
+  // ---- Earthquakes page: USGS real-time feeds (earthquake data, not CAP and not warnings) ----
+  const USGS_FEED = f => `https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/${f}.geojson`;
+  const QUAKE_FEEDS = [
+    ['all_hour', 'Past hour, all magnitudes'],
+    ['all_day', 'Past day, all magnitudes'],
+    ['2.5_day', 'Past day, M2.5+'],
+    ['2.5_week', 'Past 7 days, M2.5+'],
+    ['4.5_week', 'Past 7 days, M4.5+'],
+    ['4.5_month', 'Past 30 days, M4.5+'],
+    ['significant_month', 'Past 30 days, significant']
+  ];
+  // Colour by depth (a seismology convention); deliberately not the red/yellow of warning levels
+  const DEPTH = [
+    { key: 'shallow', label: 'Shallow, under 70 km', color: '#ff8a65' },
+    { key: 'mid', label: 'Intermediate, 70–300 km', color: '#4dd0e1' },
+    { key: 'deep', label: 'Deep, 300 km or more', color: '#b388ff' }
+  ];
+  const DEPTH_BY = Object.fromEntries(DEPTH.map(d => [d.key, d]));
+  const depthClass = d => (typeof d !== 'number' || d < 70) ? 'shallow' : d < 300 ? 'mid' : 'deep';
+  // PAGER colours as USGS publishes them
+  const PAGER = { green: ['#4caf50', '#071509'], yellow: ['#ffc400', '#171200'], orange: ['#ff6d00', '#170900'], red: ['#ff1744', '#ffffff'] };
+  let quakes = [], quakeById = new Map(), quakeGeo = null, fDepth = '';
+  let quakeFeed = (() => { const f = new URLSearchParams(location.search).get('feed'); return QUAKE_FEEDS.some(([k]) => k === f) ? f : '2.5_week'; })();
+  const feedLabel = f => (QUAKE_FEEDS.find(([k]) => k === f) || [, f])[1];
+  const magText = m => (typeof m === 'number' ? m.toFixed(1) : '?');
+
+  function setupSeismic() {
+    document.title = 'CAP24 — Earthquakes worldwide (USGS data, demonstration)';
+    document.getElementById('demoBanner').innerHTML = '<strong>Demonstration.</strong> Earthquake data from the U.S. Geological Survey. It may be delayed or revised, and it is not a warning service. For warnings, follow your national authority.';
+    document.getElementById('heroH').textContent = 'Earthquakes around the world, as recorded by the U.S. Geological Survey.';
+    document.getElementById('heroP').textContent = 'The globe shows earthquakes from the USGS real-time feeds. USGS updates them every minute; this page reloads them every five minutes. This is earthquake data, not warnings, and not CAP. Select any earthquake to see its details as USGS publishes them.';
+    document.getElementById('map').setAttribute('aria-label', 'Globe of recent earthquakes. The list next to it carries the same earthquakes.');
+    document.getElementById('listAside').setAttribute('aria-label', 'List of recent earthquakes');
+    const qIn = document.getElementById('q');
+    qIn.placeholder = 'Search place or region';
+    document.querySelector('label[for="q"]').textContent = 'Search earthquakes';
+    const filters = document.getElementById('listFilters');
+    filters.replaceChildren();
+    filters.style.gridTemplateColumns = '1fr';
+    const sel = el('select', { id: 'fFeed', 'aria-label': 'Time window and magnitude' });
+    for (const [k, label] of QUAKE_FEEDS) sel.append(el('option', { value: k }, label));
+    sel.value = quakeFeed;
+    filters.append(sel);
+    sel.addEventListener('change', () => {
+      quakeFeed = sel.value;
+      const u = new URL(location.href);
+      if (quakeFeed === '2.5_week') u.searchParams.delete('feed'); else u.searchParams.set('feed', quakeFeed);
+      history.replaceState(null, '', u);
+      closePanel();
+      document.getElementById('liveText').textContent = 'Loading earthquakes…';
+      refreshQuakes();
+    });
+    const legend = document.getElementById('legend');
+    legend.setAttribute('aria-label', 'Show one depth range on the globe and in the list');
+    legend.replaceChildren(el('div', { class: 'hd' }, 'COLOUR: DEPTH · SIZE: MAGNITUDE'));
+    for (const d of DEPTH) {
+      const b = el('button', { type: 'button', class: 'row', 'data-depth': d.key, 'aria-pressed': 'false' });
+      b.append(el('span', { class: 'sw round', style: `background:${d.color}` }), document.createTextNode(d.label));
+      b.addEventListener('click', () => { fDepth = fDepth === d.key ? '' : d.key; renderQuakeList(); });
+      legend.append(b);
+    }
+    legend.append(el('div', { class: 'hd', style: 'margin-top:6px' }, 'WHITE RING: PAST 24 HOURS'));
+    document.getElementById('aboutBody').replaceChildren(
+      el('p', {}, 'This page uses the same globe as the CAP24 alert views, with an international seismic data source: the real-time earthquake feeds of the U.S. Geological Survey (USGS) Earthquake Hazards Program. Each earthquake is shown as USGS publishes it: magnitude, depth, location, time and review status. Automatic solutions are computed by machine and may change until a seismologist reviews them.'),
+      el('p', {}, 'This is not CAP and not a warning. Official earthquake and tsunami warnings that authorities publish in CAP appear on the All alerts globe, under the CAP category Geo. CAP24 never creates or changes alert content, and AI is not used anywhere on this page.')
+    );
+    const dn = document.getElementById('dataNote');
+    dn.replaceChildren();
+    dn.append(el('strong', {}, 'Data.'), document.createTextNode(' Earthquakes: '),
+      el('a', { href: 'https://www.usgs.gov/programs/earthquake-hazards/data', rel: 'noopener' }, 'U.S. Geological Survey, Earthquake Hazards Program'),
+      document.createTextNode(', real-time GeoJSON summary feeds (USGS data is in the public domain). Magnitudes and locations from automatic solutions may change. Base map: OpenFreeMap, © OpenMapTiles, data © OpenStreetMap contributors. Map software: MapLibre GL JS.'));
+  }
+
+  async function refreshQuakes() {
+    const feed = quakeFeed;
+    try {
+      const r = await fetch(USGS_FEED(feed), { cache: 'no-store' });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const j = await r.json();
+      if (feed !== quakeFeed) return;   // the visitor switched feeds meanwhile
+      const now = Date.now();
+      const feats = (j.features || []).filter(f => f.geometry && Array.isArray(f.geometry.coordinates) && f.properties);
+      for (const f of feats) {
+        const p = f.properties, c = f.geometry.coordinates;
+        p._id = f.id; p._mag = typeof p.mag === 'number' ? p.mag : 0; p._dc = depthClass(c[2]);
+        p._recent = (now - p.time) < 864e5 ? 1 : 0;
+      }
+      quakes = feats.map(f => ({ id: f.id, p: f.properties, lon: f.geometry.coordinates[0], lat: f.geometry.coordinates[1], depth: f.geometry.coordinates[2] }))
+        .sort((a, b) => (b.p.time || 0) - (a.p.time || 0));
+      quakeById = new Map(quakes.map(q => [q.id, q]));
+      quakeGeo = { type: 'FeatureCollection', features: feats };
+      lastGood = Date.now();
+      document.getElementById('liveDot').classList.remove('err');
+      const t = document.getElementById('liveText');
+      t.replaceChildren();
+      if (!quakes.length) t.textContent = `No earthquakes in this feed (${feedLabel(feed)}).`;
+      else {
+        const top = quakes.reduce((m, q) => (q.p._mag > m.p._mag ? q : m), quakes[0]);
+        t.append(el('span', { class: 'val' }, String(quakes.length)), document.createTextNode(` earthquakes · ${feedLabel(feed)} · largest `),
+          el('span', { class: 'val' }, 'M ' + magText(top.p.mag)));
+      }
+      const gen = j.metadata && j.metadata.generated;
+      document.getElementById('liveTime').textContent = 'Updated ' + fmtTime(lastGood) + (gen ? ` · USGS feed of ${fmtTime(gen)}` : '');
+      renderQuakeList();
+      if (mapReady) map.getSource('quakes').setData(quakeGeo); else pendingGeo = quakeGeo;
+      if (selectedKey && !quakeById.has(selectedKey)) closePanel();
+    } catch (e) {
+      document.getElementById('liveDot').classList.add('err');
+      document.getElementById('liveText').textContent = lastGood
+        ? `The USGS feed could not be reached. Showing earthquakes from ${fmtTime(lastGood)}. Retrying in 5 minutes.`
+        : 'The USGS feed could not be reached. Retrying in 5 minutes.';
+      if (!lastGood) document.getElementById('mapStatus').textContent = 'Earthquake feed unavailable';
+    }
+  }
+
+  function renderQuakeList() {
+    const q = document.getElementById('q').value.trim().toLowerCase();
+    const shown = quakes.filter(k => (!fDepth || k.p._dc === fDepth) && (!q || String(k.p.place || k.p.title || '').toLowerCase().includes(q)));
+    const ul = document.getElementById('alertList');
+    ul.replaceChildren();
+    const frag = document.createDocumentFragment();
+    for (const k of shown.slice(0, 600)) {
+      const d = DEPTH_BY[k.p._dc];
+      const li = el('li');
+      const b = el('button', { type: 'button', 'data-key': k.id });
+      if (k.id === selectedKey) b.setAttribute('aria-current', 'true');
+      const bar = el('span', { class: 'bar', style: `background:${d.color}`, 'aria-hidden': 'true' });
+      const body = el('span');
+      body.append(
+        el('div', { class: 'a-sev', style: `color:${d.color}` }, `M ${magText(k.p.mag)}${k.p.status === 'automatic' ? ' · automatic' : ''}`),
+        el('div', { class: 'a-event' }, k.p.place || k.p.title || 'Earthquake'),
+        el('div', { class: 'a-meta' }, `${fmtTime(k.p.time)} · ${typeof k.depth === 'number' ? Math.round(k.depth) + ' km deep' : 'depth unknown'}`)
+      );
+      b.append(bar, body);
+      b.addEventListener('click', () => openQuake(k.id, true));
+      li.append(b);
+      frag.append(li);
+    }
+    ul.append(frag);
+    const more = shown.length > 600 ? ' (first 600 listed; all on the globe)' : '';
+    document.getElementById('listCount').textContent =
+      (shown.length === quakes.length ? `${quakes.length} earthquakes` : `${shown.length} of ${quakes.length} earthquakes`) + more;
+    const legend = document.getElementById('legend');
+    legend.classList.toggle('filtered', !!fDepth);
+    legend.querySelectorAll('button[data-depth]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.depth === fDepth)));
+    if (!mapReady) return;
+    let filter = null;
+    if (q) filter = ['in', ['get', '_id'], ['literal', shown.map(k => k.id)]];
+    else if (fDepth) filter = ['==', ['get', '_dc'], fDepth];
+    map.setFilter('quake-circle', filter);
+  }
+
+  const QUAKE_COLOR = ['match', ['get', '_dc'], 'mid', DEPTH_BY.mid.color, 'deep', DEPTH_BY.deep.color, DEPTH_BY.shallow.color];
+  const QUAKE_RADIUS = ['interpolate', ['linear'], ['get', '_mag'], 0, 2, 2.5, 3.5, 4.5, 7, 6, 13, 7, 20, 8, 28];
+  function addQuakeLayers() {
+    tintBase();
+    map.addSource('quakes', { type: 'geojson', data: { type: 'FeatureCollection', features: [] }, attribution: 'Earthquakes: U.S. Geological Survey' });
+    map.addLayer({ id: 'quake-circle', type: 'circle', source: 'quakes',
+      layout: { 'circle-sort-key': ['-', 10, ['get', '_mag']] },   // small quakes on top, so they stay clickable
+      paint: { 'circle-radius': QUAKE_RADIUS, 'circle-color': QUAKE_COLOR, 'circle-opacity': 0.72,
+               'circle-stroke-color': '#ffffff', 'circle-stroke-width': ['case', ['==', ['get', '_recent'], 1], 1.2, 0], 'circle-stroke-opacity': 0.9 } });
+    map.addLayer({ id: 'quake-sel', type: 'circle', source: 'quakes', filter: ['==', ['get', '_id'], ''],
+      paint: { 'circle-radius': ['+', QUAKE_RADIUS, 5], 'circle-color': 'rgba(0,0,0,0)', 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2.5 } });
+    const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 8 });
+    map.on('mousemove', 'quake-circle', e => {
+      map.getCanvas().style.cursor = 'pointer';
+      const p = e.features[0].properties;
+      popup.setLngLat(e.lngLat).setText(`M ${magText(p.mag)} · ${p.place || ''}`).addTo(map);
+    });
+    map.on('mouseleave', 'quake-circle', () => { map.getCanvas().style.cursor = ''; popup.remove(); });
+    map.on('click', 'quake-circle', e => {
+      const f = [...e.features].sort((a, b) => (a.properties._mag || 0) - (b.properties._mag || 0))[0];   // the smallest on top
+      if (f) openQuake(f.properties._id, false);
+    });
+  }
+  function highlightQuake(id) {
+    if (!mapReady) return;
+    map.setFilter('quake-sel', ['==', ['get', '_id'], id || '']);
+    map.setPaintProperty('quake-circle', 'circle-opacity', id ? 0.35 : 0.72);
+  }
+  function flyQuake(id) {
+    const k = quakeById.get(id);
+    if (!k || !mapReady) return;
+    map.stop();
+    map.flyTo({ center: [k.lon, k.lat], zoom: Math.max(map.getZoom(), 4), duration: 1200 });
+  }
+
+  function openQuake(id, fly) {
+    const k = quakeById.get(id);
+    if (!k) return;
+    const p = k.p, d = DEPTH_BY[p._dc];
+    selectedKey = id;
+    highlightQuake(id);
+    document.querySelectorAll('ul.alerts button[aria-current]').forEach(b => b.removeAttribute('aria-current'));
+    const btn = document.querySelector(`ul.alerts button[data-key="${CSS.escape(id)}"]`);
+    if (btn) btn.setAttribute('aria-current', 'true');
+    stopSpin();
+    if (fly) { if (mapReady) flyQuake(id); else pendingFly = id; }
+    returnFocus = document.activeElement;
+
+    document.getElementById('pSev').replaceChildren(el('span', { class: 'sev-chip', style: `background:${d.color};color:#0a0d14` }, `M ${magText(p.mag)}`));
+    document.getElementById('pTitle').textContent = p.place || p.title || 'Earthquake';
+    document.getElementById('pSub').textContent = 'U.S. Geological Survey · ' + (p.type || 'earthquake');
+    const body = document.getElementById('pBody');
+    body.replaceChildren(el('div', { class: 'quake-note' }, 'Earthquake data, not a warning. This is not a CAP alert, so there is no TV or phone view. For warnings, including tsunami warnings, follow your national authority.'));
+
+    const facts = el('dl', { class: 'facts' });
+    const add = (label, value, note) => {
+      if (value == null || value === '') return;
+      const dd = el('dd');
+      if (value instanceof Node) dd.append(value); else dd.append(document.createTextNode(String(value)));
+      if (note) dd.append(el('small', {}, note));
+      facts.append(el('dt', {}, label), dd);
+    };
+    add('Magnitude', `${magText(p.mag)}${p.magType ? ' (' + p.magType + ')' : ''}`, p.magType ? 'The letters name the method USGS used to compute it.' : null);
+    add('Time', fmtTime(p.time));
+    add('Depth', typeof k.depth === 'number' ? `${k.depth.toFixed(1)} km` : null, d.label);
+    add('Location', `${Math.abs(k.lat).toFixed(3)}° ${k.lat < 0 ? 'S' : 'N'}, ${Math.abs(k.lon).toFixed(3)}° ${k.lon < 0 ? 'W' : 'E'}`);
+    add('Review', p.status === 'reviewed' ? 'Reviewed by a seismologist' : p.status === 'automatic' ? 'Automatic' : p.status,
+      p.status === 'automatic' ? 'Computed by machine. Magnitude and location may change.' : null);
+    if (p.felt != null) add('Felt reports', `${p.felt}`, 'Reports sent to the USGS "Did You Feel It?" system.');
+    if (p.cdi != null) add('Reported intensity', `${p.cdi}`, 'Highest intensity people reported (DYFI).');
+    if (p.mmi != null) add('Estimated intensity', `${p.mmi}`, 'Highest intensity estimated from instruments (ShakeMap).');
+    if (p.alert && PAGER[p.alert]) {
+      const v = el('span');
+      v.append(el('span', { class: 'pager-chip', style: `background:${PAGER[p.alert][0]};color:${PAGER[p.alert][1]}` }, p.alert), document.createTextNode('as published'));
+      add('PAGER level', v, 'USGS estimate of likely fatalities and economic losses. It is an impact estimate, not a warning.');
+    }
+    if (p.tsunami === 1) add('Tsunami flag', '1', 'USGS sets this for large events in oceanic regions. It does not mean a tsunami exists or that a warning was issued. Tsunami warnings come from tsunami warning centres and national authorities.');
+    add('Network', p.net ? p.net.toUpperCase() + (p.sources && p.sources.replace(/,/g, '') !== p.net ? ` (sources: ${p.sources.replace(/^,|,$/g, '').replace(/,/g, ', ')})` : '') : null);
+    add('Last updated', fmtTime(p.updated));
+    add('Event ID', id);
+    body.append(facts);
+    const links = el('div', { class: 'links' });
+    const u = safeUrl(p.url);
+    if (u) links.append(el('a', { href: u, target: '_blank', rel: 'noopener' }, 'Event page on USGS (maps, intensity, technical details)'));
+    body.append(links, el('p', { class: 'src-note' }, `Source: U.S. Geological Survey real-time feed (${feedLabel(quakeFeed)}). Shown as published; nothing is changed.`));
+
+    panel.classList.add('open'); panel.setAttribute('aria-hidden', 'false');
+    scrim.classList.add('open');
+    document.getElementById('pClose').focus();
+  }
+
+  function setupMode() {
+    document.querySelectorAll('nav.modes a').forEach(a => { if (a.dataset.mode === MODE) a.setAttribute('aria-current', 'page'); });
+    if (MODE === 'seismic') { setupSeismic(); return; }
+    if (MODE === 'weather') {
+      document.title = 'CAP24 — Official weather alerts on every screen (demonstration)';
+      document.getElementById('heroH').textContent = 'Official weather warnings, as met services publish them in CAP.';
+      document.getElementById('heroP').textContent = 'The globe shows only alerts in the CAP category Met (meteorological) that official alerting authorities are publishing right now. Select any warning to read it exactly as its authority issued it, and to see it as a TV overlay and on a phone.';
+      document.getElementById('liveText').textContent = 'Loading official weather alerts…';
+      document.getElementById('map').setAttribute('aria-label', 'Globe of current official CAP weather alerts. The alert list next to it carries the same alerts.');
+      document.getElementById('listAside').setAttribute('aria-label', 'List of current official weather alerts');
+    }
+  }
+
   // ---- Start -------------------------------------------------------------
+  setupMode();
   initMap();
-  loadOutlines();
-  refresh();
-  setInterval(refresh, REFRESH_MS);
+  if (MODE === 'seismic') {
+    refreshQuakes();
+    setInterval(refreshQuakes, REFRESH_MS);
+  } else {
+    loadOutlines();
+    refresh();
+    setInterval(refresh, REFRESH_MS);
+  }
 })();
 </script>
 </body>

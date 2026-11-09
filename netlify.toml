@@ -5,3 +5,14 @@
   for = "/*"
   [headers.values]
     X-Robots-Tag = "noindex, nofollow"
+
+# One page, three views of the same globe
+[[redirects]]
+  from = "/weather"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/seismic"
+  to = "/index.html"
+  status = 200
