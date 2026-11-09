@@ -440,6 +440,15 @@
     const c = regionName(a.country), snd = a.sender || '';
     return snd.toLowerCase().startsWith(c.toLowerCase()) ? snd : `${c} · ${snd}`;
   };
+  // The open alert is kept in the address (?alert=), so Back from the phone view and shared links reopen it
+  const setAlertParam = identifier => {
+    try {
+      const u = new URL(location.href);
+      if (identifier) u.searchParams.set('alert', identifier); else u.searchParams.delete('alert');
+      history.replaceState(null, '', u);
+    } catch (e) { /* address unchanged */ }
+  };
+  let deepLinkDone = false;
   const phoneUrl = identifier => new URL('/a.html?id=' + encodeURIComponent(identifier || ''), location.href).href;
   // QR as inline SVG, drawn from the module matrix (no external images)
   function qrSvg(text) {
@@ -588,6 +597,12 @@
       fillCountries();
       renderList();
       setGeo(geo);
+      if (!deepLinkDone) {
+        deepLinkDone = true;
+        const want = new URLSearchParams(location.search).get('alert');
+        if (want && byKey.has(want)) openAlert(want, true);
+        else if (want) setAlertParam(null);   // no longer in the feed
+      }
     } catch (e) {
       document.getElementById('liveDot').classList.add('err');
       const msg = lastGood
@@ -861,6 +876,7 @@
     const a = byKey.get(key);
     if (!a) return;
     selectedKey = key;
+    if (a.identifier) setAlertParam(a.identifier);
     highlight(key);
     document.querySelectorAll('ul.alerts button[aria-current]').forEach(b => b.removeAttribute('aria-current'));
     const btn = document.querySelector(`ul.alerts button[data-key="${CSS.escape(key)}"]`);
@@ -931,7 +947,7 @@
       content.replaceChildren();
       const tvBtn = el('button', { type: 'button', class: 'open-tv' }, 'View as TV overlay');
       tvBtn.addEventListener('click', () => openTV(a, b));
-      const phone = el('a', { class: 'phone-link', href: phoneUrl(a.identifier), target: '_blank', rel: 'noopener' }, 'Open phone view');
+      const phone = el('a', { class: 'phone-link', href: phoneUrl(a.identifier) }, 'Open phone view');
       const actions = el('div', { class: 'view-actions' });
       actions.append(tvBtn, phone);
       content.append(actions);
@@ -1228,6 +1244,7 @@
   document.addEventListener('fullscreenchange', () => { if (tv.classList.contains('open')) setTimeout(fitStage, 50); });
 
   function closePanel() {
+    if (MODE !== 'seismic') setAlertParam(null);
     selectedKey = null;
     highlight(null);
     document.querySelectorAll('ul.alerts button[aria-current]').forEach(b => b.removeAttribute('aria-current'));

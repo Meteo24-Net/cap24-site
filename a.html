@@ -211,6 +211,10 @@ body.ss-open { overflow:hidden; }
   --ff-body:'Barlow','Noto Sans','Noto Sans Georgian','Segoe UI',system-ui,sans-serif;
 }
 .strip { position:sticky; }
+.strip .back { display:inline-flex; align-items:center; gap:4px; min-height:36px; padding:0 10px 0 6px; border:1px solid var(--line); border-radius:4px;
+  background:var(--panel); color:var(--fg); text-decoration:none; font:600 15px var(--ff-head); letter-spacing:.02em; }
+.strip .back svg { width:20px; height:20px; fill:currentColor; }
+.strip .back:focus-visible { outline:2px solid var(--cyan); outline-offset:2px; }
 .strip .bar { position:absolute; left:0; right:0; bottom:-3px; height:3px; background:var(--sev); }
 .fixture b { color:#ffc400; }
 .state { font-family:var(--ff-mono); font-size:11px; color:var(--muted); }
@@ -244,6 +248,7 @@ body.ss-open { overflow:hidden; }
 <body>
 <main class="app" id="app">
   <div class="strip">
+    <a class="back" id="back" href="/" aria-label="Open the alert map"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11H7.8l5.6-5.6L12 4l-8 8 8 8 1.4-1.4L7.8 13H20z"/></svg><span id="back-label">Map</span></a>
     <div class="brand">CAP24</div>
     <span class="lang-badge" id="lang-badge" hidden>—</span>
     <span class="fx">DEMONSTRATION</span>
@@ -926,6 +931,23 @@ body.ss-open { overflow:hidden; }
   $('ticker').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleTicker(); } });
   if (reduceMotion) { $('ticker').classList.add('static'); setText('ticker-hint', 'This phone is set to reduce motion, so the text stands still.'); }
   requestAnimationFrame(tickerLoop);
+
+  // Back: return to the page this viewer came from on this site (the alert stays open there);
+  // opened from a QR code or a shared link, go to the map with this alert open
+  (() => {
+    const back = $('back');
+    let ref = null;
+    try { ref = document.referrer ? new URL(document.referrer) : null; } catch (e) { ref = null; }
+    const fromSite = !!ref && ref.origin === location.origin && !/^\/a(\.html)?$/.test(ref.pathname);
+    const target = new URL(fromSite ? ref.pathname + ref.search : '/', location.origin);
+    if (id) target.searchParams.set('alert', id);
+    back.href = target.pathname + target.search;
+    setText('back-label', fromSite ? 'Back' : 'Map');
+    back.setAttribute('aria-label', fromSite ? 'Back to the alert map' : 'Open the alert map');
+    back.addEventListener('click', e => {
+      if (fromSite && history.length > 1) { e.preventDefault(); history.back(); }
+    });
+  })();
 
   load();
   setInterval(() => { if (shown) load(); }, RECHECK_MS);
