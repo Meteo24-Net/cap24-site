@@ -1,0 +1,9 @@
+// Cloudflare Worker that serves this repository as a static site (no script, no build step).
+// _redirects (/weather, /seismic) and _headers (noindex) are read from the same folder.
+{
+  "name": "cap24-site",
+  "compatibility_date": "2026-11-09",
+  "assets": {
+    "directory": "./"
+  }
+}

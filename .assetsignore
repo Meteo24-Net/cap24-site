@@ -1,0 +1,9 @@
+# Files in this repository that are not part of the public site
+.git/
+.wrangler/
+node_modules/
+.gitignore
+.assetsignore
+wrangler.jsonc
+netlify.toml
+README.md

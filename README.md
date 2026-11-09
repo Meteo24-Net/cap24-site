@@ -6,9 +6,10 @@ One-page demonstration of how official CAP alerts can appear on screen. Not a wa
 - `a.html` — phone view: one alert, verbatim, opened from the TV QR code (`a.html?id=<CAP identifier>`)
 - `_redirects` — serves `/weather` and `/seismic` from `index.html`
 - `_headers` — asks search engines not to index the site
-- `netlify.toml` — legacy Netlify setting; hosting is Cloudflare Pages (no build step, output directory `/`)
+- `wrangler.jsonc`, `.assetsignore` — Cloudflare Worker that serves the files as a static site (no build step)
+- `netlify.toml` — legacy Netlify setting (no longer the host)
 
-Workflow: test on a branch (each branch gets a Cloudflare preview address), merge to `main` once per review round.
+Workflow: test on a branch (each branch can get a Cloudflare preview address), merge to `main` once per review round.
 
 Data: Alert-Hub.org and the alerting authorities, through the public "CAP Alerts Feed" layer hosted by Esri. Only sources marked official in the Alert-Hub source catalogue are shown. Earthquakes: U.S. Geological Survey real-time feeds (public domain). AI never creates, translates or changes alert content.
 
