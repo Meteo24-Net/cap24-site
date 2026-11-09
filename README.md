@@ -2,10 +2,14 @@
 
 One-page demonstration of how official CAP alerts can appear on screen. Not a warning service.
 
-- `index.html` — globe of current official CAP alerts, alert list, alert panel (verbatim text, original language)
+- `index.html` — one globe, three views: `/` all official CAP alerts, `/weather` CAP category Met, `/seismic` USGS earthquakes (data, not CAP)
 - `a.html` — phone view: one alert, verbatim, opened from the TV QR code (`a.html?id=<CAP identifier>`)
-- `netlify.toml` — static publish settings; asks search engines not to index the site
+- `_redirects` — serves `/weather` and `/seismic` from `index.html`
+- `_headers` — asks search engines not to index the site
+- `netlify.toml` — legacy Netlify setting; hosting is Cloudflare Pages (no build step, output directory `/`)
 
-Data: Alert-Hub.org and the alerting authorities, through the public "CAP Alerts Feed" layer hosted by Esri. Only sources marked official in the Alert-Hub source catalogue are shown. AI never creates, translates or changes alert content.
+Workflow: test on a branch (each branch gets a Cloudflare preview address), merge to `main` once per review round.
+
+Data: Alert-Hub.org and the alerting authorities, through the public "CAP Alerts Feed" layer hosted by Esri. Only sources marked official in the Alert-Hub source catalogue are shown. Earthquakes: U.S. Geological Survey real-time feeds (public domain). AI never creates, translates or changes alert content.
 
 Spec: GMF-WEB-001 (CAP24 Live Demo Site — Step 1 Specification).

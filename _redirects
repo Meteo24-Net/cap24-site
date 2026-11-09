@@ -1,0 +1,5 @@
+# One page, three views of the same globe (read by Cloudflare Pages and Netlify)
+/weather    /   200
+/weather/   /   200
+/seismic    /   200
+/seismic/   /   200

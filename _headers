@@ -1,0 +1,3 @@
+# Keep the demonstration out of search engines for now (read by Cloudflare Pages and Netlify)
+/*
+  X-Robots-Tag: noindex, nofollow
