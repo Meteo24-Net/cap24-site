@@ -3,6 +3,8 @@
 //   /api/outages?range=7d|28d  →  Cloudflare Radar internet-outage annotations (reviewed)
 //   /api/ioda?range=7d|28d     →  IODA (Georgia Tech) country outage events (automatic),
 //                                 routing (BGP) and active-probing signals only
+//   /api/ddos?range=7d|28d     →  Cloudflare Radar: share of mitigated DDoS attacks by TARGET country,
+//                                 network layer (L3/4) and websites (L7). Origins are never requested.
 // The Radar API token stays here (Worker secret RADAR_TOKEN), never in the browser.
 // Cause fields (outageCause, description, linkedUrl, eventType) are removed here, so the
 // public page cannot show causes even by mistake (CAP24 resilience spec, "Public website").
@@ -18,6 +20,7 @@ export default {
     const url = new URL(request.url);
     if (url.pathname === '/api/outages') return outages(url, env, ctx);
     if (url.pathname === '/api/ioda') return ioda(url, ctx);
+    if (url.pathname === '/api/ddos') return ddos(url, env, ctx);
     return env.ASSETS.fetch(request);
   }
 };
@@ -130,6 +133,41 @@ async function ioda(url, ctx) {
     signals: m.signals
   }));
   const res = json({ source: 'IODA', range, fetched: new Date().toISOString(), measurementGapsLeftOut: gapCount, outages: list }, 200, KEEP_SECONDS);
+  ctx.waitUntil(cache.put(cacheKey, res.clone()));
+  return res;
+}
+
+// DDoS: Cloudflare Radar top TARGET locations of mitigated attacks, as shares (percent) of the total.
+// Target locations only: attack origins are unreliable (hijacked devices, faked addresses) and read as accusations.
+const DDOS = {
+  l3: 'https://api.cloudflare.com/client/v4/radar/attacks/layer3/top/locations/target',
+  l7: 'https://api.cloudflare.com/client/v4/radar/attacks/layer7/top/locations/target'
+};
+
+async function ddos(url, env, ctx) {
+  const asked = url.searchParams.get('range');
+  const range = RANGES.includes(asked) ? asked : '7d';
+  const cacheKey = new Request(`${url.origin}/api/ddos?range=${range}&v=${CACHE_VERSION}`);
+  const cache = caches.default;
+  const hit = await cache.match(cacheKey);
+  if (hit) return hit;
+  if (!env.RADAR_TOKEN) return json({ error: 'not-configured' }, 503, 60);
+
+  const out = { source: 'Cloudflare Radar', licence: 'CC BY-NC 4.0', range, fetched: new Date().toISOString(), l3: null, l7: null, errors: {} };
+  for (const kind of Object.keys(DDOS)) {
+    try {
+      const r = await fetch(`${DDOS[kind]}?dateRange=${range}&limit=30&format=json`, { headers: { Authorization: `Bearer ${env.RADAR_TOKEN}` } });
+      if (!r.ok) { out.errors[kind] = `HTTP ${r.status}`; continue; }
+      const j = await r.json();
+      const result = j.result || {};
+      const series = Object.entries(result).find(([k, v]) => k !== 'meta' && Array.isArray(v));
+      out[kind] = (series ? series[1] : [])
+        .map(x => ({ cc: String(x.targetCountryAlpha2 || '').toUpperCase(), name: x.targetCountryName || null, share: parseFloat(x.value) }))
+        .filter(x => /^[A-Z]{2}$/.test(x.cc) && isFinite(x.share));
+    } catch (e) { out.errors[kind] = 'unreachable'; }
+  }
+  if (!out.l3 && !out.l7) return json({ error: 'upstream', detail: out.errors }, 502, 60);
+  const res = json(out, 200, KEEP_SECONDS);
   ctx.waitUntil(cache.put(cacheKey, res.clone()));
   return res;
 }
