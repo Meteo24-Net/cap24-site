@@ -14,6 +14,7 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (url.pathname === '/api/outages') return outages(url, env, ctx);
+    if (url.pathname === '/api/ioda-probe') return iodaProbe();   // TEMPORARY: learn IODA's response format, then remove
     if (url.pathname === '/api/probe-ioda') return probeIoda();   // TEMPORARY: inspect IODA's response format, remove after
     if (url.pathname === '/api/probe-config') return json({ radarToken: !!env.RADAR_TOKEN }, 200, 0);   // TEMPORARY: is the secret visible (never its value)
     return env.ASSETS.fetch(request);
@@ -84,4 +85,23 @@ function json(body, status, maxAge) {
       'x-robots-tag': 'noindex, nofollow'
     }
   });
+}
+
+// TEMPORARY probe: fixed IODA queries only (no caller-supplied URL), first 1500 characters of each answer
+async function iodaProbe() {
+  const until = Math.floor(Date.now() / 1000), from = until - 7 * 86400;
+  const base = 'https://api.ioda.inetintel.cc.gatech.edu/v2';
+  const asks = [
+    `${base}/outages/summary?entityType=country&from=${from}&until=${until}`,
+    `${base}/outages/events?entityType=country&from=${from}&until=${until}&limit=5`,
+    `${base}/outages/alerts?entityType=country&from=${from}&until=${until}&limit=5`
+  ];
+  const out = [];
+  for (const u of asks) {
+    try {
+      const r = await fetch(u, { headers: { accept: 'application/json' } });
+      out.push({ url: u.replace(base, ''), status: r.status, body: (await r.text()).slice(0, 1500) });
+    } catch (e) { out.push({ url: u.replace(base, ''), error: String(e) }); }
+  }
+  return json({ probe: out }, 200, 0);
 }
