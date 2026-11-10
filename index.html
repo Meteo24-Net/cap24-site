@@ -1917,7 +1917,7 @@
     document.title = 'CAP24 — Air quality worldwide (OpenAQ data, demonstration)';
     document.getElementById('demoBanner').innerHTML = '<strong>Demonstration.</strong> Air quality readings from sensors worldwide, through OpenAQ. They are measurements, not warnings, and may be delayed or wrong. For official air quality alerts, follow your national authority.';
     document.getElementById('heroH').textContent = 'Fine-particle air pollution, as sensors measure it.';
-    document.getElementById('heroP').textContent = 'The globe shows the latest PM2.5 reading from each sensor that reported in the last three hours, from government monitors and low-cost sensors that OpenAQ brings together. Readings are compared with the WHO guideline as a reference only. Official air quality alerts, where an authority issues them in CAP, appear on the All alerts globe.';
+    document.getElementById('heroP').textContent = 'The globe shows the latest PM2.5 reading from each station that reported in the last three hours, from government monitors and low-cost sensors that OpenAQ brings together. Readings are compared with the WHO guideline as a reference only. Official air quality alerts, where an authority issues them in CAP, appear on the All alerts globe.';
     document.getElementById('map').setAttribute('aria-label', 'Globe of the latest PM2.5 readings from air quality sensors. The list next to it carries the highest readings.');
     document.getElementById('listAside').setAttribute('aria-label', 'List of the highest PM2.5 readings');
     document.getElementById('q').placeholder = 'Search country';
@@ -1935,7 +1935,7 @@
     }
     legend.append(el('div', { class: 'hd', style: 'margin-top:6px' }, 'A REFERENCE, NOT A WARNING LEVEL'));
     document.getElementById('aboutBody').replaceChildren(
-      el('p', {}, 'Each dot is the latest PM2.5 reading (fine particles, in micrograms per cubic metre) from one sensor that reported in the last three hours. OpenAQ, an open-data non-profit, brings together readings from government monitoring networks and from low-cost sensors; each station\'s panel says which kind it is, who provides the data and under which licence.'),
+      el('p', {}, 'Each dot is the latest PM2.5 reading (fine particles, in micrograms per cubic metre) from one station that reported in the last three hours. OpenAQ, an open-data non-profit, brings together readings from government monitoring networks and from low-cost sensors; each station\'s panel says which kind it is, who provides the data and under which licence.'),
       el('p', {}, 'The colours compare each reading with the World Health Organization\'s 2021 guideline for 24-hour average PM2.5 (15 µg/m³) and its interim targets of 37.5 and 75 µg/m³. Most readings are hourly, so a single reading above 15 does not mean the daily guideline was exceeded. This is a reference for orientation, not a warning level: air quality alerts are for authorities to issue, and where they do so in CAP, they appear on the All alerts globe.'),
       el('p', {}, 'Readings below 0 or above 1,000 µg/m³ are left out as sensor errors. Low-cost sensors are less accurate than government monitors, especially in humid air. This is measurement data, not CAP, and AI is not used anywhere on this page.')
     );
@@ -2001,7 +2001,7 @@
       const t = document.getElementById('liveText');
       t.replaceChildren();
       const above = airRows.filter(r => r.v > 15).length;
-      t.append(el('span', { class: 'val' }, airRows.length.toLocaleString('en')), document.createTextNode(' sensors reporting in the last 3 hours · '),
+      t.append(el('span', { class: 'val' }, airRows.length.toLocaleString('en')), document.createTextNode(' stations reporting in the last 3 hours · '),
         el('span', { class: 'val' }, above.toLocaleString('en')), document.createTextNode(' above 15 µg/m³ (WHO guideline, 24-hour)'));
       document.getElementById('liveTime').textContent = 'Updated ' + fmtTime(lastGood) + (airDropped ? ` · ${airDropped} readings left out as sensor errors` : '') + (missing ? ` · ${missing} of ${pages} pages could not be loaded` : '');
       renderAirList();
@@ -2031,7 +2031,7 @@
       if (`air-${r.i}` === selectedKey) btn.setAttribute('aria-current', 'true');
       const body = el('span');
       body.append(
-        el('div', { class: 'a-sev', style: `color:${b.color}` }, `PM2.5 ${r.v} µg/m³`),
+        el('div', { class: 'a-sev', style: `color:${b.color};text-transform:none` }, `PM2.5 · ${r.v} µg/m³`),
         el('div', { class: 'a-event' }, r.cc ? regionName(r.cc) : 'Country not identified'),
         el('div', { class: 'a-meta' }, `${ageText(r.t)} · OpenAQ location ${r.loc}`)
       );
@@ -2041,7 +2041,7 @@
       frag.append(li);
     }
     ul.append(frag);
-    document.getElementById('listCount').textContent = `${shown.length.toLocaleString('en')} sensors` + (shown.length > top.length ? ` · the ${top.length} highest listed, all on the globe` : '');
+    document.getElementById('listCount').textContent = `${shown.length.toLocaleString('en')} stations` + (shown.length > top.length ? ` · the ${top.length} highest listed, all on the globe` : '') + '. A very high single reading can be a sensor fault: open the station to see its type.';
     const legend = document.getElementById('legend');
     legend.classList.toggle('filtered', !!fAirBand);
     legend.querySelectorAll('button[data-band]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.band === fAirBand)));
@@ -2098,7 +2098,7 @@
     stopSpin();
     if (fly) { if (mapReady) flyAir(key); else pendingFly = key; }
     returnFocus = document.activeElement;
-    document.getElementById('pSev').replaceChildren(el('span', { class: 'sev-chip', style: `background:${b.color};color:#0a0d14` }, `PM2.5 ${r.v} µg/m³`));
+    document.getElementById('pSev').replaceChildren(el('span', { class: 'sev-chip', style: `background:${b.color};color:#0a0d14;text-transform:none` }, `PM2.5 · ${r.v} µg/m³`));
     document.getElementById('pTitle').textContent = r.cc ? regionName(r.cc) : 'Air quality sensor';
     document.getElementById('pSub').textContent = 'Air quality reading · OpenAQ';
     const body = document.getElementById('pBody');
