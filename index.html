@@ -126,6 +126,11 @@
   .maplibregl-popup-tip { display: none; }
   .maplibregl-ctrl-attrib { background: rgba(7,10,16,0.7) !important; color: var(--text-dim); }
   .maplibregl-ctrl-attrib a { color: var(--text-dim); }
+  @media (max-width: 720px) {
+    .legend { left: 8px; bottom: 8px; padding: 6px 8px; }
+    .legend .row { font-size: 12px; padding: 1px 6px; margin: 1px 0; }
+    .legend .hd { font-size: 10px; }
+  }
 
   /* ---------- TV view (layout of demo v9: full screen, three columns, signed summary PROPOSED) ---------- */
   .view-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 4px 0 6px; }
@@ -767,6 +772,8 @@
       attributionControl: { compact: true }
     });
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+    // The credits start folded behind their (i) button, so on a phone they do not run over the legend
+    map.once('load', () => document.querySelectorAll('.maplibregl-ctrl-attrib.maplibregl-compact-show').forEach(n => n.classList.remove('maplibregl-compact-show')));
 
     map.once('style.load', () => {
       if (MODE === 'internet') {
@@ -774,6 +781,7 @@
         mapReady = true;
         document.getElementById('mapStatus').textContent = '';
         paintCountries();
+        paintDdos();
         if (pendingFly) { const k = pendingFly; pendingFly = null; highlightOutage(k); flyOutage(k); }
         else if (!reduce) spin();
         return;
@@ -1530,7 +1538,17 @@
     ended: { label: 'Ended in this period', color: '#7a8699' }
   };
   const OUT_TYPE = { NATIONWIDE: 'Nationwide', REGIONAL: 'Regional', NETWORK: 'Network-level' };
-  let outages = [], outById = new Map(), outRange = '7d', fState = '', fSource = '', countryShapes = null, countryBbox = new Map(), outMissing = [], iodaGaps = 0;
+  let outages = [], outById = new Map(), outRange = '7d', fSource = '', countryShapes = null, countryBbox = new Map(), outMissing = [], iodaGaps = 0;
+  const outShow = { ongoing: true, ended: true };
+  // DDoS layer: share of the attacks Cloudflare mitigated, by TARGET country only (origins are never shown)
+  const DDOS_COLOR = '#4dd0e1';
+  const DDOS_KIND = {
+    l3: { label: 'Network attacks (L3/4)', long: 'network-layer attacks (L3/4): floods aimed at networks and servers', target: 'Target country as Cloudflare records it.' },
+    l7: { label: 'Website attacks (L7)', long: 'website attacks (L7): floods of requests aimed at websites', target: 'Target country = billing country of the attacked website, as Cloudflare records it.' }
+  };
+  let ddosKind = 'l3', ddosData = { l3: [], l7: [] }, ddosMissing = false;
+  const ddosItems = () => (ddosKind ? (ddosData[ddosKind] || []) : []).map((d, i) => ({ id: `ddos-${ddosKind}-${d.cc}`, kind: ddosKind, cc: d.cc, share: d.share, rank: i + 1 }));
+  const shareText = v => (v >= 10 ? v.toFixed(0) : v >= 1 ? v.toFixed(1) : v.toFixed(2)) + '%';
   const outRangeLabel = r => (OUT_RANGES.find(([k]) => k === r) || [, r])[1];
   const outCountries = o => o.locations.map(c => regionName(c)).join(', ') || 'Location not given';
   const outDuration = o => {
@@ -1542,9 +1560,9 @@
 
   function setupInternet() {
     document.title = 'CAP24 — Internet outages and warning channels (demonstration)';
-    document.getElementById('demoBanner').innerHTML = '<strong>Demonstration.</strong> Internet outages from Cloudflare Radar and IODA. They may be delayed or revised. This page shows where and when, not why, and it is not a warning service.';
+    document.getElementById('demoBanner').innerHTML = '<strong>Demonstration.</strong> Internet outages from Cloudflare Radar and IODA, and DDoS attacks stopped by Cloudflare. They may be delayed or revised. This page shows where and when, not why, and it is not a warning service.';
     document.getElementById('heroH').textContent = 'Where internet-based warning channels are disrupted.';
-    document.getElementById('heroP').textContent = 'When the internet or mobile data goes down, warnings sent through apps, websites and messaging may not arrive. A broadcast transmitter keeps reaching TV sets. The globe shows internet outages from two independent sources, Cloudflare Radar and IODA: where and when they happened, not why.';
+    document.getElementById('heroP').textContent = 'When the internet or mobile data goes down, warnings sent through apps, websites and messaging may not arrive. A broadcast transmitter keeps reaching TV sets. The globe shows internet outages from two independent sources, Cloudflare Radar and IODA, and, as a separate layer, the countries most targeted by DDoS attacks that Cloudflare stopped. It shows where and when, not why.';
     document.getElementById('map').setAttribute('aria-label', 'Globe of countries with internet outages in the chosen period. The list next to it carries the same outages.');
     document.getElementById('listAside').setAttribute('aria-label', 'List of internet outages');
     document.getElementById('q').placeholder = 'Search country or network';
@@ -1560,18 +1578,27 @@
     srcSel.addEventListener('change', () => { fSource = srcSel.value; renderOutageList(); });
     sel.addEventListener('change', () => { outRange = sel.value; closePanel(); document.getElementById('liveText').textContent = 'Loading internet outages…'; refreshOutages(); });
     const legend = document.getElementById('legend');
-    legend.setAttribute('aria-label', 'Show ongoing or ended outages on the globe and in the list');
-    legend.replaceChildren(el('div', { class: 'hd' }, 'COUNTRIES WITH AN OUTAGE'));
+    legend.setAttribute('aria-label', 'Choose which layers the globe and the list show');
+    legend.replaceChildren(el('div', { class: 'hd' }, 'INTERNET OUTAGES'));
     for (const [k, s] of Object.entries(OUT_STATE)) {
-      const b = el('button', { type: 'button', class: 'row', 'data-state': k, 'aria-pressed': 'false' });
+      const b = el('button', { type: 'button', class: 'row', 'data-state': k, 'aria-pressed': 'true' });
       b.append(el('span', { class: 'sw', style: `background:${s.color}` }), document.createTextNode(s.label));
-      b.addEventListener('click', () => { fState = fState === k ? '' : k; renderOutageList(); });
+      b.addEventListener('click', () => { outShow[k] = !outShow[k]; renderOutageList(); });
       legend.append(b);
     }
+    legend.append(el('div', { class: 'hd', style: 'margin-top:8px' }, 'DDOS TARGETS · STOPPED BY CLOUDFLARE'));
+    for (const [k, d] of Object.entries(DDOS_KIND)) {
+      const b = el('button', { type: 'button', class: 'row', 'data-ddos': k, 'aria-pressed': String(k === ddosKind) });
+      b.append(el('span', { class: 'sw', style: `background:${DDOS_COLOR}` }), document.createTextNode(d.label));
+      b.addEventListener('click', () => { ddosKind = ddosKind === k ? '' : k; if (selectedKey && selectedKey.startsWith('ddos-')) closePanel(); renderOutageList(); });
+      legend.append(b);
+    }
+    legend.append(el('div', { class: 'hd', style: 'margin-top:4px' }, 'DARKER = LARGER SHARE (LOG SCALE)'));
     document.getElementById('aboutBody').replaceChildren(
       el('p', {}, 'CAP24 relays official alerts to TV, IPTV and phone screens. Most of the way from an alerting authority to a TV set runs over the internet, so CAP24 needs to know when the internet fails. Once an alert reaches a broadcaster, the transmitter carries it without the internet; apps, websites and the phone link do not have that independence.'),
       el('p', {}, 'Two independent sources are shown, each item labelled with its own. Cloudflare Radar publishes outages its staff have reviewed, seen in Cloudflare\'s own traffic. IODA, run by Georgia Tech\'s Internet Intelligence Lab, detects outages automatically; this page counts only its two direct connectivity signals, internet routing (BGP) and active probing. A detection that starts in the same minute in 20 or more countries is left out as a gap in IODA\'s measurement, and the count is shown above the globe. An outage seen by both sources appears twice, once from each.'),
-      el('p', {}, 'Each entry gives the country, the timing and, where the source says, the networks and extent. Causes are left out on purpose: follow the link to the source for its own notes. This is measurement data, not CAP and not an official statement.')
+      el('p', {}, 'Each entry gives the country, the timing and, where the source says, the networks and extent. Causes are left out on purpose: follow the link to the source for its own notes. This is measurement data, not CAP and not an official statement.'),
+      el('p', {}, 'The DDoS layer is different: it shows attacks that Cloudflare stopped, not outages. Each country\'s shade is its share of the attacks Cloudflare mitigated in the period, for network attacks or website attacks, among the 30 most targeted countries. The shares mostly reflect where attacked Cloudflare customers are, so they are not a measure of a country\'s threat level. Where attacks come from is not shown: attack traffic comes from hijacked devices and faked addresses, so its origin says little about who is behind it.')
     );
     const dn = document.getElementById('dataNote');
     dn.replaceChildren();
@@ -1579,7 +1606,7 @@
       el('a', { href: 'https://radar.cloudflare.com/outage-center', rel: 'noopener' }, 'Cloudflare Radar Outage Center'),
       document.createTextNode(', data under CC BY-NC 4.0 (attribution, non-commercial); '),
       el('a', { href: 'https://ioda.inetintel.cc.gatech.edu/', rel: 'noopener' }, 'IODA, Internet Intelligence Lab, Georgia Tech'),
-      document.createTextNode(' (routing and active-probing signals only). Shown: countries, networks, extent and timing; cause labels are left out on purpose. Country shapes: Natural Earth (public domain), at a scale where some small countries are not drawn. Base map: OpenFreeMap, © OpenMapTiles, data © OpenStreetMap contributors. Map software: MapLibre GL JS.'));
+      document.createTextNode(' (routing and active-probing signals only). Shown: countries, networks, extent and timing; cause labels are left out on purpose. DDoS: Cloudflare Radar, share of mitigated attacks by target country, top 30, CC BY-NC 4.0; origins not shown. Country shapes: Natural Earth (public domain), at a scale where some small countries are not drawn. Base map: OpenFreeMap, © OpenMapTiles, data © OpenStreetMap contributors. Map software: MapLibre GL JS.'));
   }
 
   async function loadCountryShapes() {
@@ -1606,8 +1633,16 @@
       if (src === 'ioda') iodaGaps = j.measurementGapsLeftOut || 0;
       return (j.outages || []).filter(o => o.start).map(o => ({ ...o, source: src, networks: o.networks || [], asns: o.asns || [], signals: o.signals || [] }));
     };
-    const [rad, iod] = await Promise.allSettled([get('radar'), get('ioda'), loadCountryShapes()]);
+    const getDdos = async () => {
+      const r = await fetch(`/api/ddos?range=${range}`, { cache: 'no-store' });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
+      return { l3: j.l3 || [], l7: j.l7 || [] };
+    };
+    const [rad, iod, , dd] = await Promise.allSettled([get('radar'), get('ioda'), loadCountryShapes(), getDdos()]);
     if (range !== outRange) return;
+    ddosMissing = dd.status !== 'fulfilled';
+    if (!ddosMissing) ddosData = dd.value;
     outMissing = [['radar', rad], ['ioda', iod]].filter(([, x]) => x.status !== 'fulfilled').map(([k]) => OUT_SOURCE[k].name);
     if (outMissing.length === 2) {
       document.getElementById('liveDot').classList.add('err');
@@ -1627,17 +1662,16 @@
     else t.append(el('span', { class: 'val' }, String(outages.length)), document.createTextNode(' outages in '), el('span', { class: 'val' }, String(countries)),
       document.createTextNode(` countries · ${outRangeLabel(range)} · `), el('span', { class: 'val' }, String(ongoing)), document.createTextNode(' ongoing'));
     document.getElementById('liveTime').textContent = 'Updated ' + fmtTime(lastGood) + (outMissing.length ? ` · ${outMissing[0]} could not be reached` : '') +
-      (iodaGaps ? ` · ${iodaGaps} IODA detections left out as measurement gaps` : '');
+      (iodaGaps ? ` · ${iodaGaps} IODA detections left out as measurement gaps` : '') + (ddosMissing ? ' · DDoS data could not be reached' : '');
     renderOutageList();
     paintCountries();
-    if (selectedKey && !outById.has(selectedKey)) closePanel();
+    if (selectedKey && !outById.has(selectedKey) && !selectedKey.startsWith('ddos-')) closePanel();
   }
 
   function outShown() {
     const q = document.getElementById('q').value.trim().toLowerCase();
     return outages.filter(o => {
-      if (fState === 'ongoing' && o.end) return false;
-      if (fState === 'ended' && !o.end) return false;
+      if (!outShow[o.end ? 'ended' : 'ongoing']) return false;
       if (fSource && o.source !== fSource) return false;
       if (q && !(outCountries(o) + ' ' + o.networks.join(' ') + ' ' + (o.scope || '')).toLowerCase().includes(q)) return false;
       return true;
@@ -1666,12 +1700,45 @@
       li.append(b);
       frag.append(li);
     }
+    const q = document.getElementById('q').value.trim().toLowerCase();
+    const dShown = ddosItems().filter(d => !q || regionName(d.cc).toLowerCase().includes(q));
+    for (const d of dShown) {
+      const li = el('li');
+      const b = el('button', { type: 'button', 'data-key': d.id });
+      if (d.id === selectedKey) b.setAttribute('aria-current', 'true');
+      const body = el('span');
+      body.append(
+        el('div', { class: 'a-sev', style: `color:${DDOS_COLOR}` }, `DDoS target · ${DDOS_KIND[d.kind].label} · Cloudflare Radar`),
+        el('div', { class: 'a-event' }, regionName(d.cc)),
+        el('div', { class: 'a-meta' }, `${shareText(d.share)} of mitigated attacks · rank ${d.rank} · ${outRangeLabel(outRange)}`)
+      );
+      b.append(el('span', { class: 'bar', style: `background:${DDOS_COLOR}`, 'aria-hidden': 'true' }), body);
+      b.addEventListener('click', () => openDdos(d.id, true));
+      li.append(b);
+      frag.append(li);
+    }
     ul.append(frag);
-    document.getElementById('listCount').textContent = shown.length === outages.length ? `${outages.length} outages` : `${shown.length} of ${outages.length} outages`;
+    const outCount = shown.length === outages.length ? `${outages.length} outages` : `${shown.length} of ${outages.length} outages`;
+    document.getElementById('listCount').textContent = outCount + (ddosKind ? ` · ${dShown.length} DDoS targets` : '');
     const legend = document.getElementById('legend');
-    legend.classList.toggle('filtered', !!fState);
-    legend.querySelectorAll('button[data-state]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.state === fState)));
+    legend.querySelectorAll('button[data-state]').forEach(b => b.setAttribute('aria-pressed', String(!!outShow[b.dataset.state])));
+    legend.querySelectorAll('button[data-ddos]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.ddos === ddosKind)));
     paintCountries();
+    paintDdos();
+  }
+
+  function paintDdos() {
+    if (!mapReady || !countryShapes) return;
+    const items = ddosItems();
+    const shares = items.map(d => d.share).filter(v => v > 0);
+    const lo = Math.log(Math.min(...shares, 1)), hi = Math.log(Math.max(...shares, 1));
+    const by = new Map(items.map(d => [d.cc, d]));
+    const feats = countryShapes.features.filter(f => by.has(f.properties.cc)).map(f => {
+      const d = by.get(f.properties.cc);
+      const op = 0.12 + 0.68 * (hi > lo ? (Math.log(Math.max(d.share, 1e-6)) - lo) / (hi - lo) : 1);
+      return { ...f, properties: { ...f.properties, _op: Math.max(0.12, Math.min(0.8, op)), _id: d.id } };
+    });
+    map.getSource('ddos').setData({ type: 'FeatureCollection', features: feats });
   }
 
   // Each country takes the state of its outages in view: ongoing wins over ended
@@ -1687,38 +1754,93 @@
     tintBase();
     const firstLabel = (map.getStyle().layers || []).find(l => l.type === 'symbol');
     const before = firstLabel ? firstLabel.id : undefined;
-    map.addSource('outages', { type: 'geojson', data: { type: 'FeatureCollection', features: [] }, attribution: 'Outages: Cloudflare Radar (CC BY-NC 4.0); shapes: Natural Earth' });
+    map.addSource('ddos', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+    map.addLayer({ id: 'ddos-fill', type: 'fill', source: 'ddos', paint: { 'fill-color': DDOS_COLOR, 'fill-opacity': ['get', '_op'] } }, before);
+    map.addLayer({ id: 'ddos-line', type: 'line', source: 'ddos', paint: { 'line-color': DDOS_COLOR, 'line-width': 0.6, 'line-opacity': 0.8 } }, before);
+    map.addLayer({ id: 'ddos-sel', type: 'line', source: 'ddos', filter: ['==', ['get', '_id'], ''], paint: { 'line-color': '#ffffff', 'line-width': 2.5 } }, before);
+    map.addSource('outages', { type: 'geojson', data: { type: 'FeatureCollection', features: [] }, attribution: 'Outages: Cloudflare Radar (CC BY-NC 4.0) and IODA; DDoS: Cloudflare Radar; shapes: Natural Earth' });
     const color = ['match', ['get', '_st'], 'ongoing', OUT_STATE.ongoing.color, OUT_STATE.ended.color];
     map.addLayer({ id: 'out-fill', type: 'fill', source: 'outages', paint: { 'fill-color': color, 'fill-opacity': ['match', ['get', '_st'], 'ongoing', 0.5, 0.3] } }, before);
     map.addLayer({ id: 'out-line', type: 'line', source: 'outages', paint: { 'line-color': color, 'line-width': 0.8 } }, before);
     map.addLayer({ id: 'out-sel', type: 'line', source: 'outages', filter: ['in', ['get', 'cc'], ['literal', []]], paint: { 'line-color': '#ffffff', 'line-width': 2.5 } }, before);
     const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 8 });
-    map.on('mousemove', 'out-fill', e => {
+    // One handler for both layers: an outage wins over a DDoS share where a country has both
+    const pick = e => {
+      const fs = map.queryRenderedFeatures(e.point, { layers: ['out-fill', 'ddos-fill'] });
+      return fs.find(f => f.layer.id === 'out-fill') || fs[0] || null;
+    };
+    map.on('mousemove', e => {
+      const f = pick(e);
+      if (!f) { map.getCanvas().style.cursor = ''; popup.remove(); return; }
       map.getCanvas().style.cursor = 'pointer';
-      const p = e.features[0].properties;
-      popup.setLngLat(e.lngLat).setText(`${regionName(p.cc)} · ${p._st === 'ongoing' ? 'outage ongoing' : 'outage ended in this period'}`).addTo(map);
+      const p = f.properties;
+      const d = f.layer.id === 'ddos-fill' ? ddosItems().find(x => x.id === p._id) : null;
+      const txt = d ? `${regionName(p.cc)} · ${shareText(d.share)} of ${DDOS_KIND[d.kind].label.toLowerCase()} stopped by Cloudflare` : `${regionName(p.cc)} · ${p._st === 'ongoing' ? 'outage ongoing' : 'outage ended in this period'}`;
+      popup.setLngLat(e.lngLat).setText(txt).addTo(map);
     });
-    map.on('mouseleave', 'out-fill', () => { map.getCanvas().style.cursor = ''; popup.remove(); });
-    map.on('click', 'out-fill', e => {
-      const cc = e.features[0].properties.cc;
-      const o = outShown().find(x => x.locations.includes(cc));
+    map.on('mouseout', () => { map.getCanvas().style.cursor = ''; popup.remove(); });
+    map.on('click', e => {
+      const f = pick(e);
+      if (!f) return;
+      if (f.layer.id === 'ddos-fill') { openDdos(f.properties._id, false); return; }
+      const o = outShown().find(x => x.locations.includes(f.properties.cc));
       if (o) openOutage(o.id, false);
     });
   }
   function highlightOutage(id) {
     if (!mapReady) return;
+    if (id && id.startsWith('ddos-')) {
+      map.setFilter('ddos-sel', ['==', ['get', '_id'], id]);
+      map.setFilter('out-sel', ['in', ['get', 'cc'], ['literal', []]]);
+      map.setPaintProperty('out-fill', 'fill-opacity', 0.15);
+      return;
+    }
+    map.setFilter('ddos-sel', ['==', ['get', '_id'], '']);
     const o = outById.get(id);
     map.setFilter('out-sel', ['in', ['get', 'cc'], ['literal', o ? o.locations : []]]);
     map.setPaintProperty('out-fill', 'fill-opacity', o ? ['case', ['in', ['get', 'cc'], ['literal', o.locations]], 0.6, 0.12] : ['match', ['get', '_st'], 'ongoing', 0.5, 0.3]);
   }
   function flyOutage(id) {
-    const o = outById.get(id);
+    const o = id && id.startsWith('ddos-') ? { locations: [id.slice(8)] } : outById.get(id);
     if (!o || !mapReady) return;
     let b = null;
     for (const c of o.locations) { const x = countryBbox.get(c); if (x) b = b ? [Math.min(b[0], x[0]), Math.min(b[1], x[1]), Math.max(b[2], x[2]), Math.max(b[3], x[3])] : x.slice(); }
     if (!b || b[2] - b[0] > 180) return;   // shapes across the date line: stay put
     map.stop();
     map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: 50, maxZoom: 5, duration: 1200 });
+  }
+
+  function openDdos(id, fly) {
+    const d = ddosItems().find(x => x.id === id);
+    if (!d) return;
+    const kind = DDOS_KIND[d.kind];
+    selectedKey = id;
+    highlightOutage(id);
+    document.querySelectorAll('ul.alerts button[aria-current]').forEach(b => b.removeAttribute('aria-current'));
+    const btn = document.querySelector(`ul.alerts button[data-key="${CSS.escape(id)}"]`);
+    if (btn) btn.setAttribute('aria-current', 'true');
+    stopSpin();
+    if (fly) { if (mapReady) flyOutage(id); else pendingFly = id; }
+    returnFocus = document.activeElement;
+    document.getElementById('pSev').replaceChildren(el('span', { class: 'sev-chip', style: `background:${DDOS_COLOR};color:#0a0d14` }, 'DDoS target'));
+    document.getElementById('pTitle').textContent = regionName(d.cc);
+    document.getElementById('pSub').textContent = `DDoS attacks stopped by Cloudflare · ${kind.label}`;
+    const body = document.getElementById('pBody');
+    body.replaceChildren(el('div', { class: 'quake-note' }, 'Attacks that Cloudflare stopped, not an outage. The share mostly reflects where attacked Cloudflare customers are, so it is not a measure of this country\'s threat level. Where the attacks came from is not shown.'));
+    const facts = el('dl', { class: 'facts' });
+    const add = (label, value, note) => { const dd = el('dd', {}, String(value)); if (note) dd.append(el('small', {}, note)); facts.append(el('dt', {}, label), dd); };
+    add('Share', shareText(d.share), `Of all ${kind.long.split(':')[0]} Cloudflare mitigated in the period.`);
+    add('Rank', `${d.rank} of the 30 most targeted countries`);
+    add('Attack type', kind.long.charAt(0).toUpperCase() + kind.long.slice(1));
+    add('Period', outRangeLabel(outRange));
+    add('Target', regionName(d.cc), kind.target);
+    body.append(facts);
+    const links = el('div', { class: 'links' });
+    links.append(el('a', { href: 'https://radar.cloudflare.com/', target: '_blank', rel: 'noopener' }, 'Cloudflare Radar (DDoS reports and charts)'));
+    body.append(links, el('p', { class: 'src-note' }, `Source: Cloudflare Radar, ${outRangeLabel(outRange).toLowerCase()}, data under CC BY-NC 4.0. Shares as published.`));
+    panel.classList.add('open'); panel.setAttribute('aria-hidden', 'false');
+    scrim.classList.add('open');
+    document.getElementById('pClose').focus();
   }
 
   function openOutage(id, fly) {
