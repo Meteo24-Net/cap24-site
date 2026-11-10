@@ -1,9 +1,14 @@
-// Cloudflare Worker that serves this repository as a static site (no script, no build step).
-// _redirects (/weather, /seismic) and _headers (noindex) are read from the same folder.
+// Cloudflare Worker for cap24.org: static site from this repository, plus one API route.
+// _redirects (/weather, /seismic, /internet) and _headers (noindex) are read from the same folder.
+// worker.js answers /api/* only; everything else is served straight from the static files.
+// Secret needed: RADAR_TOKEN (Cloudflare API token with Radar read access), set in the dashboard.
 {
   "name": "cap24-site",
+  "main": "worker.js",
   "compatibility_date": "2026-11-09",
   "assets": {
-    "directory": "./"
+    "directory": "./",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
   }
 }

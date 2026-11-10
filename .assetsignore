@@ -7,3 +7,4 @@ node_modules/
 wrangler.jsonc
 netlify.toml
 README.md
+worker.js

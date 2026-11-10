@@ -395,7 +395,7 @@
   // One globe, three addresses: / (all official CAP alerts), /weather (CAP category Met), /seismic (USGS earthquakes)
   const MODE = (() => {
     const p = location.pathname.replace(/\/+$/, '').toLowerCase();
-    return /\/seismic(\.html)?$/.test(p) ? 'seismic' : /\/weather(\.html)?$/.test(p) ? 'weather' : 'all';
+    return /\/seismic(\.html)?$/.test(p) ? 'seismic' : /\/weather(\.html)?$/.test(p) ? 'weather' : /\/internet(\.html)?$/.test(p) ? 'internet' : 'all';
   })();
 
   const SEV_ORDER = { Extreme: 4, Severe: 3, Moderate: 2, Minor: 1, Unknown: 0 };
@@ -626,6 +626,7 @@
 
   function renderList() {
     if (MODE === 'seismic') { renderQuakeList(); return; }
+    if (MODE === 'internet') { renderOutageList(); return; }
     const q = document.getElementById('q').value.trim().toLowerCase();
     const fs = document.getElementById('fSev').value;
     const fc = document.getElementById('fCountry').value;
@@ -768,6 +769,15 @@
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
 
     map.once('style.load', () => {
+      if (MODE === 'internet') {
+        addOutageLayers();
+        mapReady = true;
+        document.getElementById('mapStatus').textContent = '';
+        paintCountries();
+        if (pendingFly) { const k = pendingFly; pendingFly = null; highlightOutage(k); flyOutage(k); }
+        else if (!reduce) spin();
+        return;
+      }
       if (MODE === 'seismic') {
         addQuakeLayers();
         mapReady = true;
@@ -827,6 +837,7 @@
   let highlighted = [];
   function highlight(key) {
     if (MODE === 'seismic') { highlightQuake(key); return; }
+    if (MODE === 'internet') { highlightOutage(key); return; }
     if (!mapReady) return;
     setFocus(!!key);
     for (const id of highlighted) map.setFeatureState({ source: 'alerts', id }, { sel: false });
@@ -840,6 +851,7 @@
 
   function flyTo(key) {
     if (MODE === 'seismic') { flyQuake(key); return; }
+    if (MODE === 'internet') { flyOutage(key); return; }
     const a = byKey.get(key);
     if (!a || !a.bbox || !mapReady) return;
     map.stop();
@@ -1244,7 +1256,7 @@
   document.addEventListener('fullscreenchange', () => { if (tv.classList.contains('open')) setTimeout(fitStage, 50); });
 
   function closePanel() {
-    if (MODE !== 'seismic') setAlertParam(null);
+    if (MODE === 'all' || MODE === 'weather') setAlertParam(null);
     selectedKey = null;
     highlight(null);
     document.querySelectorAll('ul.alerts button[aria-current]').forEach(b => b.removeAttribute('aria-current'));
@@ -1504,9 +1516,239 @@
     document.getElementById('pClose').focus();
   }
 
+
+  // ---- Internet outages page: Cloudflare Radar via /api/outages (measurements, not CAP, no causes) ----
+  const OUT_API = r => `/api/outages?range=${r}`;
+  const OUT_SHAPES = 'https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@v5.1.2/geojson/ne_110m_admin_0_countries.geojson';
+  const OUT_RANGES = [['7d', 'Past 7 days'], ['28d', 'Past 28 days']];
+  const OUT_STATE = {
+    ongoing: { label: 'Ongoing', color: '#b388ff' },
+    ended: { label: 'Ended in this period', color: '#7a8699' }
+  };
+  const OUT_TYPE = { NATIONWIDE: 'Nationwide', REGIONAL: 'Regional', NETWORK: 'Network-level' };
+  let outages = [], outById = new Map(), outRange = '7d', fState = '', countryShapes = null, countryBbox = new Map();
+  const outRangeLabel = r => (OUT_RANGES.find(([k]) => k === r) || [, r])[1];
+  const outCountries = o => o.locations.map(c => regionName(c)).join(', ') || 'Location not given';
+  const outDuration = o => {
+    const ms = (o.end ? Date.parse(o.end) : Date.now()) - Date.parse(o.start);
+    if (!(ms > 0)) return '';
+    const h = Math.round(ms / 36e5);
+    return h < 48 ? `${Math.max(1, h)} h` : `${Math.round(h / 24)} days`;
+  };
+
+  function setupInternet() {
+    document.title = 'CAP24 — Internet outages and warning channels (demonstration)';
+    document.getElementById('demoBanner').innerHTML = '<strong>Demonstration.</strong> Internet outages measured by Cloudflare Radar. They may be delayed or revised. This page shows where and when, not why, and it is not a warning service.';
+    document.getElementById('heroH').textContent = 'Where internet-based warning channels are disrupted.';
+    document.getElementById('heroP').textContent = 'When the internet or mobile data goes down, warnings sent through apps, websites and messaging may not arrive. A broadcast transmitter keeps reaching TV sets. The globe shows internet outages measured by Cloudflare Radar: where and when they happened, not why.';
+    document.getElementById('map').setAttribute('aria-label', 'Globe of countries with internet outages in the chosen period. The list next to it carries the same outages.');
+    document.getElementById('listAside').setAttribute('aria-label', 'List of internet outages');
+    document.getElementById('q').placeholder = 'Search country or network';
+    document.querySelector('label[for="q"]').textContent = 'Search outages';
+    const filters = document.getElementById('listFilters');
+    filters.replaceChildren();
+    filters.style.gridTemplateColumns = '1fr';
+    const sel = el('select', { id: 'fRange', 'aria-label': 'Period' });
+    for (const [k, label] of OUT_RANGES) sel.append(el('option', { value: k }, label));
+    sel.value = outRange;
+    filters.append(sel);
+    sel.addEventListener('change', () => { outRange = sel.value; closePanel(); document.getElementById('liveText').textContent = 'Loading internet outages…'; refreshOutages(); });
+    const legend = document.getElementById('legend');
+    legend.setAttribute('aria-label', 'Show ongoing or ended outages on the globe and in the list');
+    legend.replaceChildren(el('div', { class: 'hd' }, 'COUNTRIES WITH AN OUTAGE'));
+    for (const [k, s] of Object.entries(OUT_STATE)) {
+      const b = el('button', { type: 'button', class: 'row', 'data-state': k, 'aria-pressed': 'false' });
+      b.append(el('span', { class: 'sw', style: `background:${s.color}` }), document.createTextNode(s.label));
+      b.addEventListener('click', () => { fState = fState === k ? '' : k; renderOutageList(); });
+      legend.append(b);
+    }
+    document.getElementById('aboutBody').replaceChildren(
+      el('p', {}, 'CAP24 relays official alerts to TV, IPTV and phone screens. Most of the way from an alerting authority to a TV set runs over the internet, so CAP24 needs to know when the internet fails. Once an alert reaches a broadcaster, the transmitter carries it without the internet; apps, websites and the phone link do not have that independence.'),
+      el('p', {}, 'The outages shown here come from Cloudflare Radar, which detects them in its own traffic. Each entry gives the countries, the networks where Radar names them, the scope and the timing. Causes are left out on purpose: follow the link to Radar for Cloudflare\'s own notes. This is measurement data, not CAP and not an official statement.')
+    );
+    const dn = document.getElementById('dataNote');
+    dn.replaceChildren();
+    dn.append(el('strong', {}, 'Data.'), document.createTextNode(' Internet outages: '),
+      el('a', { href: 'https://radar.cloudflare.com/outage-center', rel: 'noopener' }, 'Cloudflare Radar Outage Center'),
+      document.createTextNode(', data under CC BY-NC 4.0 (attribution, non-commercial). Shown: countries, networks, scope and timing; cause labels are left out on purpose. Country shapes: Natural Earth (public domain), at a scale where some small countries are not drawn. Base map: OpenFreeMap, © OpenMapTiles, data © OpenStreetMap contributors. Map software: MapLibre GL JS.'));
+  }
+
+  async function loadCountryShapes() {
+    if (countryShapes) return countryShapes;
+    try {
+      const g = await fetch(OUT_SHAPES).then(r => r.json());
+      for (const f of g.features) {
+        const p = f.properties || {};
+        const a2 = [p.ISO_A2_EH, p.ISO_A2, p.WB_A2].find(c => typeof c === 'string' && /^[A-Z]{2}$/.test(c));
+        f.properties = { cc: a2 || '', name: p.NAME || '' };
+        if (a2) countryBbox.set(a2, extendBbox(null, f.geometry));
+      }
+      countryShapes = g;
+    } catch (e) { countryShapes = { type: 'FeatureCollection', features: [] }; }
+    return countryShapes;
+  }
+
+  async function refreshOutages() {
+    const range = outRange;
+    try {
+      const [r] = await Promise.all([fetch(OUT_API(range), { cache: 'no-store' }), loadCountryShapes()]);
+      const j = await r.json().catch(() => ({}));
+      if (range !== outRange) return;
+      if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
+      outages = (j.outages || []).filter(o => o.start).sort((a, b) => ((b.end ? 0 : 1) - (a.end ? 0 : 1)) || (Date.parse(b.start) - Date.parse(a.start)));
+      outById = new Map(outages.map(o => [o.id, o]));
+      lastGood = Date.now();
+      document.getElementById('liveDot').classList.remove('err');
+      const t = document.getElementById('liveText');
+      t.replaceChildren();
+      const ongoing = outages.filter(o => !o.end).length;
+      const countries = new Set(outages.flatMap(o => o.locations)).size;
+      if (!outages.length) t.textContent = `No internet outages listed by Cloudflare Radar (${outRangeLabel(range)}).`;
+      else t.append(el('span', { class: 'val' }, String(outages.length)), document.createTextNode(` outages in `), el('span', { class: 'val' }, String(countries)),
+        document.createTextNode(` countries · ${outRangeLabel(range)} · `), el('span', { class: 'val' }, String(ongoing)), document.createTextNode(' ongoing'));
+      document.getElementById('liveTime').textContent = 'Updated ' + fmtTime(lastGood) + (j.fetched ? ` · Radar data of ${fmtTime(Date.parse(j.fetched))}` : '');
+      renderOutageList();
+      paintCountries();
+      if (selectedKey && !outById.has(selectedKey)) closePanel();
+    } catch (e) {
+      document.getElementById('liveDot').classList.add('err');
+      const why = /not-configured/.test(String(e.message)) ? 'The outage feed is not connected yet.' : 'The outage feed could not be reached.';
+      document.getElementById('liveText').textContent = lastGood ? `${why} Showing outages from ${fmtTime(lastGood)}. Retrying in 5 minutes.` : `${why} Retrying in 5 minutes.`;
+      if (!lastGood) document.getElementById('mapStatus').textContent = 'Outage feed unavailable';
+    }
+  }
+
+  function outShown() {
+    const q = document.getElementById('q').value.trim().toLowerCase();
+    return outages.filter(o => {
+      if (fState === 'ongoing' && o.end) return false;
+      if (fState === 'ended' && !o.end) return false;
+      if (q && !(outCountries(o) + ' ' + o.networks.join(' ') + ' ' + (o.scope || '')).toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }
+
+  function renderOutageList() {
+    const shown = outShown();
+    const ul = document.getElementById('alertList');
+    ul.replaceChildren();
+    const frag = document.createDocumentFragment();
+    for (const o of shown) {
+      const s = OUT_STATE[o.end ? 'ended' : 'ongoing'];
+      const li = el('li');
+      const b = el('button', { type: 'button', 'data-key': o.id });
+      if (o.id === selectedKey) b.setAttribute('aria-current', 'true');
+      const body = el('span');
+      body.append(
+        el('div', { class: 'a-sev', style: `color:${s.color}` }, `${s.label}${o.type && OUT_TYPE[o.type] ? ' · ' + OUT_TYPE[o.type] : ''}`),
+        el('div', { class: 'a-event' }, outCountries(o)),
+        el('div', { class: 'a-meta' }, o.end ? `${fmtTime(Date.parse(o.start))} to ${fmtTime(Date.parse(o.end))}` : `Since ${fmtTime(Date.parse(o.start))}`),
+        el('div', { class: 'a-meta' }, [o.networks.slice(0, 2).join(', '), o.scope].filter(Boolean).join(' · ') || ' ')
+      );
+      b.append(el('span', { class: 'bar', style: `background:${s.color}`, 'aria-hidden': 'true' }), body);
+      b.addEventListener('click', () => openOutage(o.id, true));
+      li.append(b);
+      frag.append(li);
+    }
+    ul.append(frag);
+    document.getElementById('listCount').textContent = shown.length === outages.length ? `${outages.length} outages` : `${shown.length} of ${outages.length} outages`;
+    const legend = document.getElementById('legend');
+    legend.classList.toggle('filtered', !!fState);
+    legend.querySelectorAll('button[data-state]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.state === fState)));
+    paintCountries();
+  }
+
+  // Each country takes the state of its outages in view: ongoing wins over ended
+  function paintCountries() {
+    if (!mapReady || !countryShapes) return;
+    const state = new Map();
+    for (const o of outShown()) for (const c of o.locations) if (state.get(c) !== 'ongoing') state.set(c, o.end ? 'ended' : 'ongoing');
+    const feats = countryShapes.features.filter(f => state.has(f.properties.cc)).map(f => ({ ...f, properties: { ...f.properties, _st: state.get(f.properties.cc) } }));
+    map.getSource('outages').setData({ type: 'FeatureCollection', features: feats });
+  }
+
+  function addOutageLayers() {
+    tintBase();
+    const firstLabel = (map.getStyle().layers || []).find(l => l.type === 'symbol');
+    const before = firstLabel ? firstLabel.id : undefined;
+    map.addSource('outages', { type: 'geojson', data: { type: 'FeatureCollection', features: [] }, attribution: 'Outages: Cloudflare Radar (CC BY-NC 4.0); shapes: Natural Earth' });
+    const color = ['match', ['get', '_st'], 'ongoing', OUT_STATE.ongoing.color, OUT_STATE.ended.color];
+    map.addLayer({ id: 'out-fill', type: 'fill', source: 'outages', paint: { 'fill-color': color, 'fill-opacity': ['match', ['get', '_st'], 'ongoing', 0.5, 0.3] } }, before);
+    map.addLayer({ id: 'out-line', type: 'line', source: 'outages', paint: { 'line-color': color, 'line-width': 0.8 } }, before);
+    map.addLayer({ id: 'out-sel', type: 'line', source: 'outages', filter: ['in', ['get', 'cc'], ['literal', []]], paint: { 'line-color': '#ffffff', 'line-width': 2.5 } }, before);
+    const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 8 });
+    map.on('mousemove', 'out-fill', e => {
+      map.getCanvas().style.cursor = 'pointer';
+      const p = e.features[0].properties;
+      popup.setLngLat(e.lngLat).setText(`${regionName(p.cc)} · ${p._st === 'ongoing' ? 'outage ongoing' : 'outage ended in this period'}`).addTo(map);
+    });
+    map.on('mouseleave', 'out-fill', () => { map.getCanvas().style.cursor = ''; popup.remove(); });
+    map.on('click', 'out-fill', e => {
+      const cc = e.features[0].properties.cc;
+      const o = outShown().find(x => x.locations.includes(cc));
+      if (o) openOutage(o.id, false);
+    });
+  }
+  function highlightOutage(id) {
+    if (!mapReady) return;
+    const o = outById.get(id);
+    map.setFilter('out-sel', ['in', ['get', 'cc'], ['literal', o ? o.locations : []]]);
+    map.setPaintProperty('out-fill', 'fill-opacity', o ? ['case', ['in', ['get', 'cc'], ['literal', o.locations]], 0.6, 0.12] : ['match', ['get', '_st'], 'ongoing', 0.5, 0.3]);
+  }
+  function flyOutage(id) {
+    const o = outById.get(id);
+    if (!o || !mapReady) return;
+    let b = null;
+    for (const c of o.locations) { const x = countryBbox.get(c); if (x) b = b ? [Math.min(b[0], x[0]), Math.min(b[1], x[1]), Math.max(b[2], x[2]), Math.max(b[3], x[3])] : x.slice(); }
+    if (!b || b[2] - b[0] > 180) return;   // shapes across the date line: stay put
+    map.stop();
+    map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: 50, maxZoom: 5, duration: 1200 });
+  }
+
+  function openOutage(id, fly) {
+    const o = outById.get(id);
+    if (!o) return;
+    const s = OUT_STATE[o.end ? 'ended' : 'ongoing'];
+    selectedKey = id;
+    highlightOutage(id);
+    document.querySelectorAll('ul.alerts button[aria-current]').forEach(b => b.removeAttribute('aria-current'));
+    const btn = document.querySelector(`ul.alerts button[data-key="${CSS.escape(id)}"]`);
+    if (btn) btn.setAttribute('aria-current', 'true');
+    stopSpin();
+    if (fly) { if (mapReady) flyOutage(id); else pendingFly = id; }
+    returnFocus = document.activeElement;
+    document.getElementById('pSev').replaceChildren(el('span', { class: 'sev-chip', style: `background:${s.color};color:#0a0d14` }, s.label));
+    document.getElementById('pTitle').textContent = outCountries(o);
+    document.getElementById('pSub').textContent = 'Internet outage · Cloudflare Radar';
+    const body = document.getElementById('pBody');
+    body.replaceChildren(el('div', { class: 'quake-note' }, 'Measured internet outage, not a CAP alert and not an official statement. This page shows where and when, not why.'));
+    const facts = el('dl', { class: 'facts' });
+    const add = (label, value, note) => {
+      if (value == null || value === '') return;
+      const dd = el('dd', {}, String(value));
+      if (note) dd.append(el('small', {}, note));
+      facts.append(el('dt', {}, label), dd);
+    };
+    add('Started', fmtTime(Date.parse(o.start)));
+    add('Ended', o.end ? fmtTime(Date.parse(o.end)) : 'Not ended in the data', o.end ? null : 'Radar lists no end time yet.');
+    add('Duration', outDuration(o) + (o.end ? '' : ' so far'));
+    add('Countries', outCountries(o));
+    add('Extent', o.type && OUT_TYPE[o.type] ? OUT_TYPE[o.type] : null);
+    add('Scope', o.scope, 'As Radar describes it.');
+    add('Networks', o.networks.length ? o.networks.join(', ') : (o.asns.length ? o.asns.map(a => 'AS' + a).join(', ') : null));
+    body.append(facts);
+    const links = el('div', { class: 'links' });
+    links.append(el('a', { href: 'https://radar.cloudflare.com/outage-center', target: '_blank', rel: 'noopener' }, 'Cloudflare Radar Outage Center (details and Cloudflare\'s notes)'));
+    body.append(links, el('p', { class: 'src-note' }, `Source: Cloudflare Radar, ${outRangeLabel(outRange).toLowerCase()}, data under CC BY-NC 4.0. Causes are left out on purpose.`));
+    panel.classList.add('open'); panel.setAttribute('aria-hidden', 'false');
+    scrim.classList.add('open');
+    document.getElementById('pClose').focus();
+  }
+
   function setupMode() {
     document.querySelectorAll('nav.modes a').forEach(a => { if (a.dataset.mode === MODE) a.setAttribute('aria-current', 'page'); });
     if (MODE === 'seismic') { setupSeismic(); return; }
+    if (MODE === 'internet') { setupInternet(); return; }
     if (MODE === 'weather') {
       document.title = 'CAP24 — Official weather alerts on every screen (demonstration)';
       document.getElementById('heroH').textContent = 'Official weather warnings, as met services publish them in CAP.';
@@ -1523,6 +1765,9 @@
   if (MODE === 'seismic') {
     refreshQuakes();
     setInterval(refreshQuakes, REFRESH_MS);
+  } else if (MODE === 'internet') {
+    refreshOutages();
+    setInterval(refreshOutages, REFRESH_MS);
   } else {
     loadOutlines();
     refresh();
