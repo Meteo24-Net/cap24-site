@@ -10,7 +10,8 @@
 
 const RADAR = 'https://api.cloudflare.com/client/v4/radar/annotations/outages';
 const RANGES = ['7d', '28d'];
-const KEEP_SECONDS = 600;   // one Radar call per range every 10 minutes at most
+const KEEP_SECONDS = 600;   // one upstream call per range every 10 minutes at most
+const CACHE_VERSION = 3;    // raise when the output format changes, so cached answers from an older version are not served
 
 export default {
   async fetch(request, env, ctx) {
@@ -24,7 +25,7 @@ export default {
 async function outages(url, env, ctx) {
   const asked = url.searchParams.get('range');
   const range = RANGES.includes(asked) ? asked : '7d';
-  const cacheKey = new Request(`${url.origin}/api/outages?range=${range}`);
+  const cacheKey = new Request(`${url.origin}/api/outages?range=${range}&v=${CACHE_VERSION}`);
   const cache = caches.default;
   const hit = await cache.match(cacheKey);
   if (hit) return hit;
@@ -84,7 +85,7 @@ const IODA_GAP_COUNTRIES = 20;
 async function ioda(url, ctx) {
   const asked = url.searchParams.get('range');
   const range = RANGES.includes(asked) ? asked : '7d';
-  const cacheKey = new Request(`${url.origin}/api/ioda?range=${range}`);
+  const cacheKey = new Request(`${url.origin}/api/ioda?range=${range}&v=${CACHE_VERSION}`);
   const cache = caches.default;
   const hit = await cache.match(cacheKey);
   if (hit) return hit;
