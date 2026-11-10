@@ -178,10 +178,9 @@ async function openaqProbe(env) {
   if (!env.OPENAQ_KEY) return json({ error: 'not-configured' }, 503, 0);
   const since = new Date(Date.now() - 3 * 3600e3).toISOString();
   const asks = [
-    `https://api.openaq.org/v3/parameters/2/latest?limit=1000&page=1&datetime_min=${since}`,
-    `https://api.openaq.org/v3/parameters/2/latest?limit=1000&page=12&datetime_min=${since}`,
-    'https://api.openaq.org/v3/locations?parameters_id=2&monitor=true&limit=1000&page=1',
-    'https://api.openaq.org/v3/locations/2178'
+    `https://api.openaq.org/v3/parameters/2/latest?limit=1000&page=1&datetime_min=${since}&monitor=true`,
+    `https://api.openaq.org/v3/parameters/2/latest?limit=1000&page=1&datetime_min=${since}&monitor=false`,
+    `https://api.openaq.org/v3/parameters/2/latest?limit=5&page=1&datetime_min=${since}&iso=GE`
   ];
   const out = [];
   for (const u of asks) {
