@@ -14,6 +14,8 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (url.pathname === '/api/outages') return outages(url, env, ctx);
+    if (url.pathname === '/api/probe-ioda') return probeIoda();   // TEMPORARY: inspect IODA's response format, remove after
+    if (url.pathname === '/api/probe-config') return json({ radarToken: !!env.RADAR_TOKEN }, 200, 0);   // TEMPORARY: is the secret visible (never its value)
     return env.ASSETS.fetch(request);
   }
 };
@@ -56,6 +58,21 @@ async function outages(url, env, ctx) {
   }, 200, KEEP_SECONDS);
   ctx.waitUntil(cache.put(cacheKey, res.clone()));
   return res;
+}
+
+// TEMPORARY probe: fixed IODA URLs only (not an open proxy); returns status and the start of each body
+async function probeIoda() {
+  const now = Math.floor(Date.now() / 1000), from = now - 7 * 86400;
+  const urls = [
+    `https://api.ioda.inetintel.cc.gatech.edu/v2/outages/events?from=${from}&until=${now}&entityType=country&limit=5`,
+    `https://api.ioda.inetintel.cc.gatech.edu/v2/outages/summary?from=${from}&until=${now}&entityType=country&limit=5`
+  ];
+  const out = [];
+  for (const u of urls) {
+    try { const r = await fetch(u); out.push({ url: u, status: r.status, type: r.headers.get('content-type'), body: (await r.text()).slice(0, 4000) }); }
+    catch (e) { out.push({ url: u, error: String(e) }); }
+  }
+  return json(out, 200, 0);
 }
 
 function json(body, status, maxAge) {
