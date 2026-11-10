@@ -1,6 +1,8 @@
 // cap24.org Worker
-// Serves the static site from this repository. One API route:
-//   /api/outages?range=7d|28d  →  Cloudflare Radar internet-outage annotations
+// Serves the static site from this repository. Two API routes:
+//   /api/outages?range=7d|28d  →  Cloudflare Radar internet-outage annotations (reviewed)
+//   /api/ioda?range=7d|28d     →  IODA (Georgia Tech) country outage events (automatic),
+//                                 routing (BGP) and active-probing signals only
 // The Radar API token stays here (Worker secret RADAR_TOKEN), never in the browser.
 // Cause fields (outageCause, description, linkedUrl, eventType) are removed here, so the
 // public page cannot show causes even by mistake (CAP24 resilience spec, "Public website").
@@ -14,9 +16,7 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (url.pathname === '/api/outages') return outages(url, env, ctx);
-    if (url.pathname === '/api/ioda-probe') return iodaProbe();   // TEMPORARY: learn IODA's response format, then remove
-    if (url.pathname === '/api/probe-ioda') return probeIoda();   // TEMPORARY: inspect IODA's response format, remove after
-    if (url.pathname === '/api/probe-config') return json({ radarToken: !!env.RADAR_TOKEN }, 200, 0);   // TEMPORARY: is the secret visible (never its value)
+    if (url.pathname === '/api/ioda') return ioda(url, ctx);
     return env.ASSETS.fetch(request);
   }
 };
@@ -61,21 +61,6 @@ async function outages(url, env, ctx) {
   return res;
 }
 
-// TEMPORARY probe: fixed IODA URLs only (not an open proxy); returns status and the start of each body
-async function probeIoda() {
-  const now = Math.floor(Date.now() / 1000), from = now - 7 * 86400;
-  const urls = [
-    `https://api.ioda.inetintel.cc.gatech.edu/v2/outages/events?from=${from}&until=${now}&entityType=country&limit=5`,
-    `https://api.ioda.inetintel.cc.gatech.edu/v2/outages/summary?from=${from}&until=${now}&entityType=country&limit=5`
-  ];
-  const out = [];
-  for (const u of urls) {
-    try { const r = await fetch(u); out.push({ url: u, status: r.status, type: r.headers.get('content-type'), body: (await r.text()).slice(0, 4000) }); }
-    catch (e) { out.push({ url: u, error: String(e) }); }
-  }
-  return json(out, 200, 0);
-}
-
 function json(body, status, maxAge) {
   return new Response(JSON.stringify(body), {
     status,
@@ -87,21 +72,51 @@ function json(body, status, maxAge) {
   });
 }
 
-// TEMPORARY probe: fixed IODA queries only (no caller-supplied URL), first 1500 characters of each answer
-async function iodaProbe() {
-  const until = Math.floor(Date.now() / 1000), from = until - 7 * 86400;
-  const base = 'https://api.ioda.inetintel.cc.gatech.edu/v2';
-  const asks = [
-    `${base}/outages/summary?entityType=country&from=${from}&until=${until}`,
-    `${base}/outages/events?entityType=country&from=${from}&until=${until}&limit=5`,
-    `${base}/outages/alerts?entityType=country&from=${from}&until=${until}&limit=5`
-  ];
-  const out = [];
-  for (const u of asks) {
-    try {
-      const r = await fetch(u, { headers: { accept: 'application/json' } });
-      out.push({ url: u.replace(base, ''), status: r.status, body: (await r.text()).slice(0, 1500) });
-    } catch (e) { out.push({ url: u.replace(base, ''), error: String(e) }); }
+// IODA: country-level outage events from the routing (BGP) and active-probing signals only.
+// Google-traffic and telescope signals are left out: they lag or reflect traffic, not connectivity.
+// Overlapping events for the same country are merged into one outage that lists its signals.
+const IODA = 'https://api.ioda.inetintel.cc.gatech.edu/v2/outages/events';
+const IODA_SIGNALS = { 'bgp': 'Routing (BGP)', 'ping-slash24': 'Active probing' };
+
+async function ioda(url, ctx) {
+  const asked = url.searchParams.get('range');
+  const range = RANGES.includes(asked) ? asked : '7d';
+  const cacheKey = new Request(`${url.origin}/api/ioda?range=${range}`);
+  const cache = caches.default;
+  const hit = await cache.match(cacheKey);
+  if (hit) return hit;
+
+  const until = Math.floor(Date.now() / 1000);
+  const from = until - (range === '28d' ? 28 : 7) * 86400;
+  let data;
+  try {
+    const r = await fetch(`${IODA}?entityType=country&from=${from}&until=${until}&limit=5000&format=codf`, { headers: { accept: 'application/json' } });
+    if (!r.ok) return json({ error: 'upstream', status: r.status }, 502, 60);
+    data = await r.json();
+  } catch (e) {
+    return json({ error: 'upstream-unreachable' }, 502, 60);
   }
-  return json({ probe: out }, 200, 0);
+  const events = (data.data || [])
+    .filter(e => IODA_SIGNALS[e.datasource] && typeof e.location === 'string' && e.location.startsWith('country/') && e.start)
+    .map(e => ({ cc: e.location.slice(8).toUpperCase(), start: e.start, end: e.start + (e.duration || 0), signal: IODA_SIGNALS[e.datasource] }))
+    .filter(e => e.end >= from)
+    .sort((a, b) => (a.cc < b.cc ? -1 : a.cc > b.cc ? 1 : a.start - b.start));
+  const merged = [];
+  for (const e of events) {
+    const last = merged[merged.length - 1];
+    if (last && last.cc === e.cc && e.start <= last.end + 3600) {
+      last.end = Math.max(last.end, e.end);
+      if (!last.signals.includes(e.signal)) last.signals.push(e.signal);
+    } else merged.push({ cc: e.cc, start: e.start, end: e.end, signals: [e.signal] });
+  }
+  const list = merged.map(m => ({
+    id: `ioda-${m.cc}-${m.start}`,
+    start: new Date(m.start * 1000).toISOString(),
+    end: m.end >= until - 3600 ? null : new Date(m.end * 1000).toISOString(),   // still detected in the last hour: ongoing
+    locations: [m.cc],
+    signals: m.signals
+  }));
+  const res = json({ source: 'IODA', range, fetched: new Date().toISOString(), outages: list }, 200, KEEP_SECONDS);
+  ctx.waitUntil(cache.put(cacheKey, res.clone()));
+  return res;
 }

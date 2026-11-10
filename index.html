@@ -1518,7 +1518,11 @@
 
 
   // ---- Internet outages page: Cloudflare Radar via /api/outages (measurements, not CAP, no causes) ----
-  const OUT_API = r => `/api/outages?range=${r}`;
+  const OUT_API = { radar: r => `/api/outages?range=${r}`, ioda: r => `/api/ioda?range=${r}` };
+  const OUT_SOURCE = {
+    radar: { name: 'Cloudflare Radar', kind: 'reviewed', link: () => 'https://radar.cloudflare.com/outage-center', linkText: 'Cloudflare Radar Outage Center (details and Cloudflare\'s notes)' },
+    ioda: { name: 'IODA', kind: 'automatic', link: o => `https://ioda.inetintel.cc.gatech.edu/country/${o.locations[0] || ''}?from=${Math.floor(Date.parse(o.start) / 1000) - 86400}&until=${Math.floor((o.end ? Date.parse(o.end) : Date.now()) / 1000) + 86400}`, linkText: 'IODA dashboard for this country and period (signals and graphs)' }
+  };
   const OUT_SHAPES = 'https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@v5.1.2/geojson/ne_110m_admin_0_countries.geojson';
   const OUT_RANGES = [['7d', 'Past 7 days'], ['28d', 'Past 28 days']];
   const OUT_STATE = {
@@ -1526,7 +1530,7 @@
     ended: { label: 'Ended in this period', color: '#7a8699' }
   };
   const OUT_TYPE = { NATIONWIDE: 'Nationwide', REGIONAL: 'Regional', NETWORK: 'Network-level' };
-  let outages = [], outById = new Map(), outRange = '7d', fState = '', countryShapes = null, countryBbox = new Map();
+  let outages = [], outById = new Map(), outRange = '7d', fState = '', fSource = '', countryShapes = null, countryBbox = new Map(), outMissing = [];
   const outRangeLabel = r => (OUT_RANGES.find(([k]) => k === r) || [, r])[1];
   const outCountries = o => o.locations.map(c => regionName(c)).join(', ') || 'Location not given';
   const outDuration = o => {
@@ -1538,20 +1542,22 @@
 
   function setupInternet() {
     document.title = 'CAP24 — Internet outages and warning channels (demonstration)';
-    document.getElementById('demoBanner').innerHTML = '<strong>Demonstration.</strong> Internet outages measured by Cloudflare Radar. They may be delayed or revised. This page shows where and when, not why, and it is not a warning service.';
+    document.getElementById('demoBanner').innerHTML = '<strong>Demonstration.</strong> Internet outages from Cloudflare Radar and IODA. They may be delayed or revised. This page shows where and when, not why, and it is not a warning service.';
     document.getElementById('heroH').textContent = 'Where internet-based warning channels are disrupted.';
-    document.getElementById('heroP').textContent = 'When the internet or mobile data goes down, warnings sent through apps, websites and messaging may not arrive. A broadcast transmitter keeps reaching TV sets. The globe shows internet outages measured by Cloudflare Radar: where and when they happened, not why.';
+    document.getElementById('heroP').textContent = 'When the internet or mobile data goes down, warnings sent through apps, websites and messaging may not arrive. A broadcast transmitter keeps reaching TV sets. The globe shows internet outages from two independent sources, Cloudflare Radar and IODA: where and when they happened, not why.';
     document.getElementById('map').setAttribute('aria-label', 'Globe of countries with internet outages in the chosen period. The list next to it carries the same outages.');
     document.getElementById('listAside').setAttribute('aria-label', 'List of internet outages');
     document.getElementById('q').placeholder = 'Search country or network';
     document.querySelector('label[for="q"]').textContent = 'Search outages';
     const filters = document.getElementById('listFilters');
     filters.replaceChildren();
-    filters.style.gridTemplateColumns = '1fr';
     const sel = el('select', { id: 'fRange', 'aria-label': 'Period' });
     for (const [k, label] of OUT_RANGES) sel.append(el('option', { value: k }, label));
     sel.value = outRange;
-    filters.append(sel);
+    const srcSel = el('select', { id: 'fSource', 'aria-label': 'Source' });
+    srcSel.append(el('option', { value: '' }, 'Both sources'), el('option', { value: 'radar' }, 'Cloudflare Radar (reviewed)'), el('option', { value: 'ioda' }, 'IODA (automatic)'));
+    filters.append(sel, srcSel);
+    srcSel.addEventListener('change', () => { fSource = srcSel.value; renderOutageList(); });
     sel.addEventListener('change', () => { outRange = sel.value; closePanel(); document.getElementById('liveText').textContent = 'Loading internet outages…'; refreshOutages(); });
     const legend = document.getElementById('legend');
     legend.setAttribute('aria-label', 'Show ongoing or ended outages on the globe and in the list');
@@ -1564,13 +1570,16 @@
     }
     document.getElementById('aboutBody').replaceChildren(
       el('p', {}, 'CAP24 relays official alerts to TV, IPTV and phone screens. Most of the way from an alerting authority to a TV set runs over the internet, so CAP24 needs to know when the internet fails. Once an alert reaches a broadcaster, the transmitter carries it without the internet; apps, websites and the phone link do not have that independence.'),
-      el('p', {}, 'The outages shown here come from Cloudflare Radar, which detects them in its own traffic. Each entry gives the countries, the networks where Radar names them, the scope and the timing. Causes are left out on purpose: follow the link to Radar for Cloudflare\'s own notes. This is measurement data, not CAP and not an official statement.')
+      el('p', {}, 'Two independent sources are shown, each item labelled with its own. Cloudflare Radar publishes outages its staff have reviewed, seen in Cloudflare\'s own traffic. IODA, run by Georgia Tech\'s Internet Intelligence Lab, detects outages automatically; this page counts only its two direct connectivity signals, internet routing (BGP) and active probing. An outage seen by both sources appears twice, once from each.'),
+      el('p', {}, 'Each entry gives the country, the timing and, where the source says, the networks and extent. Causes are left out on purpose: follow the link to the source for its own notes. This is measurement data, not CAP and not an official statement.')
     );
     const dn = document.getElementById('dataNote');
     dn.replaceChildren();
     dn.append(el('strong', {}, 'Data.'), document.createTextNode(' Internet outages: '),
       el('a', { href: 'https://radar.cloudflare.com/outage-center', rel: 'noopener' }, 'Cloudflare Radar Outage Center'),
-      document.createTextNode(', data under CC BY-NC 4.0 (attribution, non-commercial). Shown: countries, networks, scope and timing; cause labels are left out on purpose. Country shapes: Natural Earth (public domain), at a scale where some small countries are not drawn. Base map: OpenFreeMap, © OpenMapTiles, data © OpenStreetMap contributors. Map software: MapLibre GL JS.'));
+      document.createTextNode(', data under CC BY-NC 4.0 (attribution, non-commercial); '),
+      el('a', { href: 'https://ioda.inetintel.cc.gatech.edu/', rel: 'noopener' }, 'IODA, Internet Intelligence Lab, Georgia Tech'),
+      document.createTextNode(' (routing and active-probing signals only). Shown: countries, networks, extent and timing; cause labels are left out on purpose. Country shapes: Natural Earth (public domain), at a scale where some small countries are not drawn. Base map: OpenFreeMap, © OpenMapTiles, data © OpenStreetMap contributors. Map software: MapLibre GL JS.'));
   }
 
   async function loadCountryShapes() {
@@ -1590,32 +1599,36 @@
 
   async function refreshOutages() {
     const range = outRange;
-    try {
-      const [r] = await Promise.all([fetch(OUT_API(range), { cache: 'no-store' }), loadCountryShapes()]);
+    const get = async src => {
+      const r = await fetch(OUT_API[src](range), { cache: 'no-store' });
       const j = await r.json().catch(() => ({}));
-      if (range !== outRange) return;
       if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
-      outages = (j.outages || []).filter(o => o.start).sort((a, b) => ((b.end ? 0 : 1) - (a.end ? 0 : 1)) || (Date.parse(b.start) - Date.parse(a.start)));
-      outById = new Map(outages.map(o => [o.id, o]));
-      lastGood = Date.now();
-      document.getElementById('liveDot').classList.remove('err');
-      const t = document.getElementById('liveText');
-      t.replaceChildren();
-      const ongoing = outages.filter(o => !o.end).length;
-      const countries = new Set(outages.flatMap(o => o.locations)).size;
-      if (!outages.length) t.textContent = `No internet outages listed by Cloudflare Radar (${outRangeLabel(range)}).`;
-      else t.append(el('span', { class: 'val' }, String(outages.length)), document.createTextNode(` outages in `), el('span', { class: 'val' }, String(countries)),
-        document.createTextNode(` countries · ${outRangeLabel(range)} · `), el('span', { class: 'val' }, String(ongoing)), document.createTextNode(' ongoing'));
-      document.getElementById('liveTime').textContent = 'Updated ' + fmtTime(lastGood) + (j.fetched ? ` · Radar data of ${fmtTime(Date.parse(j.fetched))}` : '');
-      renderOutageList();
-      paintCountries();
-      if (selectedKey && !outById.has(selectedKey)) closePanel();
-    } catch (e) {
+      return (j.outages || []).filter(o => o.start).map(o => ({ ...o, source: src, networks: o.networks || [], asns: o.asns || [], signals: o.signals || [] }));
+    };
+    const [rad, iod] = await Promise.allSettled([get('radar'), get('ioda'), loadCountryShapes()]);
+    if (range !== outRange) return;
+    outMissing = [['radar', rad], ['ioda', iod]].filter(([, x]) => x.status !== 'fulfilled').map(([k]) => OUT_SOURCE[k].name);
+    if (outMissing.length === 2) {
       document.getElementById('liveDot').classList.add('err');
-      const why = /not-configured/.test(String(e.message)) ? 'The outage feed is not connected yet.' : 'The outage feed could not be reached.';
-      document.getElementById('liveText').textContent = lastGood ? `${why} Showing outages from ${fmtTime(lastGood)}. Retrying in 5 minutes.` : `${why} Retrying in 5 minutes.`;
-      if (!lastGood) document.getElementById('mapStatus').textContent = 'Outage feed unavailable';
+      document.getElementById('liveText').textContent = lastGood ? `The outage sources could not be reached. Showing outages from ${fmtTime(lastGood)}. Retrying in 5 minutes.` : 'The outage sources could not be reached. Retrying in 5 minutes.';
+      if (!lastGood) document.getElementById('mapStatus').textContent = 'Outage feeds unavailable';
+      return;
     }
+    outages = [...(rad.value || []), ...(iod.value || [])].sort((a, b) => ((b.end ? 0 : 1) - (a.end ? 0 : 1)) || (Date.parse(b.start) - Date.parse(a.start)));
+    outById = new Map(outages.map(o => [o.id, o]));
+    lastGood = Date.now();
+    document.getElementById('liveDot').classList.toggle('err', outMissing.length > 0);
+    const t = document.getElementById('liveText');
+    t.replaceChildren();
+    const ongoing = outages.filter(o => !o.end).length;
+    const countries = new Set(outages.flatMap(o => o.locations)).size;
+    if (!outages.length) t.textContent = `No internet outages listed (${outRangeLabel(range)}).`;
+    else t.append(el('span', { class: 'val' }, String(outages.length)), document.createTextNode(' outages in '), el('span', { class: 'val' }, String(countries)),
+      document.createTextNode(` countries · ${outRangeLabel(range)} · `), el('span', { class: 'val' }, String(ongoing)), document.createTextNode(' ongoing'));
+    document.getElementById('liveTime').textContent = 'Updated ' + fmtTime(lastGood) + (outMissing.length ? ` · ${outMissing[0]} could not be reached` : '');
+    renderOutageList();
+    paintCountries();
+    if (selectedKey && !outById.has(selectedKey)) closePanel();
   }
 
   function outShown() {
@@ -1623,6 +1636,7 @@
     return outages.filter(o => {
       if (fState === 'ongoing' && o.end) return false;
       if (fState === 'ended' && !o.end) return false;
+      if (fSource && o.source !== fSource) return false;
       if (q && !(outCountries(o) + ' ' + o.networks.join(' ') + ' ' + (o.scope || '')).toLowerCase().includes(q)) return false;
       return true;
     });
@@ -1640,10 +1654,10 @@
       if (o.id === selectedKey) b.setAttribute('aria-current', 'true');
       const body = el('span');
       body.append(
-        el('div', { class: 'a-sev', style: `color:${s.color}` }, `${s.label}${o.type && OUT_TYPE[o.type] ? ' · ' + OUT_TYPE[o.type] : ''}`),
+        el('div', { class: 'a-sev', style: `color:${s.color}` }, `${s.label}${o.type && OUT_TYPE[o.type] ? ' · ' + OUT_TYPE[o.type] : ''} · ${OUT_SOURCE[o.source].name}`),
         el('div', { class: 'a-event' }, outCountries(o)),
         el('div', { class: 'a-meta' }, o.end ? `${fmtTime(Date.parse(o.start))} to ${fmtTime(Date.parse(o.end))}` : `Since ${fmtTime(Date.parse(o.start))}`),
-        el('div', { class: 'a-meta' }, [o.networks.slice(0, 2).join(', '), o.scope].filter(Boolean).join(' · ') || ' ')
+        el('div', { class: 'a-meta' }, [o.networks.slice(0, 2).join(', '), o.scope, o.signals.join(' + ')].filter(Boolean).join(' · ') || ' ')
       );
       b.append(el('span', { class: 'bar', style: `background:${s.color}`, 'aria-hidden': 'true' }), body);
       b.addEventListener('click', () => openOutage(o.id, true));
@@ -1719,7 +1733,8 @@
     returnFocus = document.activeElement;
     document.getElementById('pSev').replaceChildren(el('span', { class: 'sev-chip', style: `background:${s.color};color:#0a0d14` }, s.label));
     document.getElementById('pTitle').textContent = outCountries(o);
-    document.getElementById('pSub').textContent = 'Internet outage · Cloudflare Radar';
+    const src = OUT_SOURCE[o.source];
+    document.getElementById('pSub').textContent = `Internet outage · ${src.name} (${src.kind})`;
     const body = document.getElementById('pBody');
     body.replaceChildren(el('div', { class: 'quake-note' }, 'Measured internet outage, not a CAP alert and not an official statement. This page shows where and when, not why.'));
     const facts = el('dl', { class: 'facts' });
@@ -1736,10 +1751,13 @@
     add('Extent', o.type && OUT_TYPE[o.type] ? OUT_TYPE[o.type] : null);
     add('Scope', o.scope, 'As Radar describes it.');
     add('Networks', o.networks.length ? o.networks.join(', ') : (o.asns.length ? o.asns.map(a => 'AS' + a).join(', ') : null));
+    add('Signals', o.signals.length ? o.signals.join(', ') : null, o.source === 'ioda' ? 'IODA detects outages automatically from these measurements.' : null);
+    add('Source', o.source === 'radar' ? 'Cloudflare Radar, outage reviewed by Cloudflare staff' : 'IODA, Internet Intelligence Lab, Georgia Tech; automatic detection');
     body.append(facts);
     const links = el('div', { class: 'links' });
-    links.append(el('a', { href: 'https://radar.cloudflare.com/outage-center', target: '_blank', rel: 'noopener' }, 'Cloudflare Radar Outage Center (details and Cloudflare\'s notes)'));
-    body.append(links, el('p', { class: 'src-note' }, `Source: Cloudflare Radar, ${outRangeLabel(outRange).toLowerCase()}, data under CC BY-NC 4.0. Causes are left out on purpose.`));
+    const lk = safeUrl(src.link(o));
+    if (lk) links.append(el('a', { href: lk, target: '_blank', rel: 'noopener' }, src.linkText));
+    body.append(links, el('p', { class: 'src-note' }, `Source: ${src.name}, ${outRangeLabel(outRange).toLowerCase()}${o.source === 'radar' ? ', data under CC BY-NC 4.0' : ''}. Causes are left out on purpose.`));
     panel.classList.add('open'); panel.setAttribute('aria-hidden', 'false');
     scrim.classList.add('open');
     document.getElementById('pClose').focus();
