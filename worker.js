@@ -176,17 +176,23 @@ async function ddos(url, env, ctx) {
 // TEMPORARY probe: fixed OpenAQ URLs only (no caller input); key stays server-side; first 2500 characters of each answer
 async function openaqProbe(env) {
   if (!env.OPENAQ_KEY) return json({ error: 'not-configured' }, 503, 0);
+  const since = new Date(Date.now() - 3 * 3600e3).toISOString();
   const asks = [
-    'https://api.openaq.org/v3/parameters/2/latest?limit=3',
-    'https://api.openaq.org/v3/locations?parameters_id=2&limit=2',
-    'https://api.openaq.org/v3/licenses?limit=3'
+    `https://api.openaq.org/v3/parameters/2/latest?limit=1000&page=1&datetime_min=${since}`,
+    `https://api.openaq.org/v3/parameters/2/latest?limit=1000&page=12&datetime_min=${since}`,
+    'https://api.openaq.org/v3/locations?parameters_id=2&monitor=true&limit=1000&page=1',
+    'https://api.openaq.org/v3/locations/2178'
   ];
   const out = [];
   for (const u of asks) {
     try {
       const r = await fetch(u, { headers: { 'X-API-Key': env.OPENAQ_KEY, accept: 'application/json' } });
       const h = {}; for (const k of ['x-ratelimit-limit', 'x-ratelimit-remaining', 'x-ratelimit-reset']) h[k] = r.headers.get(k);
-      out.push({ url: u, status: r.status, headers: h, body: (await r.text()).slice(0, 2500) });
+      const t = await r.text(); let j = null; try { j = JSON.parse(t); } catch (e) {}
+      const res = j && Array.isArray(j.results) ? j.results : [];
+      const times = res.map(x => x.datetime && x.datetime.utc).filter(Boolean).sort();
+      out.push({ url: u, status: r.status, headers: h, found: j && j.meta && j.meta.found, n: res.length, oldest: times[0], newest: times[times.length - 1],
+        monitors: res.filter(x => x.isMonitor === true).length, sample: t.slice(0, 900) });
     } catch (e) { out.push({ url: u, error: String(e) }); }
   }
   return json(out, 200, 0);
