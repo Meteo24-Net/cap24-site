@@ -77,6 +77,9 @@ function json(body, status, maxAge) {
 // Overlapping events for the same country are merged into one outage that lists its signals.
 const IODA = 'https://api.ioda.inetintel.cc.gatech.edu/v2/outages/events';
 const IODA_SIGNALS = { 'bgp': 'Routing (BGP)', 'ping-slash24': 'Active probing' };
+// A detection that starts in the same minute, on the same signal, in this many countries or more
+// is a gap in IODA's measurement, not an outage (seen: 63 countries at once on 9 Nov 2026). Left out and counted.
+const IODA_GAP_COUNTRIES = 20;
 
 async function ioda(url, ctx) {
   const asked = url.searchParams.get('range');
@@ -99,10 +102,19 @@ async function ioda(url, ctx) {
   const events = (data.data || [])
     .filter(e => IODA_SIGNALS[e.datasource] && typeof e.location === 'string' && e.location.startsWith('country/') && e.start)
     .map(e => ({ cc: e.location.slice(8).toUpperCase(), start: e.start, end: e.start + (e.duration || 0), signal: IODA_SIGNALS[e.datasource] }))
-    .filter(e => e.end >= from)
+    .filter(e => e.end >= from);
+  const perMinute = new Map();
+  for (const e of events) {
+    const k = `${e.signal}|${Math.floor(e.start / 60)}`;
+    if (!perMinute.has(k)) perMinute.set(k, new Set());
+    perMinute.get(k).add(e.cc);
+  }
+  const isGap = e => perMinute.get(`${e.signal}|${Math.floor(e.start / 60)}`).size >= IODA_GAP_COUNTRIES;
+  const gapCount = events.filter(isGap).length;
+  const kept = events.filter(e => !isGap(e))
     .sort((a, b) => (a.cc < b.cc ? -1 : a.cc > b.cc ? 1 : a.start - b.start));
   const merged = [];
-  for (const e of events) {
+  for (const e of kept) {
     const last = merged[merged.length - 1];
     if (last && last.cc === e.cc && e.start <= last.end + 3600) {
       last.end = Math.max(last.end, e.end);
@@ -116,7 +128,7 @@ async function ioda(url, ctx) {
     locations: [m.cc],
     signals: m.signals
   }));
-  const res = json({ source: 'IODA', range, fetched: new Date().toISOString(), outages: list }, 200, KEEP_SECONDS);
+  const res = json({ source: 'IODA', range, fetched: new Date().toISOString(), measurementGapsLeftOut: gapCount, outages: list }, 200, KEEP_SECONDS);
   ctx.waitUntil(cache.put(cacheKey, res.clone()));
   return res;
 }

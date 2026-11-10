@@ -1530,7 +1530,7 @@
     ended: { label: 'Ended in this period', color: '#7a8699' }
   };
   const OUT_TYPE = { NATIONWIDE: 'Nationwide', REGIONAL: 'Regional', NETWORK: 'Network-level' };
-  let outages = [], outById = new Map(), outRange = '7d', fState = '', fSource = '', countryShapes = null, countryBbox = new Map(), outMissing = [];
+  let outages = [], outById = new Map(), outRange = '7d', fState = '', fSource = '', countryShapes = null, countryBbox = new Map(), outMissing = [], iodaGaps = 0;
   const outRangeLabel = r => (OUT_RANGES.find(([k]) => k === r) || [, r])[1];
   const outCountries = o => o.locations.map(c => regionName(c)).join(', ') || 'Location not given';
   const outDuration = o => {
@@ -1570,7 +1570,7 @@
     }
     document.getElementById('aboutBody').replaceChildren(
       el('p', {}, 'CAP24 relays official alerts to TV, IPTV and phone screens. Most of the way from an alerting authority to a TV set runs over the internet, so CAP24 needs to know when the internet fails. Once an alert reaches a broadcaster, the transmitter carries it without the internet; apps, websites and the phone link do not have that independence.'),
-      el('p', {}, 'Two independent sources are shown, each item labelled with its own. Cloudflare Radar publishes outages its staff have reviewed, seen in Cloudflare\'s own traffic. IODA, run by Georgia Tech\'s Internet Intelligence Lab, detects outages automatically; this page counts only its two direct connectivity signals, internet routing (BGP) and active probing. An outage seen by both sources appears twice, once from each.'),
+      el('p', {}, 'Two independent sources are shown, each item labelled with its own. Cloudflare Radar publishes outages its staff have reviewed, seen in Cloudflare\'s own traffic. IODA, run by Georgia Tech\'s Internet Intelligence Lab, detects outages automatically; this page counts only its two direct connectivity signals, internet routing (BGP) and active probing. A detection that starts in the same minute in 20 or more countries is left out as a gap in IODA\'s measurement, and the count is shown above the globe. An outage seen by both sources appears twice, once from each.'),
       el('p', {}, 'Each entry gives the country, the timing and, where the source says, the networks and extent. Causes are left out on purpose: follow the link to the source for its own notes. This is measurement data, not CAP and not an official statement.')
     );
     const dn = document.getElementById('dataNote');
@@ -1603,6 +1603,7 @@
       const r = await fetch(OUT_API[src](range), { cache: 'no-store' });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
+      if (src === 'ioda') iodaGaps = j.measurementGapsLeftOut || 0;
       return (j.outages || []).filter(o => o.start).map(o => ({ ...o, source: src, networks: o.networks || [], asns: o.asns || [], signals: o.signals || [] }));
     };
     const [rad, iod] = await Promise.allSettled([get('radar'), get('ioda'), loadCountryShapes()]);
@@ -1625,7 +1626,8 @@
     if (!outages.length) t.textContent = `No internet outages listed (${outRangeLabel(range)}).`;
     else t.append(el('span', { class: 'val' }, String(outages.length)), document.createTextNode(' outages in '), el('span', { class: 'val' }, String(countries)),
       document.createTextNode(` countries · ${outRangeLabel(range)} · `), el('span', { class: 'val' }, String(ongoing)), document.createTextNode(' ongoing'));
-    document.getElementById('liveTime').textContent = 'Updated ' + fmtTime(lastGood) + (outMissing.length ? ` · ${outMissing[0]} could not be reached` : '');
+    document.getElementById('liveTime').textContent = 'Updated ' + fmtTime(lastGood) + (outMissing.length ? ` · ${outMissing[0]} could not be reached` : '') +
+      (iodaGaps ? ` · ${iodaGaps} IODA detections left out as measurement gaps` : '');
     renderOutageList();
     paintCountries();
     if (selectedKey && !outById.has(selectedKey)) closePanel();
