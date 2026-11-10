@@ -21,6 +21,7 @@ export default {
     if (url.pathname === '/api/outages') return outages(url, env, ctx);
     if (url.pathname === '/api/ioda') return ioda(url, ctx);
     if (url.pathname === '/api/ddos') return ddos(url, env, ctx);
+    if (url.pathname === '/api/openaq-probe') return openaqProbe(env);   // TEMPORARY: learn OpenAQ v3 shapes, then remove
     return env.ASSETS.fetch(request);
   }
 };
@@ -170,4 +171,23 @@ async function ddos(url, env, ctx) {
   const res = json(out, 200, KEEP_SECONDS);
   ctx.waitUntil(cache.put(cacheKey, res.clone()));
   return res;
+}
+
+// TEMPORARY probe: fixed OpenAQ URLs only (no caller input); key stays server-side; first 2500 characters of each answer
+async function openaqProbe(env) {
+  if (!env.OPENAQ_KEY) return json({ error: 'not-configured' }, 503, 0);
+  const asks = [
+    'https://api.openaq.org/v3/parameters/2/latest?limit=3',
+    'https://api.openaq.org/v3/locations?parameters_id=2&limit=2',
+    'https://api.openaq.org/v3/licenses?limit=3'
+  ];
+  const out = [];
+  for (const u of asks) {
+    try {
+      const r = await fetch(u, { headers: { 'X-API-Key': env.OPENAQ_KEY, accept: 'application/json' } });
+      const h = {}; for (const k of ['x-ratelimit-limit', 'x-ratelimit-remaining', 'x-ratelimit-reset']) h[k] = r.headers.get(k);
+      out.push({ url: u, status: r.status, headers: h, body: (await r.text()).slice(0, 2500) });
+    } catch (e) { out.push({ url: u, error: String(e) }); }
+  }
+  return json(out, 200, 0);
 }
