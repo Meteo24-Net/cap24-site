@@ -401,7 +401,7 @@
   // One globe, three addresses: / (all official CAP alerts), /weather (CAP category Met), /seismic (USGS earthquakes)
   const MODE = (() => {
     const p = location.pathname.replace(/\/+$/, '').toLowerCase();
-    return /\/seismic(\.html)?$/.test(p) ? 'seismic' : /\/weather(\.html)?$/.test(p) ? 'weather' : /\/internet(\.html)?$/.test(p) ? 'internet' : 'all';
+    return /\/seismic(\.html)?$/.test(p) ? 'seismic' : /\/weather(\.html)?$/.test(p) ? 'weather' : /\/internet(\.html)?$/.test(p) ? 'internet' : /\/air(\.html)?$/.test(p) ? 'air' : 'all';
   })();
 
   const SEV_ORDER = { Extreme: 4, Severe: 3, Moderate: 2, Minor: 1, Unknown: 0 };
@@ -633,6 +633,7 @@
   function renderList() {
     if (MODE === 'seismic') { renderQuakeList(); return; }
     if (MODE === 'internet') { renderOutageList(); return; }
+    if (MODE === 'air') { renderAirList(); return; }
     const q = document.getElementById('q').value.trim().toLowerCase();
     const fs = document.getElementById('fSev').value;
     const fc = document.getElementById('fCountry').value;
@@ -777,6 +778,15 @@
     map.once('load', () => document.querySelectorAll('.maplibregl-ctrl-attrib.maplibregl-compact-show').forEach(n => n.classList.remove('maplibregl-compact-show')));
 
     map.once('style.load', () => {
+      if (MODE === 'air') {
+        addAirLayers();
+        mapReady = true;
+        document.getElementById('mapStatus').textContent = '';
+        paintAir();
+        if (pendingFly) { const k = pendingFly; pendingFly = null; highlightAir(k); flyAir(k); }
+        else if (!reduce) spin();
+        return;
+      }
       if (MODE === 'internet') {
         addOutageLayers();
         mapReady = true;
@@ -847,6 +857,7 @@
   function highlight(key) {
     if (MODE === 'seismic') { highlightQuake(key); return; }
     if (MODE === 'internet') { highlightOutage(key); return; }
+    if (MODE === 'air') { highlightAir(key); return; }
     if (!mapReady) return;
     setFocus(!!key);
     for (const id of highlighted) map.setFeatureState({ source: 'alerts', id }, { sel: false });
@@ -861,6 +872,7 @@
   function flyTo(key) {
     if (MODE === 'seismic') { flyQuake(key); return; }
     if (MODE === 'internet') { flyOutage(key); return; }
+    if (MODE === 'air') { flyAir(key); return; }
     const a = byKey.get(key);
     if (!a || !a.bbox || !mapReady) return;
     map.stop();
@@ -1888,10 +1900,251 @@
     document.getElementById('pClose').focus();
   }
 
+
+  // ---- Air quality page: OpenAQ latest PM2.5 via /api/air (measurements, not warnings) ----
+  // Bands use the WHO 2021 air quality guidelines for 24-hour PM2.5: guideline 15 µg/m³, interim targets 37.5 (IT-3) and 75 (IT-1).
+  const AIR_BANDS = [
+    { key: 'b0', max: 15, label: 'Up to 15: at or below the guideline', color: '#7fa7c9' },
+    { key: 'b1', max: 37.5, label: 'Above 15, up to 37.5', color: '#b39ddb' },
+    { key: 'b2', max: 75, label: 'Above 37.5, up to 75', color: '#9c64ff' },
+    { key: 'b3', max: Infinity, label: 'Above 75', color: '#e040fb' }
+  ];
+  const airBand = v => AIR_BANDS.find(b => v <= b.max) || AIR_BANDS[AIR_BANDS.length - 1];
+  let airRows = [], airDropped = 0, airSince = null, fAirBand = '', airCountries = null;
+  const ageText = t => { const m = Math.max(0, Math.round((Date.now() / 1000 - t) / 60)); return m < 60 ? `${m} min ago` : `${Math.floor(m / 60)} h ${m % 60} min ago`; };
+
+  function setupAir() {
+    document.title = 'CAP24 — Air quality worldwide (OpenAQ data, demonstration)';
+    document.getElementById('demoBanner').innerHTML = '<strong>Demonstration.</strong> Air quality readings from sensors worldwide, through OpenAQ. They are measurements, not warnings, and may be delayed or wrong. For official air quality alerts, follow your national authority.';
+    document.getElementById('heroH').textContent = 'Fine-particle air pollution, as sensors measure it.';
+    document.getElementById('heroP').textContent = 'The globe shows the latest PM2.5 reading from each sensor that reported in the last three hours, from government monitors and low-cost sensors that OpenAQ brings together. Readings are compared with the WHO guideline as a reference only. Official air quality alerts, where an authority issues them in CAP, appear on the All alerts globe.';
+    document.getElementById('map').setAttribute('aria-label', 'Globe of the latest PM2.5 readings from air quality sensors. The list next to it carries the highest readings.');
+    document.getElementById('listAside').setAttribute('aria-label', 'List of the highest PM2.5 readings');
+    document.getElementById('q').placeholder = 'Search country';
+    document.querySelector('label[for="q"]').textContent = 'Search readings by country';
+    document.getElementById('listFilters').replaceChildren();
+    document.getElementById('listFilters').style.display = 'none';
+    const legend = document.getElementById('legend');
+    legend.setAttribute('aria-label', 'Show one range of readings on the globe and in the list');
+    legend.replaceChildren(el('div', { class: 'hd' }, 'PM2.5, µg/m³ · WHO 24-HOUR GUIDELINE: 15'));
+    for (const b of AIR_BANDS) {
+      const btn = el('button', { type: 'button', class: 'row', 'data-band': b.key, 'aria-pressed': 'false' });
+      btn.append(el('span', { class: 'sw round', style: `background:${b.color}` }), document.createTextNode(b.label));
+      btn.addEventListener('click', () => { fAirBand = fAirBand === b.key ? '' : b.key; renderAirList(); });
+      legend.append(btn);
+    }
+    legend.append(el('div', { class: 'hd', style: 'margin-top:6px' }, 'A REFERENCE, NOT A WARNING LEVEL'));
+    document.getElementById('aboutBody').replaceChildren(
+      el('p', {}, 'Each dot is the latest PM2.5 reading (fine particles, in micrograms per cubic metre) from one sensor that reported in the last three hours. OpenAQ, an open-data non-profit, brings together readings from government monitoring networks and from low-cost sensors; each station\'s panel says which kind it is, who provides the data and under which licence.'),
+      el('p', {}, 'The colours compare each reading with the World Health Organization\'s 2021 guideline for 24-hour average PM2.5 (15 µg/m³) and its interim targets of 37.5 and 75 µg/m³. Most readings are hourly, so a single reading above 15 does not mean the daily guideline was exceeded. This is a reference for orientation, not a warning level: air quality alerts are for authorities to issue, and where they do so in CAP, they appear on the All alerts globe.'),
+      el('p', {}, 'Readings below 0 or above 1,000 µg/m³ are left out as sensor errors. Low-cost sensors are less accurate than government monitors, especially in humid air. This is measurement data, not CAP, and AI is not used anywhere on this page.')
+    );
+    const dn = document.getElementById('dataNote');
+    dn.replaceChildren();
+    dn.append(el('strong', {}, 'Data.'), document.createTextNode(' Air quality: '),
+      el('a', { href: 'https://openaq.org/', rel: 'noopener' }, 'OpenAQ'),
+      document.createTextNode(', which aggregates data from government agencies and other providers; each station\'s provider and licence are shown in its panel, as OpenAQ\'s terms require. Reference values: '),
+      el('a', { href: 'https://www.who.int/publications/i/item/9789240034228', rel: 'noopener' }, 'WHO global air quality guidelines (2021)'),
+      document.createTextNode('. Country names: Natural Earth (public domain). Base map: OpenFreeMap, © OpenMapTiles, data © OpenStreetMap contributors. Map software: MapLibre GL JS.'));
+  }
+
+  // Country of each reading, for the list and search: point in polygon against Natural Earth shapes
+  function inRing(x, y, ring) {
+    let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const xi = ring[i][0], yi = ring[i][1], xj = ring[j][0], yj = ring[j][1];
+      if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
+    }
+    return inside;
+  }
+  function countryOf(lon, lat) {
+    if (!airCountries) return '';
+    for (const c of airCountries) {
+      const b = c.bbox;
+      if (lon < b[0] || lon > b[2] || lat < b[1] || lat > b[3]) continue;
+      for (const poly of c.polys) if (poly.reduce((acc, r) => (inRing(lon, lat, r) ? !acc : acc), false)) return c.cc;
+    }
+    return '';
+  }
+
+  async function refreshAir() {
+    try {
+      const shapes = await loadCountryShapes();
+      if (!airCountries) airCountries = shapes.features.filter(f => f.properties.cc && f.geometry).map(f => ({
+        cc: f.properties.cc,
+        bbox: countryBbox.get(f.properties.cc),
+        polys: f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.type === 'MultiPolygon' ? f.geometry.coordinates : []
+      })).filter(c => c.bbox);
+      const first = await fetch('/api/air?page=1', { cache: 'no-store' });
+      const j1 = await first.json().catch(() => ({}));
+      if (!first.ok) throw new Error(j1.error || ('HTTP ' + first.status));
+      const pages = Math.min(30, Math.max(1, Math.ceil((j1.found || 0) / 1000)));
+      const rest = await Promise.allSettled(Array.from({ length: pages - 1 }, (_, i) => fetch(`/api/air?page=${i + 2}`, { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject(r.status))));
+      const parts = [j1, ...rest.filter(x => x.status === 'fulfilled').map(x => x.value)];
+      const missing = rest.filter(x => x.status !== 'fulfilled').length;
+      const seen = new Set();
+      airRows = [];
+      airDropped = 0;
+      for (const p of parts) {
+        airDropped += p.dropped || 0;
+        for (const r of (p.readings || [])) {
+          const k = `${r[3]}|${r[0]}|${r[1]}`;
+          if (seen.has(k)) continue;
+          seen.add(k);
+          airRows.push({ lon: r[0], lat: r[1], v: r[2], loc: r[3], t: r[4], i: airRows.length, cc: '' });
+        }
+      }
+      for (const r of airRows) r.cc = countryOf(r.lon, r.lat);
+      airSince = j1.since ? Date.parse(j1.since) : null;
+      lastGood = Date.now();
+      document.getElementById('liveDot').classList.toggle('err', missing > 0);
+      const t = document.getElementById('liveText');
+      t.replaceChildren();
+      const above = airRows.filter(r => r.v > 15).length;
+      t.append(el('span', { class: 'val' }, airRows.length.toLocaleString('en')), document.createTextNode(' sensors reporting in the last 3 hours · '),
+        el('span', { class: 'val' }, above.toLocaleString('en')), document.createTextNode(' above 15 µg/m³ (WHO guideline, 24-hour)'));
+      document.getElementById('liveTime').textContent = 'Updated ' + fmtTime(lastGood) + (airDropped ? ` · ${airDropped} readings left out as sensor errors` : '') + (missing ? ` · ${missing} of ${pages} pages could not be loaded` : '');
+      renderAirList();
+    } catch (e) {
+      document.getElementById('liveDot').classList.add('err');
+      const why = /not-configured/.test(String(e.message)) ? 'The air quality feed is not connected yet.' : 'The air quality feed could not be reached.';
+      document.getElementById('liveText').textContent = lastGood ? `${why} Showing readings from ${fmtTime(lastGood)}. Retrying in 30 minutes.` : `${why} Retrying in 30 minutes.`;
+      if (!lastGood) document.getElementById('mapStatus').textContent = 'Air quality feed unavailable';
+    }
+  }
+
+  function airShown() {
+    const q = document.getElementById('q').value.trim().toLowerCase();
+    return airRows.filter(r => (!fAirBand || airBand(r.v).key === fAirBand) && (!q || (r.cc && regionName(r.cc).toLowerCase().includes(q))));
+  }
+
+  function renderAirList() {
+    const shown = airShown();
+    const top = [...shown].sort((a, b) => b.v - a.v).slice(0, 300);
+    const ul = document.getElementById('alertList');
+    ul.replaceChildren();
+    const frag = document.createDocumentFragment();
+    for (const r of top) {
+      const b = airBand(r.v);
+      const li = el('li');
+      const btn = el('button', { type: 'button', 'data-key': `air-${r.i}` });
+      if (`air-${r.i}` === selectedKey) btn.setAttribute('aria-current', 'true');
+      const body = el('span');
+      body.append(
+        el('div', { class: 'a-sev', style: `color:${b.color}` }, `PM2.5 ${r.v} µg/m³`),
+        el('div', { class: 'a-event' }, r.cc ? regionName(r.cc) : 'Country not identified'),
+        el('div', { class: 'a-meta' }, `${ageText(r.t)} · OpenAQ location ${r.loc}`)
+      );
+      btn.append(el('span', { class: 'bar', style: `background:${b.color}`, 'aria-hidden': 'true' }), body);
+      btn.addEventListener('click', () => openAir(r.i, true));
+      li.append(btn);
+      frag.append(li);
+    }
+    ul.append(frag);
+    document.getElementById('listCount').textContent = `${shown.length.toLocaleString('en')} sensors` + (shown.length > top.length ? ` · the ${top.length} highest listed, all on the globe` : '');
+    const legend = document.getElementById('legend');
+    legend.classList.toggle('filtered', !!fAirBand);
+    legend.querySelectorAll('button[data-band]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.band === fAirBand)));
+    paintAir(shown);
+  }
+
+  function paintAir(shown) {
+    if (!mapReady) return;
+    map.getSource('air').setData({ type: 'FeatureCollection', features: (shown || airShown()).map(r => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [r.lon, r.lat] }, properties: { i: r.i, v: r.v, b: airBand(r.v).key } })) });
+  }
+
+  function addAirLayers() {
+    tintBase();
+    map.addSource('air', { type: 'geojson', data: { type: 'FeatureCollection', features: [] }, attribution: 'Air quality: OpenAQ and its data providers' });
+    const color = ['match', ['get', 'b'], 'b0', AIR_BANDS[0].color, 'b1', AIR_BANDS[1].color, 'b2', AIR_BANDS[2].color, AIR_BANDS[3].color];
+    map.addLayer({ id: 'air-dots', type: 'circle', source: 'air',
+      layout: { 'circle-sort-key': ['get', 'v'] },   // the highest readings on top
+      paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 1, 2.2, 5, 4, 9, 7], 'circle-color': color, 'circle-opacity': 0.85, 'circle-stroke-width': 0 } });
+    map.addLayer({ id: 'air-sel', type: 'circle', source: 'air', filter: ['==', ['get', 'i'], -1],
+      paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 1, 7, 5, 9, 9, 12], 'circle-color': 'rgba(0,0,0,0)', 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2.5 } });
+    const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 8 });
+    map.on('mousemove', 'air-dots', e => {
+      map.getCanvas().style.cursor = 'pointer';
+      const r = airRows[e.features[0].properties.i];
+      if (r) popup.setLngLat(e.lngLat).setText(`PM2.5 ${r.v} µg/m³ · ${r.cc ? regionName(r.cc) : ''} · ${ageText(r.t)}`).addTo(map);
+    });
+    map.on('mouseleave', 'air-dots', () => { map.getCanvas().style.cursor = ''; popup.remove(); });
+    map.on('click', 'air-dots', e => {
+      const f = [...e.features].sort((a, b) => b.properties.v - a.properties.v)[0];
+      if (f) openAir(f.properties.i, false);
+    });
+  }
+  function highlightAir(key) {
+    if (!mapReady) return;
+    const i = key && key.startsWith('air-') ? Number(key.slice(4)) : -1;
+    map.setFilter('air-sel', ['==', ['get', 'i'], i]);
+  }
+  function flyAir(key) {
+    const r = airRows[Number(String(key).slice(4))];
+    if (!r || !mapReady) return;
+    map.stop();
+    map.flyTo({ center: [r.lon, r.lat], zoom: Math.max(map.getZoom(), 6), duration: 1200 });
+  }
+
+  async function openAir(i, fly) {
+    const r = airRows[i];
+    if (!r) return;
+    const key = `air-${i}`, b = airBand(r.v);
+    selectedKey = key;
+    highlightAir(key);
+    document.querySelectorAll('ul.alerts button[aria-current]').forEach(x => x.removeAttribute('aria-current'));
+    const btn = document.querySelector(`ul.alerts button[data-key="${key}"]`);
+    if (btn) btn.setAttribute('aria-current', 'true');
+    stopSpin();
+    if (fly) { if (mapReady) flyAir(key); else pendingFly = key; }
+    returnFocus = document.activeElement;
+    document.getElementById('pSev').replaceChildren(el('span', { class: 'sev-chip', style: `background:${b.color};color:#0a0d14` }, `PM2.5 ${r.v} µg/m³`));
+    document.getElementById('pTitle').textContent = r.cc ? regionName(r.cc) : 'Air quality sensor';
+    document.getElementById('pSub').textContent = 'Air quality reading · OpenAQ';
+    const body = document.getElementById('pBody');
+    body.replaceChildren(el('div', { class: 'quake-note' }, 'A sensor measurement, not a warning. The WHO guideline (15 µg/m³) is for a 24-hour average, and this is a single recent reading. For official air quality alerts, follow your national authority.'));
+    const facts = el('dl', { class: 'facts' });
+    const add = (label, value, note) => { if (value == null || value === '') return; const dd = el('dd', {}, String(value)); if (note) dd.append(el('small', {}, note)); facts.append(el('dt', {}, label), dd); };
+    add('PM2.5', `${r.v} µg/m³`, `${b.label} (WHO reference values for a 24-hour average).`);
+    add('Measured', `${fmtTime(r.t * 1000)} (${ageText(r.t)})`);
+    add('Location', `${Math.abs(r.lat).toFixed(3)}° ${r.lat < 0 ? 'S' : 'N'}, ${Math.abs(r.lon).toFixed(3)}° ${r.lon < 0 ? 'W' : 'E'}`);
+    body.append(facts);
+    const more = el('dl', { class: 'facts' }, null);
+    const status = el('p', { class: 'src-note' }, 'Loading station details from OpenAQ…');
+    body.append(more, status);
+    const links = el('div', { class: 'links' });
+    links.append(el('a', { href: `https://explore.openaq.org/locations/${encodeURIComponent(r.loc)}`, target: '_blank', rel: 'noopener' }, 'This station on OpenAQ Explorer (history and other pollutants)'));
+    body.append(links);
+    panel.classList.add('open'); panel.setAttribute('aria-hidden', 'false');
+    scrim.classList.add('open');
+    document.getElementById('pClose').focus();
+    try {
+      const d = await fetch(`/api/air/location?id=${encodeURIComponent(r.loc)}`).then(x => x.ok ? x.json() : Promise.reject(x.status));
+      if (selectedKey !== key) return;
+      const add2 = (label, value, note) => { if (value == null || value === '') return; const dd = el('dd', {}, String(value)); if (note) dd.append(el('small', {}, note)); more.append(el('dt', {}, label), dd); };
+      if (d.name) document.getElementById('pTitle').textContent = [d.name, d.locality].filter(Boolean).join(', ');
+      add2('Country', d.country && d.country.name);
+      add2('Station type', d.isMonitor ? 'Government or reference monitor' : 'Low-cost sensor', d.isMonitor ? null : 'Less accurate than reference monitors, especially in humid air.');
+      add2('Instrument', d.instruments.join(', '));
+      add2('Data provider', d.provider);
+      add2('Owner', d.owner);
+      const lic = d.licenses.map(l => [l.name, l.attribution && l.attribution.name ? `credit: ${l.attribution.name}` : null].filter(Boolean).join(', ')).filter(Boolean);
+      add2('Licence', lic.length ? lic.join('; ') : 'Not stated by OpenAQ for this station');
+      for (const l of d.licenses) {
+        const u = l.attribution && safeUrl(l.attribution.url);
+        if (u) links.append(el('a', { href: u, target: '_blank', rel: 'noopener' }, `Data credit: ${l.attribution.name || u}`));
+      }
+      status.textContent = `Source: OpenAQ, location ${r.loc}${d.provider ? `, data from ${d.provider}` : ''}. Shown as published; nothing is changed.`;
+    } catch (e) {
+      if (selectedKey === key) status.textContent = 'Station details could not be loaded from OpenAQ right now. The reading above is as published.';
+    }
+  }
+
   function setupMode() {
     document.querySelectorAll('nav.modes a').forEach(a => { if (a.dataset.mode === MODE) a.setAttribute('aria-current', 'page'); });
     if (MODE === 'seismic') { setupSeismic(); return; }
     if (MODE === 'internet') { setupInternet(); return; }
+    if (MODE === 'air') { setupAir(); return; }
     if (MODE === 'weather') {
       document.title = 'CAP24 — Official weather alerts on every screen (demonstration)';
       document.getElementById('heroH').textContent = 'Official weather warnings, as met services publish them in CAP.';
@@ -1911,6 +2164,9 @@
   } else if (MODE === 'internet') {
     refreshOutages();
     setInterval(refreshOutages, REFRESH_MS);
+  } else if (MODE === 'air') {
+    refreshAir();
+    setInterval(refreshAir, 30 * 60 * 1000);
   } else {
     loadOutlines();
     refresh();

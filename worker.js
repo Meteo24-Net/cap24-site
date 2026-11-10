@@ -5,6 +5,9 @@
 //                                 routing (BGP) and active-probing signals only
 //   /api/ddos?range=7d|28d     →  Cloudflare Radar: share of mitigated DDoS attacks by TARGET country,
 //                                 network layer (L3/4) and websites (L7). Origins are never requested.
+//   /api/air?page=N            →  OpenAQ: latest PM2.5 readings from the last 3 hours, one page of 1,000 sensors
+//   /api/air/location?id=N     →  OpenAQ: one station's details (name, type, provider, licences)
+// Secrets: RADAR_TOKEN (Cloudflare Radar read), OPENAQ_KEY (OpenAQ API key).
 // The Radar API token stays here (Worker secret RADAR_TOKEN), never in the browser.
 // Cause fields (outageCause, description, linkedUrl, eventType) are removed here, so the
 // public page cannot show causes even by mistake (CAP24 resilience spec, "Public website").
@@ -21,7 +24,8 @@ export default {
     if (url.pathname === '/api/outages') return outages(url, env, ctx);
     if (url.pathname === '/api/ioda') return ioda(url, ctx);
     if (url.pathname === '/api/ddos') return ddos(url, env, ctx);
-    if (url.pathname === '/api/openaq-probe') return openaqProbe(env);   // TEMPORARY: learn OpenAQ v3 shapes, then remove
+    if (url.pathname === '/api/air') return airPage(url, env, ctx);
+    if (url.pathname === '/api/air/location') return airLocation(url, env, ctx);
     return env.ASSETS.fetch(request);
   }
 };
@@ -173,26 +177,77 @@ async function ddos(url, env, ctx) {
   return res;
 }
 
-// TEMPORARY probe: fixed OpenAQ URLs only (no caller input); key stays server-side; first 2500 characters of each answer
-async function openaqProbe(env) {
-  if (!env.OPENAQ_KEY) return json({ error: 'not-configured' }, 503, 0);
-  const since = new Date(Date.now() - 3 * 3600e3).toISOString();
-  const asks = [
-    `https://api.openaq.org/v3/parameters/2/latest?limit=1000&page=1&datetime_min=${since}&monitor=true`,
-    `https://api.openaq.org/v3/parameters/2/latest?limit=1000&page=1&datetime_min=${since}&monitor=false`,
-    `https://api.openaq.org/v3/parameters/2/latest?limit=5&page=1&datetime_min=${since}&iso=GE`
-  ];
-  const out = [];
-  for (const u of asks) {
-    try {
-      const r = await fetch(u, { headers: { 'X-API-Key': env.OPENAQ_KEY, accept: 'application/json' } });
-      const h = {}; for (const k of ['x-ratelimit-limit', 'x-ratelimit-remaining', 'x-ratelimit-reset']) h[k] = r.headers.get(k);
-      const t = await r.text(); let j = null; try { j = JSON.parse(t); } catch (e) {}
-      const res = j && Array.isArray(j.results) ? j.results : [];
-      const times = res.map(x => x.datetime && x.datetime.utc).filter(Boolean).sort();
-      out.push({ url: u, status: r.status, headers: h, found: j && j.meta && j.meta.found, n: res.length, oldest: times[0], newest: times[times.length - 1],
-        monitors: res.filter(x => x.isMonitor === true).length, sample: t.slice(0, 900) });
-    } catch (e) { out.push({ url: u, error: String(e) }); }
+// Air quality (OpenAQ). Readings are measurements, not warnings.
+// Every page in the same 30-minute window uses the same query, so pages fit together.
+const OPENAQ = 'https://api.openaq.org/v3';
+const AIR_WINDOW = 1800;          // seconds per cache window
+const AIR_RECENT_HOURS = 3;       // older readings are left out
+const AIR_MAX_PAGES = 30;
+
+async function airPage(url, env, ctx) {
+  const page = Math.max(1, Math.min(AIR_MAX_PAGES, parseInt(url.searchParams.get('page') || '1', 10) || 1));
+  const bucket = Math.floor(Date.now() / 1000 / AIR_WINDOW) * AIR_WINDOW;
+  const cacheKey = new Request(`${url.origin}/api/air?page=${page}&w=${bucket}&v=${CACHE_VERSION}`);
+  const cache = caches.default;
+  const hit = await cache.match(cacheKey);
+  if (hit) return hit;
+  if (!env.OPENAQ_KEY) return json({ error: 'not-configured' }, 503, 60);
+
+  const since = new Date((bucket - AIR_RECENT_HOURS * 3600) * 1000).toISOString();
+  let r;
+  try {
+    r = await fetch(`${OPENAQ}/parameters/2/latest?limit=1000&page=${page}&datetime_min=${encodeURIComponent(since)}`, { headers: { 'X-API-Key': env.OPENAQ_KEY, accept: 'application/json' } });
+  } catch (e) { return json({ error: 'upstream-unreachable' }, 502, 60); }
+  if (r.status === 404) return json({ page, found: null, window: bucket, readings: [] }, 200, AIR_WINDOW);   // past the last page
+  if (!r.ok) return json({ error: 'upstream', status: r.status }, 502, 60);
+  const j = await r.json();
+  let dropped = 0;
+  // Compact rows: [longitude, latitude, µg/m³, location id, reading time (unix seconds)]
+  const readings = [];
+  for (const x of (j.results || [])) {
+    const v = x.value, c = x.coordinates || {}, t = Date.parse(x.datetime && x.datetime.utc);
+    if (typeof v !== 'number' || !isFinite(c.latitude) || !isFinite(c.longitude) || !t) continue;
+    if (v < 0 || v > 1000) { dropped++; continue; }   // outside any plausible ambient value: sensor error
+    readings.push([Math.round(c.longitude * 1e4) / 1e4, Math.round(c.latitude * 1e4) / 1e4, Math.round(v * 10) / 10, x.locationsId, Math.round(t / 1000)]);
   }
-  return json(out, 200, 0);
+  const found = j.meta && typeof j.meta.found === 'number' ? j.meta.found : null;
+  const res = json({ page, found, window: bucket, since, dropped, readings }, 200, AIR_WINDOW);
+  ctx.waitUntil(cache.put(cacheKey, res.clone()));
+  return res;
+}
+
+async function airLocation(url, env, ctx) {
+  const id = parseInt(url.searchParams.get('id') || '', 10);
+  if (!(id > 0)) return json({ error: 'bad-id' }, 400, 60);
+  const cacheKey = new Request(`${url.origin}/api/air/location?id=${id}&v=${CACHE_VERSION}`);
+  const cache = caches.default;
+  const hit = await cache.match(cacheKey);
+  if (hit) return hit;
+  if (!env.OPENAQ_KEY) return json({ error: 'not-configured' }, 503, 60);
+  let r;
+  try {
+    r = await fetch(`${OPENAQ}/locations/${id}`, { headers: { 'X-API-Key': env.OPENAQ_KEY, accept: 'application/json' } });
+  } catch (e) { return json({ error: 'upstream-unreachable' }, 502, 60); }
+  if (!r.ok) return json({ error: 'upstream', status: r.status }, r.status === 404 ? 404 : 502, 60);
+  const j = await r.json();
+  const L = (j.results || [])[0];
+  if (!L) return json({ error: 'not-found' }, 404, 300);
+  const nm = o => (o && typeof o.name === 'string' ? o.name : null);
+  const res = json({
+    id: L.id,
+    name: L.name || null,
+    locality: L.locality || null,
+    country: L.country ? { code: L.country.code || null, name: L.country.name || null } : null,
+    owner: nm(L.owner),
+    provider: nm(L.provider),
+    isMonitor: L.isMonitor === true,
+    isMobile: L.isMobile === true,
+    instruments: (L.instruments || []).map(nm).filter(Boolean),
+    licenses: (L.licenses || []).map(x => ({
+      name: x.name || null,
+      attribution: x.attribution ? { name: x.attribution.name || null, url: x.attribution.url || null } : null
+    }))
+  }, 200, 86400);
+  ctx.waitUntil(cache.put(cacheKey, res.clone()));
+  return res;
 }
