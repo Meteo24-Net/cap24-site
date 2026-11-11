@@ -51,6 +51,13 @@
   nav.modes a[aria-current="page"] { background: var(--neon); color: #04121a; font-weight: 600; }
   .legend .hd { font-family: var(--ff-mono); font-size: 11px; letter-spacing: 0.06em; color: var(--text-dim); margin: 0 0 4px 6px; }
   .sw.round { border-radius: 50%; }
+  .legend .srow { display: flex; align-items: baseline; gap: 8px; margin: 2px 0; padding: 1px 6px; font-size: 13px; }
+  .legend .srow b { font-family: var(--ff-mono); min-width: 2.2em; }
+  .legend .ramp { height: 10px; border-radius: 3px; margin: 4px 6px 2px; background: linear-gradient(90deg, rgba(46,125,50,0.35), #43a047 15%, #c0ca33 40%, #fdd835 60%, #ff7043 80%, #e53935); }
+  .legend .ramp-l { display: flex; justify-content: space-between; margin: 0 6px; font-family: var(--ff-mono); font-size: 10px; color: var(--text-dim); }
+  table.swx { width: 100%; border-collapse: collapse; font-size: 14px; margin: 8px 0; }
+  table.swx th, table.swx td { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  table.swx th { font-family: var(--ff-mono); font-size: 11px; letter-spacing: 0.05em; color: var(--text-dim); font-weight: 400; }
   .quake-note { margin: 12px 0; padding: 10px 12px; border: 1px solid var(--border-hi); border-radius: 6px; font-size: 14px; color: var(--text); }
   .pager-chip { display: inline-block; font-family: var(--ff-mono); font-size: 12px; padding: 1px 7px; border-radius: 3px; margin-right: 6px; font-weight: 600; text-transform: uppercase; }
   dl.facts dd small { display: block; color: var(--text-dim); font-size: 12.5px; }
@@ -430,7 +437,8 @@
     '/tv': 'tv',
     '/context/seismic': 'seismic',
     '/context/internet': 'internet',
-    '/context/air': 'air'
+    '/context/air': 'air',
+    '/context/space': 'space'
   };
   const LEGACY = { '/weather': '/category/met', '/seismic': '/context/seismic', '/internet': '/context/internet', '/air': '/context/air' };
   const MODE = (() => {
@@ -679,6 +687,7 @@
     if (MODE === 'seismic') { renderQuakeList(); return; }
     if (MODE === 'internet') { renderOutageList(); return; }
     if (MODE === 'air') { renderAirList(); return; }
+    if (MODE === 'space') { renderSpaceList(); return; }
     const q = document.getElementById('q').value.trim().toLowerCase();
     const fs = document.getElementById('fSev').value;
     const fc = document.getElementById('fCountry').value;
@@ -814,7 +823,7 @@
     map = new maplibregl.Map({
       container: 'map',
       style,
-      center: [24, 30],
+      center: [24, MODE === 'space' ? 52 : 30],   // the space view leans north, where the aurora oval is
       zoom: 1.4,
       attributionControl: { compact: true }
     });
@@ -823,6 +832,14 @@
     map.once('load', () => document.querySelectorAll('.maplibregl-ctrl-attrib.maplibregl-compact-show').forEach(n => n.classList.remove('maplibregl-compact-show')));
 
     map.once('style.load', () => {
+      if (MODE === 'space') {
+        addSpaceLayers();
+        mapReady = true;
+        document.getElementById('mapStatus').textContent = '';
+        paintAurora();
+        if (!reduce) spin();
+        return;
+      }
       if (MODE === 'air') {
         addAirLayers();
         mapReady = true;
@@ -903,6 +920,7 @@
     if (MODE === 'seismic') { highlightQuake(key); return; }
     if (MODE === 'internet') { highlightOutage(key); return; }
     if (MODE === 'air') { highlightAir(key); return; }
+    if (MODE === 'space') return;
     if (!mapReady) return;
     setFocus(!!key);
     for (const id of highlighted) map.setFeatureState({ source: 'alerts', id }, { sel: false });
@@ -918,6 +936,7 @@
     if (MODE === 'seismic') { flyQuake(key); return; }
     if (MODE === 'internet') { flyOutage(key); return; }
     if (MODE === 'air') { flyAir(key); return; }
+    if (MODE === 'space') return;
     const a = byKey.get(key);
     if (!a || !a.bbox || !mapReady) return;
     map.stop();
@@ -2351,12 +2370,259 @@
     }
   }
 
+
+  // ---- Space weather page: NOAA SWPC (space weather data and NOAA's own products, not CAP) ----
+  // Shown as NOAA publishes it: NOAA's scales and its alerts, warnings and watches word for word, and its OVATION
+  // aurora forecast. No CAP24 thresholds, ratings or translations.
+  const SWPC = 'https://services.swpc.noaa.gov';
+  const SW_KIND = { ALT: 'Alert', WAR: 'Warning', WAT: 'Watch', SUM: 'Summary' };
+  const SW_COLOR = { Alert: '#ff8a65', Warning: '#ffd54f', Watch: '#4dd0e1', Summary: '#90a4ae', Other: '#90a4ae' };
+  const SW_SCALE_NAME = { R: 'Radio blackouts', S: 'Solar radiation storms', G: 'Geomagnetic storms' };
+  let swMsgs = [], swScales = null, swKp = null, swAurora = null, swAuroraAt = 0, fSwKind = '';
+
+  // "2026-11-11 05:01:52.690" is UTC
+  const swTime = t => Date.parse(String(t || '').replace(' ', 'T').replace(/(\.\d+)?$/, 'Z'));
+  function parseSwMsg(m, i) {
+    const text = String(m.message || '').replace(/\r\n/g, '\n');
+    const code = (text.match(/Message Code:\s*(\w+)/) || [])[1] || '';
+    const kind = SW_KIND[code.slice(0, 3)] || 'Other';
+    const lines = text.split('\n').map(l => l.trim());
+    const title = lines.find(l => l && !/^(Space Weather Message Code|Serial Number|Issue Time):/i.test(l)) || 'NOAA space weather message';
+    const scale = (text.match(/NOAA Scale:\s*([GRS]\d)\s*-?\s*([A-Za-z]*)/) || []);
+    const serial = (text.match(/Serial Number:\s*(\d+)/) || [])[1] || '';
+    return { i, id: m.product_id, issued: swTime(m.issue_datetime), code, kind, title, scale: scale[1] || '', scaleWord: scale[2] || '', serial, text };
+  }
+
+  function setupSpace() {
+    document.title = 'CAP24 — Space weather (NOAA data, demonstration)';
+    document.getElementById('demoBanner').innerHTML = '<strong>Demonstration.</strong> Space weather data from NOAA\'s Space Weather Prediction Center, shown as NOAA publishes it. NOAA\'s alerts, warnings and watches are its own products, not CAP. This page is not a warning service.';
+    document.getElementById('heroH').textContent = 'Space weather, as NOAA reports it.';
+    document.getElementById('heroP').textContent = 'NOAA rates radio blackouts (R), solar radiation storms (S) and geomagnetic storms (G) on scales from 1 to 5. The list carries NOAA\'s own alerts, warnings and watches, word for word. The globe shows NOAA\'s short-term aurora forecast, which marks how far geomagnetic activity reaches.';
+    document.getElementById('liveText').textContent = 'Loading NOAA space weather data…';
+    document.getElementById('map').setAttribute('aria-label', 'Globe of the NOAA aurora forecast. The list next to it carries NOAA space weather messages.');
+    document.getElementById('listAside').setAttribute('aria-label', 'List of NOAA space weather messages');
+    document.getElementById('q').placeholder = 'Search messages';
+    document.querySelector('label[for="q"]').textContent = 'Search NOAA messages';
+    const filters = document.getElementById('listFilters');
+    filters.replaceChildren();
+    filters.style.gridTemplateColumns = '1fr';
+    const sel = el('select', { id: 'fSwKind', 'aria-label': 'Message type' });
+    for (const [k, label] of [['', 'All message types'], ['Alert', 'Alerts'], ['Warning', 'Warnings'], ['Watch', 'Watches'], ['Summary', 'Summaries']]) sel.append(el('option', { value: k }, label));
+    sel.addEventListener('change', () => { fSwKind = sel.value; renderSpaceList(); });
+    filters.append(sel);
+    paintSpaceLegend();
+    document.getElementById('aboutBody').replaceChildren(
+      el('p', {}, 'Why this is here: alerts travel over satellite links, the internet and transmitters that rely on satellite timing. Strong geomagnetic storms and radio blackouts can disturb satellite links, satellite positioning and timing, and HF radio. This page shows NOAA\'s view of those conditions; it does not judge their effect on any network.'),
+      el('p', {}, 'The NOAA Space Weather Scales run from 1 (minor) to 5 (extreme): R for radio blackouts caused by solar flares, S for solar radiation storms, G for geomagnetic storms. The list shows the alerts, warnings, watches and summaries NOAA\'s Space Weather Prediction Center issued in about the past month, newest first. The globe shows NOAA\'s OVATION model: the chance of seeing an aurora in roughly the next half hour to hour and a half. All times are UTC.'),
+      el('p', {}, 'Everything is shown as NOAA publishes it: nothing is translated, rated or changed, and no CAP24 thresholds are applied. This is space weather data, not CAP, and AI is not used anywhere on this page.')
+    );
+    const dn = document.getElementById('dataNote');
+    dn.replaceChildren();
+    dn.append(el('strong', {}, 'Data.'), document.createTextNode(' Space weather: '),
+      el('a', { href: 'https://www.swpc.noaa.gov/', rel: 'noopener' }, 'NOAA Space Weather Prediction Center'),
+      document.createTextNode(': NOAA Space Weather Scales, alerts, warnings and watches, planetary K index and OVATION aurora forecast (U.S. government data, public domain). Base map: OpenFreeMap, © OpenMapTiles, data © OpenStreetMap contributors. Map software: MapLibre GL JS.'));
+  }
+
+  function scaleText(o, k) {
+    if (!o || !o[k] || o[k].Scale == null) return '—';
+    return `${k}${o[k].Scale} · ${o[k].Text || ''}`;
+  }
+
+  function paintSpaceLegend() {
+    const legend = document.getElementById('legend');
+    legend.setAttribute('aria-label', 'NOAA space weather scales now, and the aurora forecast colours');
+    legend.replaceChildren(el('div', { class: 'hd' }, 'NOAA SCALES · NOW'));
+    const now = swScales && swScales['0'];
+    for (const k of ['R', 'S', 'G']) {
+      const r = el('div', { class: 'srow' });
+      r.append(el('b', {}, now && now[k] && now[k].Scale != null ? `${k}${now[k].Scale}` : `${k}–`), document.createTextNode(`${SW_SCALE_NAME[k]}${now && now[k] && now[k].Text ? ': ' + now[k].Text : ''}`));
+      legend.append(r);
+    }
+    legend.append(el('div', { class: 'hd', style: 'margin-top:8px' }, 'AURORA CHANCE · NOAA OVATION'));
+    legend.append(el('div', { class: 'ramp', 'aria-hidden': 'true' }));
+    const l = el('div', { class: 'ramp-l', 'aria-hidden': 'true' }); l.append(el('span', {}, '1%'), el('span', {}, '50%'), el('span', {}, '90%+')); legend.append(l);
+  }
+
+  async function refreshSpace() {
+    try {
+      const get = p => fetch(SWPC + p).then(r => r.ok ? r.json() : Promise.reject(r.status));
+      const needAurora = Date.now() - swAuroraAt > 10 * 60 * 1000;
+      const [msgs, scales, kp, aur] = await Promise.allSettled([
+        get('/products/alerts.json'), get('/products/noaa-scales.json'), get('/products/noaa-planetary-k-index.json'),
+        needAurora ? get('/json/ovation_aurora_latest.json') : Promise.resolve(null)]);
+      if (msgs.status !== 'fulfilled' && scales.status !== 'fulfilled') throw new Error('swpc');
+      if (msgs.status === 'fulfilled') swMsgs = (msgs.value || []).map(parseSwMsg).sort((a, b) => (b.issued || 0) - (a.issued || 0)).map((m, i) => ({ ...m, i }));
+      if (scales.status === 'fulfilled') swScales = scales.value;
+      if (kp.status === 'fulfilled' && Array.isArray(kp.value) && kp.value.length) {
+        const last = kp.value[kp.value.length - 1];
+        swKp = Array.isArray(last) ? { Kp: Number(last[1]), time_tag: last[0] } : last;   // older format was an array of rows
+      }
+      if (aur.status === 'fulfilled' && aur.value) {
+        const a = aur.value;
+        const feats = [];
+        for (const [lon0, lat, v] of (a.coordinates || [])) {
+          if (!(v > 0)) continue;
+          const lon = lon0 > 180 ? lon0 - 360 : lon0;
+          const x0 = lon - 0.5, x1 = lon + 0.5, y0 = Math.max(-90, lat - 0.5), y1 = Math.min(90, lat + 0.5);
+          feats.push({ type: 'Feature', geometry: { type: 'Polygon', coordinates: [[[x0, y0], [x1, y0], [x1, y1], [x0, y1], [x0, y0]]] }, properties: { v } });
+        }
+        swAurora = { geo: { type: 'FeatureCollection', features: feats }, forecast: Date.parse(a['Forecast Time']), observed: Date.parse(a['Observation Time']) };
+        swAuroraAt = Date.now();
+        paintAurora();
+      }
+      lastGood = Date.now();
+      const failed = [msgs, scales, kp, aur].filter(x => x.status !== 'fulfilled').length;
+      document.getElementById('liveDot').classList.toggle('err', failed > 0);
+      const now = swScales && swScales['0'];
+      const t = document.getElementById('liveText');
+      t.replaceChildren(document.createTextNode('NOAA scales now: '));
+      ['R', 'S', 'G'].forEach((k, j) => { if (j) t.append(document.createTextNode(' · ')); t.append(el('span', { class: 'val' }, now && now[k] && now[k].Scale != null ? `${k}${now[k].Scale}` : `${k}–`)); });
+      if (swKp && isFinite(swKp.Kp)) { t.append(document.createTextNode(' · latest 3-hour Kp ')); t.append(el('span', { class: 'val' }, String(swKp.Kp))); }
+      const oldest = swMsgs.length ? swMsgs[swMsgs.length - 1].issued : null;
+      document.getElementById('liveTime').textContent = 'Updated ' + fmtTime(lastGood)
+        + (swAurora && swAurora.forecast ? ` · aurora forecast for ${fmtTime(swAurora.forecast).replace(/^.*, /, '')}` : '')
+        + (failed ? ` · ${failed} of 4 NOAA products could not be loaded` : '');
+      paintSpaceLegend();
+      renderSpaceList();
+    } catch (e) {
+      document.getElementById('liveDot').classList.add('err');
+      document.getElementById('liveText').textContent = lastGood ? `NOAA's space weather data could not be reached. Showing data from ${fmtTime(lastGood)}. Retrying in 5 minutes.` : 'NOAA\'s space weather data could not be reached. Retrying in 5 minutes.';
+      if (!lastGood) document.getElementById('mapStatus').textContent = 'Space weather data unavailable';
+    }
+  }
+
+  function swShown() {
+    const q = document.getElementById('q').value.trim().toLowerCase();
+    return swMsgs.filter(m => (!fSwKind || m.kind === fSwKind) && (!q || m.text.toLowerCase().includes(q)));
+  }
+
+  function renderSpaceList() {
+    const shown = swShown();
+    const ul = document.getElementById('alertList');
+    ul.replaceChildren();
+    const frag = document.createDocumentFragment();
+    if (swScales) {
+      const li = el('li'), btn = el('button', { type: 'button', 'data-key': 'sw-scales' });
+      if (selectedKey === 'sw-scales') btn.setAttribute('aria-current', 'true');
+      const now = swScales['0'], body = el('span');
+      body.append(el('div', { class: 'a-sev', style: 'color:#e8edf8' }, 'NOAA SPACE WEATHER SCALES'),
+        el('div', { class: 'a-event' }, ['R', 'S', 'G'].map(k => now && now[k] && now[k].Scale != null ? `${k}${now[k].Scale}` : `${k}–`).join(' · ') + ' now'),
+        el('div', { class: 'a-meta' }, 'Past 24 hours and NOAA\'s 3-day outlook'));
+      btn.append(el('span', { class: 'bar', style: 'background:#e8edf8', 'aria-hidden': 'true' }), body);
+      btn.addEventListener('click', openSwScales);
+      li.append(btn); frag.append(li);
+    }
+    for (const m of shown) {
+      const li = el('li'), key = `sw-${m.i}`;
+      const btn = el('button', { type: 'button', 'data-key': key });
+      if (key === selectedKey) btn.setAttribute('aria-current', 'true');
+      const c = SW_COLOR[m.kind], body = el('span');
+      body.append(el('div', { class: 'a-sev', style: `color:${c}` }, `NOAA ${m.kind}` + (m.scale ? ` · ${m.scale}` : '')),
+        el('div', { class: 'a-event' }, m.title),
+        el('div', { class: 'a-meta' }, `${fmtTime(m.issued)} · ${m.code}`));
+      btn.append(el('span', { class: 'bar', style: `background:${c}`, 'aria-hidden': 'true' }), body);
+      btn.addEventListener('click', () => openSwMsg(m.i));
+      li.append(btn); frag.append(li);
+    }
+    ul.append(frag);
+    document.getElementById('listCount').textContent = `${shown.length} NOAA messages` + (swMsgs.length ? ` since ${fmtTime(swMsgs[swMsgs.length - 1].issued).replace(/,.*$/, '')}` : '') + ', newest first.';
+  }
+
+  function swPanel(key, chip, chipColor, title, sub) {
+    selectedKey = key;
+    document.querySelectorAll('ul.alerts button[aria-current]').forEach(x => x.removeAttribute('aria-current'));
+    const btn = document.querySelector(`ul.alerts button[data-key="${key}"]`);
+    if (btn) btn.setAttribute('aria-current', 'true');
+    stopSpin();
+    returnFocus = document.activeElement;
+    document.getElementById('pSev').replaceChildren(el('span', { class: 'sev-chip', style: `background:${chipColor};color:#0a0d14` }, chip));
+    document.getElementById('pTitle').textContent = title;
+    document.getElementById('pSub').textContent = sub;
+    const body = document.getElementById('pBody');
+    body.replaceChildren(el('div', { class: 'quake-note' }, 'Space weather information from NOAA, shown as published. Not CAP and not a CAP24 rating.'));
+    panel.classList.add('open'); panel.setAttribute('aria-hidden', 'false');
+    scrim.classList.add('open');
+    document.getElementById('pClose').focus();
+    return body;
+  }
+
+  function openSwMsg(i) {
+    const m = swMsgs[i];
+    if (!m) return;
+    const body = swPanel(`sw-${i}`, `NOAA ${m.kind}`, SW_COLOR[m.kind], m.title, `NOAA Space Weather Prediction Center · ${fmtTime(m.issued)}`);
+    const facts = el('dl', { class: 'facts' });
+    const add = (k, v) => { if (v) facts.append(el('dt', {}, k), el('dd', {}, v)); };
+    add('Message type', `${m.kind} (code ${m.code})`);
+    if (m.scale) add('NOAA scale', `${m.scale}${m.scaleWord ? ' · ' + m.scaleWord : ''}: ${SW_SCALE_NAME[m.scale[0]]}`);
+    add('Issued', fmtTime(m.issued));
+    add('Serial number', m.serial);
+    body.append(facts);
+    const v = el('div', { class: 'verbatim', lang: 'en' });
+    v.append(el('h3', {}, 'Message as issued'), el('p', {}, m.text));
+    body.append(v);
+    const links = el('div', { class: 'links' });
+    for (const [label, url] of [['NOAA alerts, watches and warnings', 'https://www.swpc.noaa.gov/products/alerts-watches-and-warnings'], ['NOAA Space Weather Scales explained', 'https://www.swpc.noaa.gov/noaa-scales-explanation']]) {
+      const d = el('div'); d.append(el('a', { href: url, rel: 'noopener', target: '_blank' }, label)); links.append(d);
+    }
+    body.append(links);
+  }
+
+  function openSwScales() {
+    if (!swScales) return;
+    const body = swPanel('sw-scales', 'NOAA SCALES', '#e8edf8', 'NOAA Space Weather Scales', 'Now, past 24 hours and NOAA\'s 3-day outlook');
+    const tbl = el('table', { class: 'swx' });
+    const head = el('tr'); for (const h of ['', 'R · radio blackouts', 'S · radiation storms', 'G · geomagnetic storms']) head.append(el('th', {}, h));
+    tbl.append(head);
+    const row = (label, o, outlook) => {
+      const tr = el('tr'); tr.append(el('th', {}, label));
+      if (!o) { for (let j = 0; j < 3; j++) tr.append(el('td', {}, '—')); tbl.append(tr); return; }
+      if (!outlook) for (const k of ['R', 'S', 'G']) tr.append(el('td', {}, scaleText(o, k)));
+      else {
+        tr.append(el('td', {}, o.R && (o.R.MinorProb != null || o.R.MajorProb != null) ? `R1–R2: ${o.R.MinorProb ?? '—'}% · R3 or more: ${o.R.MajorProb ?? '—'}%` : '—'));
+        tr.append(el('td', {}, o.S && o.S.Prob != null ? `S1 or more: ${o.S.Prob}%` : '—'));
+        tr.append(el('td', {}, o.G && o.G.Scale != null ? `Expected: G${o.G.Scale} · ${o.G.Text || ''}` : '—'));
+      }
+      tbl.append(tr);
+    };
+    const d = k => swScales[k] && swScales[k].DateStamp ? ` (${swScales[k].DateStamp})` : '';
+    row('Now', swScales['0']);
+    row('Past 24 h maximum', swScales['-1']);
+    row('Outlook' + d('1'), swScales['1'], true);
+    row('Outlook' + d('2'), swScales['2'], true);
+    row('Outlook' + d('3'), swScales['3'], true);
+    body.append(tbl);
+    body.append(el('p', { class: 'src-note' }, 'Levels and probabilities as NOAA publishes them. For R and S, NOAA gives the chance of an event; for G, the level it expects.' + (swKp && isFinite(swKp.Kp) ? ` Latest 3-hour planetary K index: ${swKp.Kp} (${String(swKp.time_tag).replace('T', ' ').slice(0, 16)} UTC).` : '')));
+    const links = el('div', { class: 'links' }); const dd = el('div'); dd.append(el('a', { href: 'https://www.swpc.noaa.gov/noaa-scales-explanation', rel: 'noopener', target: '_blank' }, 'NOAA Space Weather Scales explained')); links.append(dd);
+    body.append(links);
+  }
+
+  function addSpaceLayers() {
+    tintBase();
+    const firstLabel = (map.getStyle().layers || []).find(l => l.type === 'symbol');
+    map.addSource('aurora', { type: 'geojson', data: { type: 'FeatureCollection', features: [] }, attribution: 'Aurora forecast: NOAA SWPC OVATION' });
+    map.addLayer({ id: 'aurora-fill', type: 'fill', source: 'aurora',
+      paint: { 'fill-color': ['interpolate', ['linear'], ['get', 'v'], 1, '#2e7d32', 10, '#43a047', 30, '#c0ca33', 50, '#fdd835', 70, '#ff7043', 90, '#e53935'],
+               'fill-opacity': ['interpolate', ['linear'], ['get', 'v'], 1, 0.18, 10, 0.5, 40, 0.75, 90, 0.85], 'fill-antialias': false } },
+      firstLabel ? firstLabel.id : undefined);
+    const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 8 });
+    map.on('mousemove', 'aurora-fill', e => {
+      map.getCanvas().style.cursor = 'crosshair';
+      popup.setLngLat(e.lngLat).setText(`Aurora chance ${e.features[0].properties.v}% · NOAA OVATION forecast`).addTo(map);
+    });
+    map.on('mouseleave', 'aurora-fill', () => { map.getCanvas().style.cursor = ''; popup.remove(); });
+  }
+  function paintAurora() {
+    if (!mapReady || !swAurora) return;
+    map.getSource('aurora').setData(swAurora.geo);
+  }
+
   function setupMode() {
     document.querySelectorAll('nav.modes a').forEach(a => { if (a.dataset.mode === MODE) a.setAttribute('aria-current', 'page'); });
     if (MODE === 'tv') { setupTv(); return; }
     if (MODE === 'seismic') { setupSeismic(); return; }
     if (MODE === 'internet') { setupInternet(); return; }
     if (MODE === 'air') { setupAir(); return; }
+    if (MODE === 'space') { setupSpace(); return; }
     if (MODE === 'weather') {
       document.title = 'CAP24 — Official weather alerts on every screen (demonstration)';
       document.getElementById('heroH').textContent = 'Official weather warnings, as met services publish them in CAP.';
@@ -2381,6 +2647,9 @@
   } else if (MODE === 'internet') {
     refreshOutages();
     setInterval(refreshOutages, REFRESH_MS);
+  } else if (MODE === 'space') {
+    refreshSpace();
+    setInterval(refreshSpace, REFRESH_MS);
   } else if (MODE === 'air') {
     refreshAir();
     setInterval(refreshAir, 30 * 60 * 1000);
