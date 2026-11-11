@@ -24,8 +24,8 @@
    - animation: the header band pulses about once every 1.6 s (no flashing), the arrow moves; both stop for
      reduced motion and with the Pause button.
   Platforms: Facebook and LinkedIn (link in the post text), Instagram feed and TikTok (link in the profile),
-  Instagram Stories (link sticker). Icons are the platforms' own files in /assets/platforms/, added after a
-  brand-rules check; until then the buttons show names. The phone frame itself carries no platform branding.
+  Instagram Stories (link sticker). Icons: PNG files in /assets/platforms/ (sources and brand check recorded
+  in the README there); without a file the button shows the name. The phone frame itself carries no platform branding.
   Not built yet (labelled on the page): MP4 export, per-alert short link.
   No AI anywhere in this page.
 -->
@@ -79,7 +79,7 @@
   .seg button[aria-pressed="true"] { background: var(--neon); color: #04121a; border-color: var(--neon); font-weight: 600; }
   .note { font-size: 13px; color: var(--text-dim); margin: 8px 0 0; }
   .pf button { display: inline-flex; align-items: center; gap: 8px; }
-  .pf img { width: 20px; height: 20px; display: block; flex: none; }
+  .pf img { width: 22px; height: 22px; display: block; flex: none; border-radius: 5px; }
   .pf img[hidden] { display: none; }
   .pfinfo { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; margin: 10px 0 0; font-size: 13px; }
   .pfinfo dt { font-family: var(--ff-mono); font-size: 11px; letter-spacing: 0.06em; color: var(--text-dim); text-transform: uppercase; padding-top: 2px; }
@@ -858,11 +858,11 @@
   document.querySelectorAll('[data-pf]').forEach(b => b.addEventListener('click', () => {
     pf = b.dataset.pf; fmt = PLATFORMS[pf].fmt; showPlatform(); setParams(); showFeed();
   }));
-  // Platform icons: official single-colour files placed in /assets/platforms/ after the brand-rules check.
+  // Platform icons: PNG files in /assets/platforms/ (sources and brand check in the README there).
   // Until a file is there, the button shows the name only.
   document.querySelectorAll('img[data-icon]').forEach(img => {
     img.addEventListener('load', () => { img.hidden = false; });
-    img.src = '/assets/platforms/' + img.dataset.icon + '.svg';
+    img.src = '/assets/platforms/' + img.dataset.icon + '.png';
   });
   document.querySelectorAll('[data-st]').forEach(b => b.addEventListener('click', () => {
     st = b.dataset.st; document.querySelectorAll('[data-st]').forEach(x => x.setAttribute('aria-pressed', String(x === b))); setParams(); showFeed();
