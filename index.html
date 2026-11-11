@@ -235,11 +235,15 @@
   .tv-ticker .tt.rtl { animation-direction: reverse; }
   @media (prefers-reduced-motion: reduce) { .tv-ticker .tt { animation: none; padding-left: 0; white-space: normal; font-size: 26px; } }
 
+  @media (min-width: 861px) and (max-width: 1240px) {
+    header.site { flex-wrap: wrap; row-gap: 10px; }
+    nav.modes { order: 3; width: 100%; justify-content: center; }
+  }
   @media (max-width: 860px) {
     header.site { padding: 12px 16px; }
     .by { display: none; }
     header.site { flex-wrap: wrap; }
-    nav.modes { order: 3; width: 100%; justify-content: space-between; }
+    nav.modes { order: 3; width: 100%; justify-content: space-between; flex-wrap: wrap; border-radius: 16px; }
     nav.modes a { flex: 1 1 auto; text-align: center; padding: 6px 6px; font-size: 13px; }
     .hero-head, .live-line { padding-left: 16px; padding-right: 16px; }
     .stage { grid-template-columns: 1fr; height: auto; }
@@ -273,6 +277,8 @@
     <a href="/context/seismic" data-mode="seismic">Earthquakes</a>
     <a href="/context/internet" data-mode="internet">Internet</a>
     <a href="/context/air" data-mode="air">Air quality</a>
+    <a href="/context/space" data-mode="space">Space weather</a>
+    <a href="/tv" data-mode="tv">TV demo</a>
   </nav>
   <div class="by">A Green Media Foundation demonstration</div>
 </header>
