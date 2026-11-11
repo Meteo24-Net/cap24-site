@@ -1,9 +1,23 @@
-# One page, three views of the same globe (read by Cloudflare Pages and Netlify)
-/weather    /   200
-/weather/   /   200
-/seismic    /   200
-/seismic/   /   200
-/internet   /   200
-/internet/  /   200
-/air        /   200
-/air/       /   200
+# Old short addresses forward permanently to the new ones (query strings are kept)
+/weather            /category/met       301
+/weather/           /category/met       301
+/weather.html       /category/met       301
+/seismic            /context/seismic    301
+/seismic/           /context/seismic    301
+/seismic.html       /context/seismic    301
+/internet           /context/internet   301
+/internet/          /context/internet   301
+/internet.html      /context/internet   301
+/air                /context/air        301
+/air/               /context/air        301
+/air.html           /context/air        301
+
+# One page serves every view of the globe
+/category/met       /   200
+/category/met/      /   200
+/context/seismic    /   200
+/context/seismic/   /   200
+/context/internet   /   200
+/context/internet/  /   200
+/context/air        /   200
+/context/air/       /   200

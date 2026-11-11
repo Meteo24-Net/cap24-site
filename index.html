@@ -249,10 +249,10 @@
   </div>
   <nav class="modes" aria-label="Views">
     <a href="/" data-mode="all">All alerts</a>
-    <a href="/weather" data-mode="weather">Weather</a>
-    <a href="/seismic" data-mode="seismic">Earthquakes</a>
-    <a href="/internet" data-mode="internet">Internet</a>
-    <a href="/air" data-mode="air">Air quality</a>
+    <a href="/category/met" data-mode="weather">Weather</a>
+    <a href="/context/seismic" data-mode="seismic">Earthquakes</a>
+    <a href="/context/internet" data-mode="internet">Internet</a>
+    <a href="/context/air" data-mode="air">Air quality</a>
   </nav>
   <div class="by">A Green Media Foundation demonstration</div>
 </header>
@@ -407,9 +407,23 @@
   const REFRESH_MS = 5 * 60 * 1000;
   const PAGE = 2000;
   // One globe, three addresses: / (all official CAP alerts), /weather (CAP category Met), /seismic (USGS earthquakes)
+  // Official CAP alerts live at / and under /category/<CAP category>; data that is not CAP lives under /context/.
+  // The old short addresses (/weather, /seismic, /internet, /air) forward to these on the server; the page also
+  // understands them, in case it is served somewhere without the forwarding rules.
+  const ROUTES = {
+    '/category/met': 'weather',
+    '/context/seismic': 'seismic',
+    '/context/internet': 'internet',
+    '/context/air': 'air'
+  };
+  const LEGACY = { '/weather': '/category/met', '/seismic': '/context/seismic', '/internet': '/context/internet', '/air': '/context/air' };
   const MODE = (() => {
-    const p = location.pathname.replace(/\/+$/, '').toLowerCase();
-    return /\/seismic(\.html)?$/.test(p) ? 'seismic' : /\/weather(\.html)?$/.test(p) ? 'weather' : /\/internet(\.html)?$/.test(p) ? 'internet' : /\/air(\.html)?$/.test(p) ? 'air' : 'all';
+    let p = location.pathname.replace(/\.html$/, '').replace(/\/+$/, '').toLowerCase();
+    if (LEGACY[p]) {
+      p = LEGACY[p];
+      try { history.replaceState(null, '', p + location.search + location.hash); } catch (e) { /* keep the old address */ }
+    }
+    return ROUTES[p] || 'all';
   })();
 
   const SEV_ORDER = { Extreme: 4, Severe: 3, Moderate: 2, Minor: 1, Unknown: 0 };
