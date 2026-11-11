@@ -220,13 +220,20 @@
     .by { display: none; }
     header.site { flex-wrap: wrap; }
     nav.modes { order: 3; width: 100%; justify-content: space-between; }
-    nav.modes a { flex: 1; text-align: center; padding: 6px 8px; }
+    nav.modes a { flex: 1 1 auto; text-align: center; padding: 6px 6px; font-size: 13px; }
     .hero-head, .live-line { padding-left: 16px; padding-right: 16px; }
     .stage { grid-template-columns: 1fr; height: auto; }
     #map { height: 56vh; }
     aside.list { border-left: 0; border-top: 1px solid var(--border); max-height: 70vh; }
   }
   @media (prefers-reduced-motion: reduce) { .panel { transition: none; } }
+  @media (max-width: 440px) {
+    nav.modes { gap: 2px; }
+    nav.modes a { padding: 6px 4px; font-size: 12px; }
+  }
+  @media (max-width: 350px) {
+    nav.modes a { padding: 6px 3px; font-size: 11px; }
+  }
 </style>
 </head>
 <body>
@@ -245,6 +252,7 @@
     <a href="/weather" data-mode="weather">Weather</a>
     <a href="/seismic" data-mode="seismic">Earthquakes</a>
     <a href="/internet" data-mode="internet">Internet</a>
+    <a href="/air" data-mode="air">Air quality</a>
   </nav>
   <div class="by">A Green Media Foundation demonstration</div>
 </header>
