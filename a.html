@@ -559,6 +559,8 @@ body.ss-open { overflow:hidden; }
     }
     $('content').hidden = false; $('ctl').hidden = false;
     show(blocks[start], match);
+    // ?sign=1 (from a signed post): open on the signed summary; Back leads to the full alert
+    if (new URLSearchParams(location.search).get('sign') === '1') openSign();
   }
 
   // ── Show one <info> block ──

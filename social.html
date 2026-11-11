@@ -216,6 +216,21 @@
   .post .sticker button svg { width: 38px; height: 38px; fill: none; stroke: #0a0a0a; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
   .post .sticker small { font-family: var(--ff-mono); font-size: 22px; color: rgba(255,255,255,0.75); }
   .post .sticker button:focus-visible { outline: 6px solid var(--neon); outline-offset: 6px; }
+  .post .sg { flex: none; display: flex; gap: 18px; align-items: stretch; background: #0d1422; border: 3px solid #b388ff; border-radius: 10px; padding: 12px; }
+  .post .sg .gl { gap: 4px !important; }
+  .post .sg .fig { width: 170px; height: 170px; flex: none; border-radius: 8px; background: #1b2436; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; }
+  .post .sg .fig svg { width: 104px; height: 104px; fill: none; stroke: #c9b6ff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .post .sg .fig small { font-family: var(--ff-mono); font-size: 18px; color: #c9b6ff; letter-spacing: 1px; }
+  .post .sg .gl { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+  .post .sg .gl .k { color: #c9b6ff; }
+  .post .sg .gl b { font-family: var(--ff-head); font-weight: 900; font-size: 46px; line-height: 1; color: #fff; overflow-wrap: anywhere; }
+  .post .sg .gl .fld { font-family: var(--ff-mono); font-size: 22px; color: rgba(255,255,255,0.75); }
+  .post .sg .gl .todo { font-family: var(--ff-mono); font-size: 22px; color: #000; background: #ffc400; align-self: flex-start; padding: 3px 10px; border-radius: 3px; }
+  .post .sg .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; }
+  .post .sg .chips span { font-family: var(--ff-mono); font-size: 20px; padding: 4px 10px; border: 2px solid rgba(201,182,255,0.4); border-radius: 4px; color: rgba(255,255,255,0.75); }
+  .post .sg .chips span.on { border-color: #c9b6ff; color: #fff; background: rgba(179,136,255,0.18); }
+  .post .sg .chips span.miss { border-style: dashed; color: rgba(255,255,255,0.5); }
+  .sgbtn[aria-pressed="true"] { background: #b388ff !important; border-color: #b388ff !important; color: #120a24 !important; font-weight: 600; }
   @media (prefers-reduced-motion: reduce) { .post.pulse .head::after, .post.pulse .arrow svg { animation: none; } }
 
   .msg { padding: 24px; text-align: center; color: var(--text-dim); font-size: 14px; }
@@ -281,6 +296,11 @@
         <p class="note">Cancelled and Expired are drawn from this live alert to show the template. They are not real messages and are labelled on the image.</p>
       </div>
       <div class="box">
+        <span class="lbl">Sign language</span>
+        <button type="button" class="btn sgbtn" id="signBtn" aria-pressed="false">Signed version: off</button>
+        <p class="note" id="signNote">A post for a separate signed-alerts account: a signer panel plays one clip per fixed CAP code (warning level, hazard, action). The free text is never signed. Clips must be recorded by deaf signers in each national sign language <span class="planned">PLANNED</span></p>
+      </div>
+      <div class="box">
         <span class="lbl">Journey</span>
         <ol class="steps" id="steps">
           <li data-step="1" class="on"><b>1</b>The post appears in a feed</li>
@@ -337,6 +357,20 @@
   const LEVEL_COLORS = { green: '#4caf50', yellow: '#ffc400', orange: '#ff6d00', red: '#ff1744' };
   const LEVEL_INK = { green: '#071509', yellow: '#171200', orange: '#170900', red: '#ffffff' };
   const NEUTRAL = { c: '#9aa7b8', ink: '#0b0f18' };
+  // Signed summary: one clip slot per fixed CAP code, never the free text (same codes as the TV and phone views)
+  const SIGN_CODES = {
+    level: { yellow: 'YELLOW WARNING', orange: 'ORANGE WARNING', red: 'RED WARNING', green: 'GREEN LEVEL' },
+    severity: { Extreme: 'EXTREME', Severe: 'SEVERE', Moderate: 'MODERATE', Minor: 'MINOR', Unknown: 'SEVERITY UNKNOWN' },
+    hazard: { 'wind': 'STRONG WIND', 'rain': 'HEAVY RAIN', 'thunderstorm': 'THUNDERSTORM', 'flooding': 'FLOOD', 'rain-flood': 'RAIN AND FLOOD',
+              'snow-ice': 'SNOW AND ICE', 'coastalevent': 'COASTAL EVENT', 'fog': 'FOG', 'high-temperature': 'HEAT',
+              'low-temperature': 'COLD', 'forest-fire': 'FOREST FIRE', 'avalanches': 'AVALANCHE' },
+    resp: { Shelter: 'TAKE SHELTER', Evacuate: 'EVACUATE', Prepare: 'PREPARE', Avoid: 'AVOID THE AREA', Monitor: 'FOLLOW UPDATES',
+            Execute: 'ACT NOW', Assess: 'CHECK INFORMATION', AllClear: 'ALL CLEAR', None: 'NO ACTION' }
+  };
+  const SIGN_LANG = { ee: 'Eesti viipekeel · Estonian Sign Language', ge: 'ქართული ჟესტური ენა · Georgian Sign Language',
+                      no: 'Norsk tegnspråk · Norwegian Sign Language', gb: 'BSL · British Sign Language' };
+  const SIGN_MS = 2600;
+  const FIGURE = '<svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="12" r="6"/><path d="M12 44V30a12 12 0 0 1 24 0v14M14 30l-6-8M34 30l6-8"/></svg>';
   const sevOf = s => (s in SEV_ORDER ? s : 'Unknown');
   const sevLabel = s => (s === 'Unknown' ? 'Severity unknown' : s);
   const RESPONSE_ICONS = {
@@ -384,7 +418,7 @@
     return cc => { if (!cc) return ''; try { return (dn && dn.of(String(cc).toUpperCase())) || String(cc).toUpperCase(); } catch (e) { return String(cc).toUpperCase(); } };
   })();
   const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const phonePath = id => '/a.html?id=' + encodeURIComponent(id);
+  const phonePath = id => '/a.html?id=' + encodeURIComponent(id) + (signed && fmt === 'vert' ? '&sign=1' : '');
 
   // ── State, kept in the address so links can be shared ──
   const Q = new URLSearchParams(location.search);
@@ -401,6 +435,8 @@
   let fmt = PLATFORMS[pf].fmt;
   let st = ['cancelled', 'expired'].includes(Q.get('state')) ? Q.get('state') : 'sent';
   let want = Q.get('alert');
+  let signed = Q.get('sign') === '1';
+  let signTick = 0;
   let officialIds = null, list = [], cur = null, step = 1, paused = false, lastGood = null;
   const detailCache = new Map();
 
@@ -410,6 +446,7 @@
       if (cur) u.searchParams.set('alert', cur.identifier); else u.searchParams.delete('alert');
       u.searchParams.delete('fmt'); if (pf !== 'facebook') u.searchParams.set('pf', pf); else u.searchParams.delete('pf');
       if (st !== 'sent') u.searchParams.set('state', st); else u.searchParams.delete('state');
+      if (signed) u.searchParams.set('sign', '1'); else u.searchParams.delete('sign');
       history.replaceState(null, '', u);
     } catch (e) { /* address unchanged */ }
   }
@@ -485,6 +522,36 @@
   const mainText = b => (b.headline && b.headline.trim() && b.headline.trim() !== (b.event || '').trim()) ? b.headline : (b.description || '');
   const setLang = (n, b) => { if (b && b.language) n.setAttribute('lang', b.language); n.setAttribute('dir', 'auto'); return n; };
 
+  function signSeq(b1, L) {
+    const seq = [L.key ? { field: 'level', code: L.key, gloss: SIGN_CODES.level[L.key] || null } : { field: 'severity', code: L.sev, gloss: SIGN_CODES.severity[L.sev] }];
+    const at = typeof L.prm.awareness_type === 'string' ? (L.prm.awareness_type.split(';')[1] || '').trim().toLowerCase() : '';
+    seq.push(at && SIGN_CODES.hazard[at] ? { field: 'hazard', code: at, gloss: SIGN_CODES.hazard[at] } : { field: 'hazard', code: null, gloss: null });
+    for (const r of parseList(b1.responseType)) seq.push({ field: 'responseType', code: r, gloss: SIGN_CODES.resp[r] || null });
+    return seq;
+  }
+  function signPanel(b1, L) {
+    const seq = signSeq(b1, L);
+    const sg = el('div', { class: 'sg' });
+    const fig = el('div', { class: 'fig' });
+    const gl = el('div', { class: 'gl' });
+    const chips = el('div', { class: 'chips' });
+    seq.forEach((it, i) => { const c = el('span', {}, it.gloss || `no ${it.field} code`); if (!it.gloss) c.classList.add('miss'); chips.append(c); });
+    const cc = String(b1.countryCode || '').toLowerCase();
+    sg.append(fig, gl);
+    // Show one code at a time; the page ticker moves every panel on the page together
+    sg._show = i => {
+      const it = seq[i % seq.length];
+      fig.innerHTML = it.gloss ? FIGURE : '';
+      fig.append(el('small', {}, it.gloss ? 'SIGNER · CLIP SLOT' : 'NOTHING TO SIGN'));
+      gl.replaceChildren(el('span', { class: 'k' }, (SIGN_LANG[cc] || `National sign language of ${regionName(cc) || 'this country'} · not set up`).toUpperCase()),
+        el('b', {}, it.gloss || `No ${it.field} code in this message`), el('span', { class: 'fld' }, `${it.field}: ${it.code || '—'}`),
+        el('span', { class: 'todo' }, 'CLIP NOT RECORDED YET'), chips);
+      chips.querySelectorAll('span').forEach((c, j) => c.classList.toggle('on', j === i % seq.length));
+    };
+    sg._show(signTick);
+    return sg;
+  }
+
   function buildPost(blocks, format, state, interactive, link) {
     const b1 = blocks[0];
     const b2 = blocks.find((x, i) => i > 0 && x.language && x.language !== b1.language) || null;
@@ -495,7 +562,8 @@
     post.style.setProperty('--ink', neutral ? NEUTRAL.ink : L.ink);
 
     const strip = el('div', { class: 'strip' });
-    strip.append(el('span', {}, state === 'cancelled' ? 'SIMULATED CANCELLATION · NOT A REAL MESSAGE' : state === 'expired' ? 'PREVIEW OF THE EXPIRED STATE · DEMONSTRATION' : 'DEMONSTRATION · NOT AN OFFICIAL PUBLICATION'), el('span', {}, 'CAP24'));
+    const sgn = signed && format === 'vert' && state === 'sent';
+    strip.append(el('span', {}, state === 'cancelled' ? 'SIMULATED CANCELLATION · NOT A REAL MESSAGE' : state === 'expired' ? 'PREVIEW OF THE EXPIRED STATE · DEMONSTRATION' : sgn ? 'DEMONSTRATION · SIGNED VERSION · CLIPS PLANNED' : 'DEMONSTRATION · NOT AN OFFICIAL PUBLICATION'), el('span', {}, 'CAP24'));
 
     // Header band: event as sent (both languages), message type, time
     const head = el('div', { class: 'head' });
@@ -523,6 +591,7 @@
     head.append(hl, hr);
 
     const body = el('div', { class: 'body' });
+    if (sgn) body.append(signPanel(b1, L));
     if (neutral) {
       const was = el('div', { class: 'area' });
       was.append(el('span', { class: 'k' }, state === 'cancelled' ? 'CANCELS' : 'ENDED'));
@@ -589,11 +658,12 @@
         if (format === 'vert') trip.style.fontSize = '24px';
       }
       lev.append(trip);
-      body.append(lev);
+      // Signed version: the level is already the first signed code and the header colour; the text gets the room
+      if (!sgn) body.append(lev);
 
       const rts = parseList(b1.responseType);
       const instr = (b1.instruction || '').trim();
-      if (rts.length || instr) {
+      if ((rts.length || instr) && !sgn) {
         const act = el('div', { class: 'act' });
         for (const r of rts.slice(0, 3)) {
           const c = el('span', { class: 'chip' }); const ic = el('i');
@@ -709,7 +779,7 @@
     const fr = el('iframe', { src: phonePath(cur.identifier), title: 'Phone view of the full alert', loading: 'lazy' });
     v.append(fr);
     sc.append(v);
-    hint('Step 3: the phone view of the same alert, with the map and "Am I in this area?". Your position stays on your device.');
+    hint(signed && fmt === 'vert' ? 'Step 3: the phone view opens on its signed summary. "Alert" leads to the full text, map and "Am I in this area?".' : 'Step 3: the phone view of the same alert, with the map and "Am I in this area?". Your position stays on your device.');
     back.focus();
   }
 
@@ -735,7 +805,7 @@
       if (linkBtn) {
         post.addEventListener('click', e => { if (!e.target.closest('button')) hint('The picture itself is not a link. Tap the link sticker.'); });
         linkBtn.addEventListener('click', () => goTo(openPage, 'Step 2: in ' + P.name + ', the link sticker is a real link.'));
-        hint('Step 1: a vertical post in ' + P.name + '. The arrow points to the link sticker.');
+        hint('Step 1: a vertical post in ' + P.name + (signed && st === 'sent' ? ', signed version' : '') + '. The arrow points to the link sticker.');
       } else {
         post.addEventListener('click', () => hint('The picture is not a link. Tap the account name at the top to open the profile.'));
         hint('Step 1: a vertical post on ' + P.name + '. The link is in the profile: tap the account name at the top.');
@@ -856,7 +926,7 @@
     $('step2').textContent = P.link === 'bio' ? 'The viewer opens the profile and taps its link' : P.link === 'sticker' ? 'The viewer taps the link sticker' : 'The viewer taps the link in the post text';
   }
   document.querySelectorAll('[data-pf]').forEach(b => b.addEventListener('click', () => {
-    pf = b.dataset.pf; fmt = PLATFORMS[pf].fmt; showPlatform(); setParams(); showFeed();
+    pf = b.dataset.pf; fmt = PLATFORMS[pf].fmt; showPlatform(); showSigned(); setParams(); showFeed();
   }));
   // Platform icons: PNG files in /assets/platforms/ (sources and brand check in the README there).
   // Until a file is there, the button shows the name only.
@@ -868,6 +938,7 @@
     st = b.dataset.st; document.querySelectorAll('[data-st]').forEach(x => x.setAttribute('aria-pressed', String(x === b))); setParams(); showFeed();
   }));
   showPlatform();
+  showSigned();
   document.querySelectorAll('[data-st]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.st === st)));
   $('pause').addEventListener('click', () => {
     paused = !paused;
@@ -877,6 +948,19 @@
   });
   if (reduceMotion) { $('pause').disabled = true; $('pause').textContent = 'Animation off (reduced motion)'; }
   $('restart').addEventListener('click', showFeed);
+  function showSigned() {
+    const vert = PLATFORMS[pf].fmt === 'vert';
+    $('signBtn').setAttribute('aria-pressed', String(signed));
+    $('signBtn').textContent = 'Signed version: ' + (signed ? 'on' : 'off');
+    $('signBtn').disabled = !vert;
+    $('signBtn').title = vert ? '' : 'The signed version is a video post: choose Instagram Stories or TikTok';
+  }
+  $('signBtn').addEventListener('click', () => { signed = !signed; showSigned(); setParams(); showFeed(); });
+  setInterval(() => {
+    if (paused || reduceMotion) return;
+    signTick++;
+    document.querySelectorAll('.post .sg').forEach(sg => sg._show && sg._show(signTick));
+  }, SIGN_MS);
   let rt = null;
   window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { if (step !== 3) showFeed(); else drawBig(); }, 150); });
 
