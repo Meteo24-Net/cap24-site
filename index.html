@@ -289,6 +289,7 @@
     <a href="/context/air" data-mode="air">Air quality</a>
     <a href="/context/space" data-mode="space">Space weather</a>
     <a href="/tv" data-mode="tv">TV + phone</a>
+    <a href="/social" data-mode="social">Social + phone</a>
   </nav>
   <div class="by">A Green Media Foundation demonstration</div>
 </header>
@@ -524,6 +525,7 @@
   };
   let deepLinkDone = false;
   const phoneUrl = identifier => new URL('/a.html?id=' + encodeURIComponent(identifier || ''), location.href).href;
+  const socialUrl = identifier => new URL('/social?alert=' + encodeURIComponent(identifier || ''), location.href).href;
   // QR as inline SVG, drawn from the module matrix (no external images)
   function qrSvg(text) {
     if (typeof qrcode !== 'function') return null;
@@ -1061,8 +1063,9 @@
       const tvBtn = el('button', { type: 'button', class: 'open-tv' }, 'View as TV overlay');
       tvBtn.addEventListener('click', () => openTV(a, b));
       const phone = el('a', { class: 'phone-link', href: phoneUrl(a.identifier) }, 'Open phone view');
+      const social = el('a', { class: 'phone-link', href: socialUrl(a.identifier) }, 'Social post view');
       const actions = el('div', { class: 'view-actions' });
-      actions.append(tvBtn, phone);
+      actions.append(tvBtn, phone, social);
       content.append(actions);
       const facts = el('dl', { class: 'facts' });
       const add = (k, v) => { if (v == null || v === '') return; facts.append(el('dt', {}, k), el('dd', {}, v)); };

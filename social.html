@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>CAP24 — Social post to phone (demonstration)</title>
+<meta name="description" content="Demonstration of how an official CAP alert could appear as a social media post that leads to the full alert on a phone. Not a warning service.">
+<!--
+  CAP24 social demonstration, v0.1, 11 Nov 2026. MTÜ Green Media Foundation (reg. 80661721).
+  Spec: GMF-WEB-SOC-001 draft v0.1 (CAP24 Social Media Templates working document, section 8).
+  One live official alert from the Alert-Hub "CAP Alerts Feed" layer, shown three ways on one phone:
+    1. as a social post (feed 4:5 or vertical 9:16), rendered from the CAP fields;
+    2. the visitor taps the real link location (post text, or the link sticker in the vertical format);
+    3. the phone opens the existing phone view, a.html?id=<CAP identifier>.
+  Rules, same as the TV and phone views (claude/CAP24_Demo_Rules.md):
+   - verbatim: text as published, never translated or rewritten; languages in the order the authority sent them.
+   - level: declared awareness_level shown as sent (colour and 4-step scale); otherwise CAP severity with the
+     CAP24 default colours (no green, no scale). The constants below are copied from index.html and a.html:
+     change all three together until they share one file.
+   - times in UTC, as on the rest of the site.
+   - only status Actual, msgType Alert or Update, official sources; expired alerts are dropped.
+   - "Cancelled" is SIMULATED and "Expired" is a PREVIEW: both are drawn from the live alert and labelled so.
+   - animation: the header band pulses about once every 1.6 s (no flashing), the arrow moves; both stop for
+     reduced motion and with the Pause button.
+  Not built yet (labelled on the page): MP4 export, per-alert short link.
+  No AI anywhere in this page.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700;800;900&family=Noto+Sans:wght@400;600;700&family=Noto+Sans+Georgian:wght@400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-base: #070a10; --bg-panel: rgba(8,12,20,0.97); --bg-raised: rgba(16,22,36,0.98);
+    --border: rgba(255,255,255,0.08); --border-hi: rgba(255,255,255,0.18);
+    --text: #e8edf8; --text-dim: #9aa6bd; --neon: #00e5ff;
+    --ff-body: 'Barlow', 'Noto Sans', 'Noto Sans Georgian', system-ui, sans-serif;
+    --ff-head: 'Barlow Condensed', 'Noto Sans', 'Noto Sans Georgian', system-ui, sans-serif;
+    --ff-mono: 'Share Tech Mono', monospace;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg-base); color: var(--text); font-family: var(--ff-body); font-size: 16px; line-height: 1.45; }
+  a { color: var(--neon); }
+  a:focus-visible, button:focus-visible, select:focus-visible { outline: 2px solid var(--neon); outline-offset: 2px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  .demo-banner { position: sticky; top: 0; z-index: 50; background: #1a1205; border-bottom: 1px solid #5a4410; color: #ffe3a1; font-size: 14px; padding: 8px 16px; text-align: center; }
+  .demo-banner strong { color: #fff; font-weight: 600; }
+  header.site { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 24px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .brand { display: flex; align-items: baseline; gap: 12px; }
+  .brand .word { font-family: var(--ff-head); font-weight: 700; font-size: 28px; letter-spacing: 0.04em; }
+  .brand .word span { color: var(--neon); }
+  .brand .tag { font-family: var(--ff-mono); font-size: 12px; color: var(--text-dim); letter-spacing: 0.08em; text-transform: uppercase; }
+  .by { font-size: 13px; color: var(--text-dim); text-align: right; }
+  nav.modes { display: flex; gap: 4px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 999px; padding: 3px; flex-wrap: wrap; }
+  nav.modes a { color: var(--text); text-decoration: none; font-size: 14px; padding: 5px 14px; border-radius: 999px; white-space: nowrap; }
+  nav.modes a:hover { background: rgba(255,255,255,0.06); }
+  nav.modes a[aria-current="page"] { background: var(--neon); color: #04121a; font-weight: 600; }
+  @media (max-width: 900px) { nav.modes { order: 3; width: 100%; justify-content: space-between; border-radius: 16px; } nav.modes a { flex: 1 1 auto; text-align: center; padding: 6px 4px; font-size: 13px; } }
+
+  main { max-width: 1440px; margin: 0 auto; padding: 20px 24px 48px; }
+  .intro h1 { font-family: var(--ff-head); font-weight: 600; font-size: clamp(24px, 3vw, 34px); line-height: 1.15; margin: 0 0 6px; max-width: 46ch; }
+  .intro p { margin: 0 0 18px; color: var(--text-dim); max-width: 80ch; }
+
+  .layout { display: grid; grid-template-columns: 300px 400px minmax(0, 1fr); gap: 24px; align-items: start; }
+  @media (max-width: 1180px) { .layout { grid-template-columns: 300px minmax(0, 1fr); } .big { grid-column: 1 / -1; } }
+  @media (max-width: 760px) { .layout { grid-template-columns: minmax(0, 1fr); } .phonecol { order: -1; } }
+
+  .ctl { display: flex; flex-direction: column; gap: 16px; }
+  .box { background: var(--bg-raised); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+  .lbl { display: block; font-family: var(--ff-mono); font-size: 12px; letter-spacing: 0.08em; color: var(--text-dim); text-transform: uppercase; margin: 0 0 6px; }
+  select { width: 100%; background: #0b1016; color: var(--text); border: 1px solid var(--border-hi); border-radius: 6px; padding: 8px; font: inherit; font-size: 14px; }
+  .seg { display: flex; flex-wrap: wrap; gap: 6px; }
+  .seg button, .btn { background: none; color: var(--text); border: 1px solid var(--border-hi); border-radius: 6px; padding: 7px 11px; font: inherit; font-size: 14px; cursor: pointer; min-height: 36px; }
+  .seg button[aria-pressed="true"] { background: var(--neon); color: #04121a; border-color: var(--neon); font-weight: 600; }
+  .note { font-size: 13px; color: var(--text-dim); margin: 8px 0 0; }
+  .rules { margin: 0; padding-left: 18px; font-size: 13px; color: var(--text-dim); }
+  .rules li { margin: 4px 0; }
+  .planned { display: inline-block; font-family: var(--ff-mono); font-size: 11px; letter-spacing: 0.06em; color: #000; background: #ffc400; border-radius: 3px; padding: 1px 6px; margin-left: 4px; }
+  .live { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-dim); }
+  .live i { width: 8px; height: 8px; border-radius: 50%; background: #00e676; flex: none; }
+  .live i.err { background: #ff1744; }
+
+  /* Steps */
+  .steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .steps li { display: flex; gap: 10px; align-items: baseline; padding: 6px 8px; border-radius: 6px; font-size: 14px; color: var(--text-dim); }
+  .steps li b { font-family: var(--ff-mono); color: var(--text-dim); }
+  .steps li.on { background: rgba(0,229,255,0.08); color: var(--text); }
+  .steps li.on b { color: var(--neon); }
+
+  /* Phone frame */
+  .phonecol { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .phone { width: 380px; max-width: 100%; aspect-ratio: 380 / 780; background: #000; border: 10px solid #1d232d; border-radius: 44px; box-shadow: 0 20px 60px rgba(0,0,0,0.6); overflow: hidden; position: relative; }
+  .screen { position: absolute; inset: 0; overflow: hidden; background: #0d1117; display: flex; flex-direction: column; }
+  .appbar { flex: none; display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 10px; border-bottom: 1px solid rgba(255,255,255,0.08); font-family: var(--ff-mono); font-size: 12px; letter-spacing: 0.08em; color: var(--text-dim); }
+  .feed { flex: 1; overflow-y: auto; }
+  .fpost { padding: 10px 0 14px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .fhead { display: flex; align-items: center; gap: 10px; padding: 0 12px 8px; }
+  .avatar { width: 34px; height: 34px; border-radius: 50%; background: #243241; color: #e8edf8; display: flex; align-items: center; justify-content: center; font-family: var(--ff-head); font-weight: 700; font-size: 14px; flex: none; }
+  .fwho { display: flex; flex-direction: column; min-width: 0; }
+  .fwho b { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fwho small { font-size: 12px; color: var(--text-dim); }
+  .fcap { padding: 10px 12px 0; font-size: 14px; line-height: 1.4; overflow-wrap: anywhere; }
+  .fcap a { font-weight: 600; }
+  .ghost { margin: 14px 12px; height: 120px; border-radius: 8px; background: repeating-linear-gradient(135deg, rgba(255,255,255,0.03) 0 12px, transparent 12px 24px); border: 1px dashed rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; font-size: 12px; color: rgba(255,255,255,0.35); font-family: var(--ff-mono); }
+  .story { position: absolute; inset: 0; background: #000; display: flex; align-items: center; justify-content: center; }
+  .pagev { position: absolute; inset: 0; display: flex; flex-direction: column; background: #0b1016; }
+  .pagev .bar { flex: none; display: flex; align-items: center; gap: 8px; padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+  .pagev .bar button { white-space: nowrap; flex: none; background: none; border: 1px solid var(--border-hi); color: var(--text); border-radius: 6px; padding: 6px 10px; font: inherit; font-size: 13px; cursor: pointer; }
+  .pagev .url { font-family: var(--ff-mono); font-size: 11px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .pagev .sim { flex: none; background: #1a1205; color: #ffe3a1; font-size: 12px; padding: 6px 10px; border-bottom: 1px solid #5a4410; }
+  .pagev iframe { flex: 1; width: 100%; border: 0; background: #0b1016; }
+  .hint { min-height: 1.5em; font-size: 14px; color: #ffe3a1; text-align: center; max-width: 380px; }
+
+  /* Post scaling: the post is drawn at its real pixel size and scaled to its box */
+  .fit { position: relative; width: 100%; overflow: hidden; }
+  .fit > .post { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+  .big .fit { border-radius: 8px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+  .big .cap { font-size: 13px; color: var(--text-dim); margin: 8px 0 0; }
+
+  /* ===== The post (1080 px wide). Sizes are real pixels of the exported image. ===== */
+  .post { --c: #607080; --ink: #fff; width: 1080px; background: #070a10; color: #e8edf8; border: 14px solid var(--c); display: flex; flex-direction: column; font-family: var(--ff-body); overflow: hidden; }
+  .post.feed4x5 { height: 1350px; }
+  .post.vert { height: 1920px; }
+  .post .strip { flex: none; display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 10px 30px; background: #000; font-family: var(--ff-mono); font-size: 26px; letter-spacing: 2px; color: #ffc400; }
+  .post .strip span:last-child { color: rgba(255,255,255,0.75); }
+  .post .head { position: relative; flex: none; display: flex; justify-content: space-between; align-items: center; gap: 24px; padding: 24px 30px; background: var(--c); color: var(--ink); border-bottom: 4px solid rgba(0,0,0,0.35); overflow: hidden; }
+  .post .head::after { content: ''; position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+  .post.pulse .head::after { animation: band 1.6s ease-in-out infinite; }
+  @keyframes band { 0%, 100% { opacity: 0; } 50% { opacity: 0.16; } }
+  .post .hl { display: flex; align-items: center; gap: 22px; min-width: 0; position: relative; z-index: 1; }
+  .post .glyph { width: 84px; height: 84px; border-radius: 50%; background: rgba(0,0,0,0.16); display: flex; align-items: center; justify-content: center; flex: none; }
+  .post .glyph svg { width: 54px; height: 54px; fill: currentColor; }
+  .post .ev { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .post .ev b { font-family: var(--ff-head); font-weight: 900; font-size: 64px; line-height: 0.98; overflow-wrap: anywhere; }
+  .post .ev span { font-family: var(--ff-head); font-weight: 700; font-size: 38px; line-height: 1; overflow-wrap: anywhere; }
+  .post .ev.struck b, .post .ev.struck span { text-decoration: line-through; text-decoration-thickness: 4px; }
+  .post .hr { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; text-align: right; font-family: var(--ff-mono); font-size: 26px; flex: none; position: relative; z-index: 1; }
+  .post .badge { font-size: 28px; letter-spacing: 2px; background: var(--ink); color: var(--c); padding: 6px 14px; border-radius: 4px; }
+  .post .body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 18px; padding: 24px 40px 20px; overflow: hidden; }
+  .post.vert .body { padding: 18px 150px 14px 40px; gap: 12px; }
+  .post.vert .head { padding: 18px 30px; }
+  .post.vert .area span { font-size: 36px; }
+  .post .k { font-family: var(--ff-mono); font-size: 26px; letter-spacing: 3px; color: #81d4fa; }
+  .post .area { display: flex; flex-direction: column; gap: 4px; flex: none; }
+  .post .area b { font-family: var(--ff-head); font-weight: 900; font-size: 72px; line-height: 1; color: var(--c); overflow-wrap: anywhere; }
+  .post .area span { font-family: var(--ff-head); font-weight: 700; font-size: 44px; line-height: 1.05; color: rgba(255,255,255,0.82); overflow-wrap: anywhere; }
+  .post .area small { font-family: var(--ff-mono); font-size: 24px; color: rgba(255,255,255,0.75); }
+  .post.neutral .area b { color: #fff; }
+  .post .txt { flex: 0 1 auto; min-height: 112px; position: relative; display: flex; flex-direction: column; gap: 12px; background: #101624; border: 1px solid rgba(255,255,255,0.14); border-radius: 8px; padding: 22px 26px; overflow: hidden; }
+  .post .txt p { margin: 0; overflow-wrap: anywhere; white-space: pre-line; }
+  .post .txt p.p1 { font-size: 40px; line-height: 1.25; font-weight: 600; color: #fff; }
+  .post .txt p.p2 { font-size: 34px; line-height: 1.25; color: #c9d3ea; }
+  .post.neutral .txt p.p1, .post.neutral .txt p.p2 { color: rgba(255,255,255,0.72); }
+  .post .txt .more { display: none; position: absolute; left: 0; right: 0; bottom: 0; padding: 40px 26px 14px; background: linear-gradient(transparent, #101624 35%); font-family: var(--ff-mono); font-size: 26px; color: #ffc400; }
+  .post .txt.cut .more { display: block; }
+  .post .times { flex: none; display: flex; gap: 18px; }
+  .post .times > div { flex: 1; display: flex; flex-direction: column; gap: 4px; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.14); border-radius: 8px; padding: 14px 20px; }
+  .post .times b { font-family: var(--ff-head); font-weight: 800; font-size: 44px; line-height: 1.05; color: #fff; }
+  .post .lev { flex: none; display: flex; flex-direction: column; gap: 12px; background: rgba(0,0,0,0.5); border: 2px solid var(--c); border-radius: 8px; padding: 16px 22px; }
+  .post .lev .row { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
+  .post .lev .row b { font-family: var(--ff-head); font-weight: 900; font-size: 42px; color: var(--c); text-align: right; overflow-wrap: anywhere; }
+  .post .scale { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; align-items: center; }
+  .post .scale i { display: block; height: 12px; border-radius: 4px; opacity: 0.22; }
+  .post .scale i.on { opacity: 1; height: 20px; outline: 3px solid #fff; }
+  .post .trip { display: flex; flex-wrap: wrap; gap: 8px 36px; font-family: var(--ff-mono); font-size: 26px; color: rgba(255,255,255,0.85); }
+  .post .act { flex: none; display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+  .post .act .chip { display: flex; align-items: center; gap: 12px; font-family: var(--ff-head); font-weight: 800; font-size: 40px; color: var(--c); }
+  .post .act .chip i { width: 60px; height: 60px; border-radius: 50%; background: color-mix(in srgb, var(--c) 18%, transparent); display: flex; align-items: center; justify-content: center; }
+  .post .act .chip svg { width: 34px; height: 34px; fill: var(--c); }
+  .post .act small { font-family: var(--ff-mono); font-size: 24px; color: rgba(255,255,255,0.8); overflow-wrap: anywhere; }
+  .post .who { flex: none; font-family: var(--ff-mono); font-size: 26px; color: #81d4fa; overflow-wrap: anywhere; }
+  .post .who em { font-style: normal; color: rgba(255,255,255,0.75); margin-right: 12px; }
+  .post .rep { flex: none; display: flex; flex-direction: column; gap: 6px; background: rgba(0,0,0,0.5); border: 2px solid var(--c); border-radius: 8px; padding: 16px 22px; font-family: var(--ff-mono); font-size: 28px; color: #fff; overflow-wrap: anywhere; }
+  .post .rep small { font-size: 22px; color: rgba(255,255,255,0.72); }
+  .post .foot { flex: none; display: flex; justify-content: space-between; align-items: center; gap: 20px; background: #000; border-top: 4px solid var(--c); padding: 14px 30px; }
+  .post .foot .k { color: rgba(255,255,255,0.8); }
+  .post .foot b { display: block; font-family: var(--ff-head); font-weight: 800; font-size: 44px; line-height: 1.1; color: #fff; }
+  .post .arrow { width: 72px; height: 72px; flex: none; }
+  .post .arrow svg { width: 72px; height: 72px; fill: none; stroke: var(--c); stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+  .post.pulse .arrow svg { animation: nudge 1.6s ease-in-out infinite; }
+  @keyframes nudge { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(14px); } }
+  .post .zone { flex: none; display: flex; padding: 0 40px; }
+  .post .zone > i { flex: 1; height: 12px; border-radius: 3px; background: repeating-linear-gradient(135deg, var(--c) 0 24px, #070a10 24px 48px); }
+  .post .ztop { height: 236px; align-items: flex-end; padding-bottom: 18px; }
+  .post .zbot { height: 336px; align-items: flex-start; padding-top: 22px; }
+  .post .sticker { flex: none; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 6px 150px 0 40px; }
+  .post .sticker .say { display: flex; align-items: center; gap: 14px; font-family: var(--ff-head); font-weight: 800; font-size: 40px; color: #fff; }
+  .post .sticker .arrow, .post .sticker .arrow svg { width: 56px; height: 56px; }
+  .post .sticker button { display: flex; align-items: center; gap: 14px; background: #fff; color: #0a0a0a; border: 0; border-radius: 16px; padding: 18px 30px; font-family: var(--ff-head); font-weight: 800; font-size: 42px; cursor: pointer; }
+  .post .sticker button svg { width: 38px; height: 38px; fill: none; stroke: #0a0a0a; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+  .post .sticker small { font-family: var(--ff-mono); font-size: 22px; color: rgba(255,255,255,0.75); }
+  .post .sticker button:focus-visible { outline: 6px solid var(--neon); outline-offset: 6px; }
+  @media (prefers-reduced-motion: reduce) { .post.pulse .head::after, .post.pulse .arrow svg { animation: none; } }
+
+  .msg { padding: 24px; text-align: center; color: var(--text-dim); font-size: 14px; }
+  footer.site { max-width: 1440px; margin: 0 auto; padding: 0 24px 32px; font-size: 13px; color: var(--text-dim); }
+</style>
+</head>
+<body>
+
+<div class="demo-banner" role="note">
+  <strong>Demonstration</strong> of how a CAP alert could appear as a social media post. Alerts may be delayed or incomplete. Always follow your official warning source.
+</div>
+
+<header class="site">
+  <div class="brand">
+    <div class="word">CAP<span>24</span></div>
+    <div class="tag">Official alerts · every screen</div>
+  </div>
+  <nav class="modes" aria-label="Views">
+    <a href="/">All alerts</a>
+    <a href="/category/met">Weather</a>
+    <a href="/context/seismic">Earthquakes</a>
+    <a href="/context/internet">Internet</a>
+    <a href="/context/air">Air quality</a>
+    <a href="/context/space">Space weather</a>
+    <a href="/tv">TV + phone</a>
+    <a href="/social" aria-current="page">Social + phone</a>
+  </nav>
+  <div class="by">A Green Media Foundation demonstration</div>
+</header>
+
+<main>
+  <div class="intro">
+    <h1>One CAP message, one visual language: from a social post to the full alert on the phone.</h1>
+    <p>An alerting authority would publish the post on its own account. The post is drawn from the CAP fields of a live official alert, in the languages the authority sent. Tap the link, not the picture: platforms do not make pictures clickable.</p>
+  </div>
+
+  <div class="layout">
+    <div class="ctl">
+      <div class="box">
+        <label class="lbl" for="pick">Live official alert</label>
+        <select id="pick" disabled><option>Loading official alerts…</option></select>
+        <div class="live" style="margin-top:8px"><i id="dot"></i><span id="liveText" role="status">Connecting to the feed…</span></div>
+      </div>
+      <div class="box">
+        <span class="lbl" id="fmtL">Post format</span>
+        <div class="seg" role="group" aria-labelledby="fmtL">
+          <button type="button" data-fmt="feed" aria-pressed="true">Feed 4:5</button>
+          <button type="button" data-fmt="vert" aria-pressed="false">Vertical 9:16</button>
+        </div>
+        <p class="note">Feed: Facebook, LinkedIn, Instagram feed, link in the post text. Vertical: Stories and TikTok, link sticker.</p>
+      </div>
+      <div class="box">
+        <span class="lbl" id="stL">Message state</span>
+        <div class="seg" role="group" aria-labelledby="stL">
+          <button type="button" data-st="sent" aria-pressed="true">As sent</button>
+          <button type="button" data-st="cancelled" aria-pressed="false">Cancelled (simulated)</button>
+          <button type="button" data-st="expired" aria-pressed="false">Expired (preview)</button>
+        </div>
+        <p class="note">Cancelled and Expired are drawn from this live alert to show the template. They are not real messages and are labelled on the image.</p>
+      </div>
+      <div class="box">
+        <span class="lbl">Journey</span>
+        <ol class="steps" id="steps">
+          <li data-step="1" class="on"><b>1</b>The post appears in a feed</li>
+          <li data-step="2"><b>2</b>The viewer taps the link</li>
+          <li data-step="3"><b>3</b>The full alert opens on the phone</li>
+        </ol>
+        <div class="seg" style="margin-top:10px">
+          <button type="button" class="btn" id="pause" aria-pressed="false">Pause animation</button>
+          <button type="button" class="btn" id="restart">Back to the feed</button>
+        </div>
+      </div>
+      <div class="box">
+        <span class="lbl">Rules on this page</span>
+        <ul class="rules">
+          <li>Text exactly as published, never translated or rewritten. Missing fields are shown as missing.</li>
+          <li>Colour: the authority's declared warning level, or CAP24 default colours from severity.</li>
+          <li>The header band pulses slowly and the arrow moves. Nothing flashes. Both stop if your device asks for reduced motion.</li>
+          <li>Every post carries "Demonstration, not an official publication".</li>
+          <li>MP4 export for upload to platforms <span class="planned">PLANNED</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="phonecol">
+      <div class="phone" aria-label="Phone screen">
+        <div class="screen" id="screen"><div class="msg">Loading…</div></div>
+      </div>
+      <p class="hint" id="hint" role="status" aria-live="polite"></p>
+    </div>
+
+    <div class="big">
+      <span class="lbl" id="bigL">The post, full size as published</span>
+      <div class="fit" id="bigFit" aria-labelledby="bigL"></div>
+      <p class="cap" id="bigCap"></p>
+    </div>
+  </div>
+</main>
+
+<footer class="site">
+  Data: <a href="https://alert-hub.org" rel="noopener" target="_blank">Alert-Hub.org</a> and the alerting authorities, through the public "CAP Alerts Feed" layer. Only sources marked official are shown. AI never creates, translates or changes alert content. Spec: GMF-WEB-SOC-001 draft.
+</footer>
+
+<script>
+(() => {
+  'use strict';
+  // ── Feed and rules (copied from index.html / a.html; keep the three in step) ──
+  const LAYER = 'https://services9.arcgis.com/RHVPKKiFTONKtxq3/arcgis/rest/services/CAP_Alerts_Feed/FeatureServer/0/query';
+  const CATALOGUE = 'https://alert-hub-sources.s3.amazonaws.com/json';
+  const PAGE = 2000;
+  const REFRESH_MS = 5 * 60 * 1000;
+  const SEV_ORDER = { Extreme: 4, Severe: 3, Moderate: 2, Minor: 1, Unknown: 0 };
+  const SEV_COLOR = { Extreme: '#ff1744', Severe: '#ff1744', Moderate: '#ffc400', Minor: '#ffc400', Unknown: '#607080' };
+  const SEV_INK = { Extreme: '#ffffff', Severe: '#ffffff', Moderate: '#171200', Minor: '#171200', Unknown: '#ffffff' };
+  const LEVEL_COLORS = { green: '#4caf50', yellow: '#ffc400', orange: '#ff6d00', red: '#ff1744' };
+  const LEVEL_INK = { green: '#071509', yellow: '#171200', orange: '#170900', red: '#ffffff' };
+  const NEUTRAL = { c: '#9aa7b8', ink: '#0b0f18' };
+  const sevOf = s => (s in SEV_ORDER ? s : 'Unknown');
+  const sevLabel = s => (s === 'Unknown' ? 'Severity unknown' : s);
+  const RESPONSE_ICONS = {
+    Shelter: '<path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>',
+    Evacuate: '<path d="M13.5 5.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM9.8 8.9 7 23h2.1l1.8-8 2.1 2v6h2v-7.5l-2.1-2 .6-3A7.3 7.3 0 0 0 19 13v-2a5 5 0 0 1-4.3-2.4l-1-1.6a2 2 0 0 0-1.7-1c-.3 0-.5.1-.8.1L6 8.3V13h2V9.6z"/>',
+    Prepare: '<path d="M19 3h-4.2A3 3 0 0 0 12 1a3 3 0 0 0-2.8 2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm-7 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm-2 14-4-4 1.4-1.4L10 14.2l6.6-6.6L18 9z"/>',
+    Monitor: '<path d="M12 4.5C7 4.5 2.7 7.6 1 12c1.7 4.4 6 7.5 11 7.5s9.3-3.1 11-7.5c-1.7-4.4-6-7.5-11-7.5zM12 17a5 5 0 1 1 0-10 5 5 0 0 1 0 10zm0-8a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/>',
+    Avoid: '<path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM4 12a8 8 0 0 1 12.9-6.3L5.7 16.9A8 8 0 0 1 4 12zm8 8a8 8 0 0 1-4.9-1.7L18.3 7.1A8 8 0 0 1 12 20z"/>',
+    _generic: '<path d="M12 2 1 21h22zm1 16h-2v-2h2zm0-4h-2v-4h2z"/>'
+  };
+  const HAZARD_GLYPHS = {
+    wind: '<path d="M3 8h10a3 3 0 1 0-3-3h2a1 1 0 1 1 1 1H3zm0 4h15a3 3 0 1 1-3 3h2a1 1 0 1 0 1-1H3zm0 4h7v2H3z"/>',
+    rain: '<path d="M19.4 8A7.5 7.5 0 0 0 5.4 6 6 6 0 0 0 6 18h13a5 5 0 0 0 .4-10zM8 20l-1 3h2l1-3zm4 0-1 3h2l1-3zm4 0-1 3h2l1-3z"/>',
+    thunderstorm: '<path d="M19.4 8A7.5 7.5 0 0 0 5.4 6 6 6 0 0 0 6 18h3l2-4H9l3-6v4h2l-3 6h8a5 5 0 0 0 .4-10z"/>',
+    _generic: '<path d="M12 2 1 21h22zm1 16h-2v-2h2zm0-4h-2v-4h2z"/>'
+  };
+  HAZARD_GLYPHS.flooding = HAZARD_GLYPHS['rain-flood'] = HAZARD_GLYPHS.rain;
+  const CANCEL_GLYPH = '<path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM4 12a8 8 0 0 1 12.9-6.3L5.7 16.9A8 8 0 0 1 4 12zm8 8a8 8 0 0 1-4.9-1.7L18.3 7.1A8 8 0 0 1 12 20z"/>';
+  const CLOCK_GLYPH = '<path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm1-13h-2v6l5 3 1-1.6-4-2.4z"/>';
+  const ARROW_DOWN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v15"/><path d="m5 13 7 7 7-7"/></svg>';
+  const ARROW_UP = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V5"/><path d="m5 11 7-7 7 7"/></svg>';
+  const LINK_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>';
+
+  // ── Helpers ──
+  const $ = i => document.getElementById(i);
+  const el = (tag, attrs = {}, text) => {
+    const n = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs)) { if (k === 'class') n.className = v; else n.setAttribute(k, v); }
+    if (text != null) n.textContent = text;
+    return n;
+  };
+  const p2 = n => String(n).padStart(2, '0');
+  const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const fmtTime = ms => { if (ms == null || isNaN(ms)) return '—'; const d = new Date(ms); return `${p2(d.getUTCHours())}:${p2(d.getUTCMinutes())} UTC, ${d.getUTCDate()} ${MON[d.getUTCMonth()]} ${d.getUTCFullYear()}`; };
+  const fmtShort = ms => { const d = new Date(ms); return `${p2(d.getUTCHours())}:${p2(d.getUTCMinutes())} · ${d.getUTCDate()} ${MON[d.getUTCMonth()]}`; };
+  const sqlStr = s => "'" + String(s).replace(/'/g, "''") + "'";
+  const parseList = v => { try { const x = JSON.parse(v); return Array.isArray(x) ? x : []; } catch (e) { return []; } };
+  const parseParams = v => {
+    let x; try { x = JSON.parse(v); } catch (e) { return {}; }
+    if (Array.isArray(x)) { const o = {}; for (const e of x) { const k = e && (e.valueName ?? e.name); if (k != null && !(k in o)) o[k] = e.value; } return o; }
+    return (x && typeof x === 'object') ? x : {};
+  };
+  const regionName = (() => {
+    let dn = null; try { dn = new Intl.DisplayNames(['en'], { type: 'region' }); } catch (e) { /* older browsers */ }
+    return cc => { if (!cc) return ''; try { return (dn && dn.of(String(cc).toUpperCase())) || String(cc).toUpperCase(); } catch (e) { return String(cc).toUpperCase(); } };
+  })();
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const phonePath = id => '/a.html?id=' + encodeURIComponent(id);
+
+  // ── State, kept in the address so links can be shared ──
+  const Q = new URLSearchParams(location.search);
+  const COUNTRY = /^[A-Za-z]{2}$/.test(Q.get('country') || '') ? Q.get('country').toLowerCase() : null;
+  let fmt = Q.get('fmt') === 'vert' ? 'vert' : 'feed';
+  let st = ['cancelled', 'expired'].includes(Q.get('state')) ? Q.get('state') : 'sent';
+  let want = Q.get('alert');
+  let officialIds = null, list = [], cur = null, step = 1, paused = false, lastGood = null;
+  const detailCache = new Map();
+
+  function setParams() {
+    try {
+      const u = new URL(location.href);
+      if (cur) u.searchParams.set('alert', cur.identifier); else u.searchParams.delete('alert');
+      if (fmt === 'vert') u.searchParams.set('fmt', 'vert'); else u.searchParams.delete('fmt');
+      if (st !== 'sent') u.searchParams.set('state', st); else u.searchParams.delete('state');
+      history.replaceState(null, '', u);
+    } catch (e) { /* address unchanged */ }
+  }
+
+  // ── Data ──
+  async function loadCatalogue() {
+    try {
+      const j = await fetch(CATALOGUE).then(r => r.json());
+      const s = new Set();
+      for (const item of (j.sources || [])) { const src = item.source || item; if (src && src.sourceIsOfficial === true && src.sourceId) s.add(src.sourceId); }
+      if (s.size) officialIds = s;
+    } catch (e) { officialIds = null; }
+  }
+  async function loadList() {
+    const where = "status='Actual' AND msgType IN ('Alert','Update')" + (COUNTRY ? ` AND countryCode=${sqlStr(COUNTRY)}` : '');
+    const rows = [];
+    for (let offset = 0, guard = 0; guard < 10; guard++, offset += PAGE) {
+      const params = new URLSearchParams({ where, outFields: 'OBJECTID,identifier,sourceId,registerUrl,countryCode,severity,event,senderName,orgName,sent,expires', returnGeometry: 'false', orderByFields: 'OBJECTID', resultOffset: String(offset), resultRecordCount: String(PAGE), f: 'json' });
+      const r = await fetch(`${LAYER}?${params}`);
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const j = await r.json();
+      if (j.error) throw new Error(j.error.message || 'layer error');
+      const fs = (j.features || []).map(f => f.attributes);
+      rows.push(...fs);
+      if (!j.exceededTransferLimit && fs.length < PAGE) break;
+      if (!fs.length) break;
+    }
+    const now = Date.now();
+    const isOfficial = p => officialIds ? officialIds.has(p.sourceId) : !!p.registerUrl;
+    const groups = new Map();
+    for (const p of rows) {
+      if (!p.identifier || !isOfficial(p) || (p.expires != null && p.expires < now)) continue;
+      let g = groups.get(p.identifier);
+      if (!g) { g = { identifier: p.identifier, country: p.countryCode, sender: p.senderName || p.orgName || '', event: p.event || 'Alert', sent: p.sent, severity: 'Unknown' }; groups.set(p.identifier, g); }
+      const s = sevOf(p.severity); if (SEV_ORDER[s] > SEV_ORDER[g.severity]) g.severity = s;
+    }
+    const out = [...groups.values()];
+    out.sort((a, b) => (SEV_ORDER[b.severity] - SEV_ORDER[a.severity]) || ((b.sent || 0) - (a.sent || 0)));
+    return out;
+  }
+  async function loadDetail(identifier) {
+    if (detailCache.has(identifier)) return detailCache.get(identifier);
+    const params = new URLSearchParams({
+      where: `identifier=${sqlStr(identifier)}`,
+      outFields: 'identifier,infoIndex,areaIndex,language,event,headline,description,instruction,senderName,sent,onset,effective,expires,urgency,severity,certainty,areaDesc,msgType,status,responseType,parameter,countryCode',
+      returnGeometry: 'false', orderByFields: 'infoIndex,areaIndex', f: 'json'
+    });
+    const j = await fetch(`${LAYER}?${params}`).then(r => r.json());
+    if (j.error) throw new Error('layer');
+    const infos = new Map();
+    for (const f of (j.features || [])) {
+      const r = f.attributes, k = r.infoIndex ?? 0;
+      if (!infos.has(k)) infos.set(k, { ...r, areas: [] });
+      const ar = infos.get(k).areas;
+      if (r.areaDesc && !ar.includes(r.areaDesc)) ar.push(r.areaDesc);
+    }
+    const blocks = [...infos.values()];
+    detailCache.set(identifier, blocks);
+    return blocks;
+  }
+
+  // ── The post: one renderer for both formats and all three states ──
+  function levelOf(b) {
+    const sev = sevOf(b.severity), prm = parseParams(b.parameter);
+    let key = null, c = SEV_COLOR[sev], ink = SEV_INK[sev];
+    if (typeof prm.awareness_level === 'string') {
+      const w = (prm.awareness_level.split(';')[1] || '').trim().toLowerCase();
+      if (LEVEL_COLORS[w]) { key = w; c = LEVEL_COLORS[w]; ink = LEVEL_INK[w]; }
+    }
+    const at = typeof prm.awareness_type === 'string' ? (prm.awareness_type.split(';')[1] || '').trim().toLowerCase() : '';
+    return { sev, key, c, ink, prm, glyph: HAZARD_GLYPHS[at] || HAZARD_GLYPHS._generic };
+  }
+  const mainText = b => (b.headline && b.headline.trim() && b.headline.trim() !== (b.event || '').trim()) ? b.headline : (b.description || '');
+  const setLang = (n, b) => { if (b && b.language) n.setAttribute('lang', b.language); n.setAttribute('dir', 'auto'); return n; };
+
+  function buildPost(blocks, format, state, interactive) {
+    const b1 = blocks[0];
+    const b2 = blocks.find((x, i) => i > 0 && x.language && x.language !== b1.language) || null;
+    const L = levelOf(b1);
+    const neutral = state !== 'sent';
+    const post = el('div', { class: `post ${format === 'vert' ? 'vert' : 'feed4x5'}${neutral ? ' neutral' : ''}${!neutral && !paused && !reduceMotion ? ' pulse' : ''}`, role: 'img' });
+    post.style.setProperty('--c', neutral ? NEUTRAL.c : L.c);
+    post.style.setProperty('--ink', neutral ? NEUTRAL.ink : L.ink);
+
+    const strip = el('div', { class: 'strip' });
+    strip.append(el('span', {}, state === 'cancelled' ? 'SIMULATED CANCELLATION · NOT A REAL MESSAGE' : state === 'expired' ? 'PREVIEW OF THE EXPIRED STATE · DEMONSTRATION' : 'DEMONSTRATION · NOT AN OFFICIAL PUBLICATION'), el('span', {}, 'CAP24'));
+
+    // Header band: event as sent (both languages), message type, time
+    const head = el('div', { class: 'head' });
+    if (neutral) { head.style.background = '#e8edf8'; head.style.color = '#0b0f18'; }
+    const hl = el('div', { class: 'hl' });
+    const g = el('div', { class: 'glyph' });
+    g.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${state === 'cancelled' ? CANCEL_GLYPH : state === 'expired' ? CLOCK_GLYPH : L.glyph}</svg>`;
+    const ev = el('div', { class: 'ev' });
+    if (neutral) {
+      ev.append(el('b', {}, state === 'cancelled' ? 'CANCELLED' : 'EXPIRED'));
+      ev.append(el('span', {}, state === 'cancelled' ? 'This warning is no longer in force' : (b1.expires ? 'This warning ended ' + fmtShort(b1.expires) + ' UTC' : 'No end time was given in this message')));
+    } else {
+      ev.append(setLang(el('b', {}, b1.event || 'Alert'), b1));
+      if (b2 && b2.event && b2.event !== b1.event) ev.append(setLang(el('span', {}, b2.event), b2));
+    }
+    hl.append(g, ev);
+    const hr = el('div', { class: 'hr' });
+    if (neutral) {
+      hr.append(el('span', { class: 'badge' }, state === 'cancelled' ? 'CANCEL' : 'ENDED'));
+      hr.append(el('span', {}, state === 'cancelled' ? 'Sent: simulated' : 'Preview'));
+    } else {
+      hr.append(el('span', { class: 'badge' }, String(b1.msgType || 'Alert').toUpperCase()));
+      hr.append(el('span', {}, 'Sent ' + fmtShort(b1.sent) + ' UTC'));
+    }
+    head.append(hl, hr);
+
+    const body = el('div', { class: 'body' });
+    if (neutral) {
+      const was = el('div', { class: 'area' });
+      was.append(el('span', { class: 'k' }, state === 'cancelled' ? 'CANCELS' : 'ENDED'));
+      const ew = el('div', { class: 'ev struck' });
+      ew.append(setLang(el('b', {}, b1.event || 'Alert'), b1));
+      if (b2 && b2.event && b2.event !== b1.event) ew.append(setLang(el('span', {}, b2.event), b2));
+      ew.style.color = 'rgba(255,255,255,0.75)'; ew.style.fontFamily = 'var(--ff-head)';
+      ew.querySelectorAll('b').forEach(n => { n.style.fontSize = '56px'; n.style.fontWeight = '800'; });
+      ew.querySelectorAll('span').forEach(n => { n.style.fontSize = '38px'; });
+      was.append(ew);
+      body.append(was);
+    }
+
+    // Area names as sent; a long list is not shortened silently
+    const area = el('div', { class: 'area' });
+    area.append(el('span', { class: 'k' }, 'AREA'));
+    const areaLine = (names, max) => { let s = '', n = 0; for (const a of names) { const next = s ? s + ', ' + a.trim() : a.trim(); if (next.length > max && n) break; s = next; n++; } return { s, rest: names.length - n }; };
+    const a1 = areaLine(b1.areas, format === 'vert' ? 70 : 90);
+    area.append(setLang(el('b', {}, a1.s || 'No area name in this message'), b1));
+    if (b2 && b2.areas.length && b2.areas.join('|') !== b1.areas.join('|')) area.append(setLang(el('span', {}, areaLine(b2.areas, 90).s), b2));
+    if (a1.rest > 0) area.append(el('small', {}, `+ ${a1.rest} more area${a1.rest > 1 ? 's' : ''} · full list in the alert`));
+    const big = (a1.s || '').length;
+    area.querySelector('b').style.fontSize = format === 'vert' ? (big <= 20 ? '64px' : big <= 44 ? '52px' : '44px') : (big <= 26 ? '72px' : big <= 50 ? '58px' : '48px');
+    body.append(area);
+
+    // Main text as sent: headline when it adds to the event, otherwise the description
+    const t1 = mainText(b1), t2 = b2 ? mainText(b2) : '';
+    const txt = el('div', { class: 'txt' });
+    if (neutral) txt.append(el('span', { class: 'k' }, state === 'cancelled' ? 'THE CANCELLED WARNING SAID' : 'THE WARNING SAID'));
+    if (t1) txt.append(setLang(el('p', { class: 'p1' }, t1), b1));
+    if (t2 && t2 !== t1) txt.append(setLang(el('p', { class: 'p2' }, t2), b2));
+    if (!t1 && !t2) txt.append(el('p', { class: 'p2' }, 'No headline or description in this message.'));
+    txt.append(el('div', { class: 'more' }, 'Text continues in the full alert ↓'));
+    const longest = Math.max(t1.length, t2.length);
+    if (longest > 260) { txt.querySelectorAll('p.p1').forEach(p => { p.style.fontSize = '34px'; }); txt.querySelectorAll('p.p2').forEach(p => { p.style.fontSize = '30px'; }); }
+    body.append(txt);
+
+    if (neutral) {
+      const rep = el('div', { class: 'rep' });
+      rep.append(el('span', { class: 'k' }, state === 'cancelled' ? 'REPLACES' : 'MESSAGE'));
+      rep.append(el('span', {}, `${b1.msgType || 'Alert'} sent ${fmtTime(b1.sent)}`));
+      rep.append(el('small', {}, b1.identifier || ''));
+      body.append(rep);
+    } else {
+      const times = el('div', { class: 'times' });
+      const from = b1.onset || b1.effective;
+      const tbox = (k, v) => { const d = el('div'); d.append(el('span', { class: 'k' }, k), el('b', {}, v)); return d; };
+      times.append(tbox(b1.onset ? 'ONSET · UTC' : 'FROM · UTC', from ? fmtShort(from) : 'Now'), tbox('EXPIRES · UTC', b1.expires ? fmtShort(b1.expires) : 'Not stated'));
+      body.append(times);
+
+      const lev = el('div', { class: 'lev' });
+      const row = el('div', { class: 'row' });
+      row.append(el('span', { class: 'k' }, L.key ? 'WARNING LEVEL' : 'SEVERITY'), el('b', {}, L.key ? L.prm.awareness_level : sevLabel(L.sev)));
+      lev.append(row);
+      if (L.key) {
+        const sc = el('div', { class: 'scale', 'aria-hidden': 'true' });
+        for (const n of ['green', 'yellow', 'orange', 'red']) { const i = el('i'); i.style.background = LEVEL_COLORS[n]; if (n === L.key) i.className = 'on'; sc.append(i); }
+        lev.append(sc);
+      }
+      const trip = el('div', { class: 'trip' });
+      for (const [k, v] of [['SEVERITY', b1.severity], ['URGENCY', b1.urgency], ['CERTAINTY', b1.certainty]]) {
+        if (k === 'SEVERITY' && (!L.key || format === 'vert')) continue;   // the level line already names it
+        trip.append(el('span', {}, `${k}: ${v ? String(v).toUpperCase() : 'NOT IN SOURCE'}`));
+        if (format === 'vert') trip.style.fontSize = '24px';
+      }
+      lev.append(trip);
+      body.append(lev);
+
+      const rts = parseList(b1.responseType);
+      const instr = (b1.instruction || '').trim();
+      if (rts.length || instr) {
+        const act = el('div', { class: 'act' });
+        for (const r of rts.slice(0, 3)) {
+          const c = el('span', { class: 'chip' }); const ic = el('i');
+          ic.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${RESPONSE_ICONS[r] || RESPONSE_ICONS._generic}</svg>`;
+          c.append(ic, document.createTextNode(String(r).toUpperCase())); act.append(c);
+        }
+        if (instr && format !== 'vert') act.append(setLang(el('small', {}, instr.length <= 80 ? 'INSTRUCTION: ' + instr : 'INSTRUCTION: in the full alert'), b1));
+        body.append(act);
+      }
+    }
+    const who = el('div', { class: 'who' });
+    who.append(el('em', {}, 'ISSUED BY'), document.createTextNode([b1.senderName, regionName(b1.countryCode)].filter(Boolean).join(' · ') || 'Not in message'));
+    body.append(who);
+
+    // Link area: feed points to the post text; vertical has a sticker that is a real link in the app
+    let linkBtn = null;
+    if (format === 'vert') {
+      const sticker = el('div', { class: 'sticker' });
+      const say = el('div', { class: 'say' });
+      const ar = el('div', { class: 'arrow' }); ar.innerHTML = ARROW_DOWN;
+      say.append(el('span', {}, neutral ? 'Tap the link for the current status' : 'Tap the link for the full alert'), ar);
+      sticker.append(say);
+      linkBtn = el('button', { type: 'button', 'aria-label': 'Link sticker: open the full alert on the phone' });
+      linkBtn.innerHTML = LINK_ICON; linkBtn.append(document.createTextNode('CAP24.ORG · ALERT'));
+      if (!interactive) linkBtn.tabIndex = -1;
+      sticker.append(linkBtn, el('small', {}, 'Link sticker: added in the app when the authority publishes'));
+      // Top 250 px and bottom 350 px carry no information: the platform's own controls cover them
+      post.append(el('div', { class: 'zone ztop' }), strip, head, body, sticker, el('div', { class: 'zone zbot' }));
+      post.querySelectorAll('.zone').forEach(z => z.append(el('i')));
+    } else {
+      const foot = el('div', { class: 'foot' });
+      const l = el('div');
+      l.append(el('span', { class: 'k' }, neutral ? 'CURRENT STATUS ON YOUR PHONE' : 'FULL ALERT ON YOUR PHONE'), el('b', {}, 'Link in the post text'));
+      const ar = el('div', { class: 'arrow' }); ar.innerHTML = ARROW_DOWN;
+      foot.append(l, ar);
+      post.append(strip, head, body, foot);
+    }
+    // Alt text from the CAP fields only
+    post.setAttribute('aria-label', [state === 'cancelled' ? 'Simulated cancellation of' : state === 'expired' ? 'Expired state of' : 'Demonstration post:', b1.event, '—', b1.areas.join(', '), '—', neutral ? '' : (L.key ? L.prm.awareness_level : sevLabel(L.sev)), '— issued by', b1.senderName || ''].join(' '));
+    return { post, linkBtn };
+  }
+
+  // Scale a 1080-px post into a box of the given width
+  function fitInto(box, post, width, height) {
+    box.replaceChildren(post);
+    const h = post.classList.contains('vert') ? 1920 : 1350;
+    const k = height ? Math.min(width / 1080, height / h) : width / 1080;
+    post.style.transform = `scale(${k})`;
+    box.style.width = Math.round(1080 * k) + 'px';
+    box.style.height = Math.round(h * k) + 'px';
+    // After layout: mark text that does not fit, so the post says it continues in the alert
+    requestAnimationFrame(() => post.querySelectorAll('.txt').forEach(t => {
+      t.classList.remove('cut');
+      t.classList.toggle('cut', t.scrollHeight > t.clientHeight + 2);
+    }));
+  }
+
+  // ── Phone screen ──
+  function setStep(n) {
+    step = n;
+    document.querySelectorAll('#steps li').forEach(li => li.classList.toggle('on', +li.dataset.step === n));
+  }
+  function hint(text) { $('hint').textContent = text; }
+
+  function openPage() {
+    if (!cur) return;
+    setStep(3);
+    const sc = $('screen'); sc.replaceChildren();
+    const v = el('div', { class: 'pagev' });
+    const bar = el('div', { class: 'bar' });
+    const back = el('button', { type: 'button' }, '← Feed');
+    back.addEventListener('click', showFeed);
+    bar.append(back, el('span', { class: 'url' }, 'cap24.org' + phonePath(cur.identifier)));
+    v.append(bar);
+    if (st !== 'sent') v.append(el('div', { class: 'sim' }, st === 'cancelled'
+      ? 'Simulated: this alert is still live. After a real cancellation, this page would say the alert is no longer active.'
+      : 'Preview: this alert is still live. After it ends, this page would say it is no longer active.'));
+    const fr = el('iframe', { src: phonePath(cur.identifier), title: 'Phone view of the full alert', loading: 'lazy' });
+    v.append(fr);
+    sc.append(v);
+    hint('Step 3: the phone view of the same alert, with the map and "Am I in this area?". Your position stays on your device.');
+    back.focus();
+  }
+
+  function showFeed() {
+    setStep(1);
+    const sc = $('screen'); sc.replaceChildren();
+    if (!cur || !cur.blocks) { sc.append(el('div', { class: 'msg' }, 'No alert selected.')); return; }
+    const W = $('screen').clientWidth || 360;
+    if (fmt === 'vert') {
+      const story = el('div', { class: 'story' });
+      const box = el('div', { class: 'fit' });
+      const { post, linkBtn } = buildPost(cur.blocks, 'vert', st, true);
+      story.append(box);
+      sc.append(story);
+      fitInto(box, post, W, $('screen').clientHeight || 760);
+      post.addEventListener('click', e => { if (!e.target.closest('button')) hint('The picture itself is not a link. Tap the link sticker.'); });
+      linkBtn.addEventListener('click', () => { setStep(2); hint('Step 2: the link sticker is a real link in Stories and TikTok.'); setTimeout(openPage, 450); });
+      hint('Step 1: a vertical post in Stories or TikTok. The arrow points to the link sticker.');
+    } else {
+      const app = el('div', { class: 'appbar' });
+      app.append(el('span', {}, 'FEED · DEMONSTRATION'), el('span', {}, 'no brand'));
+      const feed = el('div', { class: 'feed' });
+      feed.append(el('div', { class: 'ghost' }, 'another post'));
+      const fp = el('article', { class: 'fpost' });
+      const fh = el('div', { class: 'fhead' });
+      const who = cur.blocks[0].senderName || cur.sender || 'Alerting authority';
+      const ini = who.replace(/[^\p{L}\p{N} ]/gu, '').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase() || 'A';
+      const fw = el('div', { class: 'fwho' });
+      fw.append(el('b', {}, who), el('small', {}, 'Demonstration · not an official account'));
+      fh.append(el('div', { class: 'avatar', 'aria-hidden': 'true' }, ini), fw);
+      const box = el('div', { class: 'fit' });
+      const { post } = buildPost(cur.blocks, 'feed', st, false);
+      const cap = el('p', { class: 'fcap' });
+      const b1 = cur.blocks[0];
+      cap.append(setLang(el('span', {}, (b1.event || 'Alert') + (b1.areas.length ? ' · ' + b1.areas[0] : '')), b1));
+      cap.append(document.createTextNode(st === 'sent' ? '. Full alert: ' : st === 'cancelled' ? '. [Simulated] Cancelled. Current status: ' : '. [Preview] Ended. Details: '));
+      const a = el('a', { href: phonePath(cur.identifier) }, 'cap24.org/a.html?id=…');
+      a.addEventListener('click', e => { e.preventDefault(); setStep(2); hint('Step 2: on Facebook and LinkedIn the link in the post text is clickable.'); setTimeout(openPage, 450); });
+      cap.append(a);
+      fp.append(fh, box, cap);
+      feed.append(fp, el('div', { class: 'ghost' }, 'another post'));
+      sc.append(app, feed);
+      fitInto(box, post, W);
+      post.addEventListener('click', () => hint('The picture itself is not a link on social platforms. Tap the link in the post text.'));
+      hint('Step 1: the authority\'s post in a feed. Tap the link in the post text.');
+    }
+    drawBig();
+  }
+
+  function drawBig() {
+    const box = $('bigFit');
+    if (!cur || !cur.blocks) { box.replaceChildren(); return; }
+    const { post } = buildPost(cur.blocks, fmt, st, false);
+    const col = box.parentElement.clientWidth || 600;
+    fitInto(box, post, Math.min(col, fmt === 'vert' ? 520 : 760));
+    $('bigCap').textContent = `${fmt === 'vert' ? '1080 × 1920 px' : '1080 × 1350 px'} · ${st === 'sent' ? 'as sent' : st === 'cancelled' ? 'simulated cancellation' : 'expired preview'} · from CAP message ${cur.identifier}`;
+  }
+
+  // ── Choose an alert ──
+  async function choose(identifier) {
+    const a = list.find(x => x.identifier === identifier);
+    if (!a) return;
+    cur = { ...a, blocks: null };
+    setParams();
+    $('screen').replaceChildren(el('div', { class: 'msg' }, 'Loading the alert as published…'));
+    try {
+      const blocks = await loadDetail(identifier);
+      if (!cur || cur.identifier !== identifier) return;
+      if (!blocks.length) { $('screen').replaceChildren(el('div', { class: 'msg' }, 'This alert is no longer in the feed.')); return; }
+      cur.blocks = blocks;
+      showFeed();
+    } catch (e) {
+      $('screen').replaceChildren(el('div', { class: 'msg' }, 'The alert could not be loaded. Please try again.'));
+    }
+  }
+
+  function fillPicker() {
+    const sel = $('pick');
+    sel.replaceChildren();
+    if (!list.length) { sel.append(el('option', {}, COUNTRY ? 'No official alerts for this country right now' : 'No official alerts right now')); sel.disabled = true; return; }
+    for (const a of list) {
+      const o = el('option', { value: a.identifier }, `${regionName(a.country) || '—'} · ${a.event} · ${sevLabel(a.severity)}`);
+      sel.append(o);
+    }
+    sel.disabled = false;
+    if (cur && list.some(x => x.identifier === cur.identifier)) sel.value = cur.identifier;
+  }
+
+  async function refresh() {
+    try {
+      if (!officialIds) await loadCatalogue();
+      list = await loadList();
+      lastGood = Date.now();
+      $('dot').classList.remove('err');
+      $('liveText').textContent = `${list.length} official alert${list.length === 1 ? '' : 's'}${COUNTRY ? ' for ' + regionName(COUNTRY) : ''} · updated ${fmtTime(lastGood)}`;
+      fillPicker();
+      if (!cur) {
+        const first = (want && list.find(x => x.identifier === want)) || list[0];
+        want = null;
+        if (first) { $('pick').value = first.identifier; choose(first.identifier); }
+        else $('screen').replaceChildren(el('div', { class: 'msg' }, 'No official alerts in the feed right now.'));
+      } else if (!list.some(x => x.identifier === cur.identifier)) {
+        hint('This alert has left the feed: it may have ended or been replaced. The phone view will say so.');
+      }
+    } catch (e) {
+      $('dot').classList.add('err');
+      $('liveText').textContent = lastGood ? `Feed not reachable. Showing alerts from ${fmtTime(lastGood)}.` : 'The alert feed could not be reached. Retrying in 5 minutes.';
+      if (!lastGood) $('screen').replaceChildren(el('div', { class: 'msg' }, 'The alert feed could not be reached.'));
+    }
+  }
+
+  // ── Controls ──
+  $('pick').addEventListener('change', e => choose(e.target.value));
+  document.querySelectorAll('[data-fmt]').forEach(b => b.addEventListener('click', () => {
+    fmt = b.dataset.fmt; document.querySelectorAll('[data-fmt]').forEach(x => x.setAttribute('aria-pressed', String(x === b))); setParams(); showFeed();
+  }));
+  document.querySelectorAll('[data-st]').forEach(b => b.addEventListener('click', () => {
+    st = b.dataset.st; document.querySelectorAll('[data-st]').forEach(x => x.setAttribute('aria-pressed', String(x === b))); setParams(); showFeed();
+  }));
+  document.querySelectorAll('[data-fmt]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.fmt === fmt)));
+  document.querySelectorAll('[data-st]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.st === st)));
+  $('pause').addEventListener('click', () => {
+    paused = !paused;
+    $('pause').setAttribute('aria-pressed', String(paused));
+    $('pause').textContent = paused ? 'Play animation' : 'Pause animation';
+    document.querySelectorAll('.post').forEach(p => p.classList.toggle('pulse', !paused && !reduceMotion && !p.classList.contains('neutral')));
+  });
+  if (reduceMotion) { $('pause').disabled = true; $('pause').textContent = 'Animation off (reduced motion)'; }
+  $('restart').addEventListener('click', showFeed);
+  let rt = null;
+  window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { if (step !== 3) showFeed(); else drawBig(); }, 150); });
+
+  refresh();
+  setInterval(refresh, REFRESH_MS);
+})();
+</script>
+</body>
+</html>
