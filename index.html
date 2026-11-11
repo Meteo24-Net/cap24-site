@@ -1598,16 +1598,23 @@
   const depthClass = d => (typeof d !== 'number' || d < 70) ? 'shallow' : d < 300 ? 'mid' : 'deep';
   // PAGER colours as USGS publishes them
   const PAGER = { green: ['#4caf50', '#071509'], yellow: ['#ffc400', '#171200'], orange: ['#ff6d00', '#170900'], red: ['#ff1744', '#ffffff'] };
+  // Second source: EMSC (European-Mediterranean Seismological Centre), FDSN event service. Each source is shown as
+  // it publishes; an earthquake both report appears twice, once from each (no matching by CAP24).
+  const EMSC_FDSN = 'https://www.seismicportal.eu/fdsnws/event/1/query';
+  const EMSC_WINDOW = { all_hour: [3600, null], all_day: [86400, null], '2.5_day': [86400, 2.5], '2.5_week': [7 * 86400, 2.5], '4.5_week': [7 * 86400, 4.5], '4.5_month': [30 * 86400, 4.5] };
+  const QUAKE_SRC = { usgs: { name: 'USGS', long: 'U.S. Geological Survey', mark: 'filled dot' }, emsc: { name: 'EMSC', long: 'European-Mediterranean Seismological Centre', mark: 'ring' } };
+  const quakeShow = { usgs: true, emsc: true };
+  let quakeCounts = { usgs: 0, emsc: 0 }, quakeNotes = [];
   let quakes = [], quakeById = new Map(), quakeGeo = null, fDepth = '';
   let quakeFeed = (() => { const f = new URLSearchParams(location.search).get('feed'); return QUAKE_FEEDS.some(([k]) => k === f) ? f : '2.5_week'; })();
   const feedLabel = f => (QUAKE_FEEDS.find(([k]) => k === f) || [, f])[1];
   const magText = m => (typeof m === 'number' ? m.toFixed(1) : '?');
 
   function setupSeismic() {
-    document.title = 'CAP24 — Earthquakes worldwide (USGS data, demonstration)';
-    document.getElementById('demoBanner').innerHTML = '<strong>Demonstration.</strong> Earthquake data from the U.S. Geological Survey. It may be delayed or revised, and it is not a warning service. For warnings, follow your national authority.';
-    document.getElementById('heroH').textContent = 'Earthquakes around the world, as recorded by the U.S. Geological Survey.';
-    document.getElementById('heroP').textContent = 'The globe shows earthquakes from the USGS real-time feeds. USGS updates them every minute; this page reloads them every five minutes. This is earthquake data, not warnings, and not CAP. Select any earthquake to see its details as USGS publishes them.';
+    document.title = 'CAP24 — Earthquakes worldwide (USGS and EMSC data, demonstration)';
+    document.getElementById('demoBanner').innerHTML = '<strong>Demonstration.</strong> Earthquake data from the U.S. Geological Survey and the European-Mediterranean Seismological Centre. It may be delayed or revised, and it is not a warning service. For warnings, follow your national authority.';
+    document.getElementById('heroH').textContent = 'Earthquakes around the world, as two international seismological centres record them.';
+    document.getElementById('heroP').textContent = 'The globe shows earthquakes from the U.S. Geological Survey (USGS, filled dots) and the European-Mediterranean Seismological Centre (EMSC, rings), each labelled with its source. An earthquake both report appears twice, with each centre\'s own magnitude and location. This page reloads them every five minutes. This is earthquake data, not warnings, and not CAP.';
     document.getElementById('map').setAttribute('aria-label', 'Globe of recent earthquakes. The list next to it carries the same earthquakes.');
     document.getElementById('listAside').setAttribute('aria-label', 'List of recent earthquakes');
     const qIn = document.getElementById('q');
@@ -1638,63 +1645,101 @@
       b.addEventListener('click', () => { fDepth = fDepth === d.key ? '' : d.key; renderQuakeList(); });
       legend.append(b);
     }
-    legend.append(el('div', { class: 'hd', style: 'margin-top:6px' }, 'WHITE RING: PAST 24 HOURS'));
+    legend.append(el('div', { class: 'hd', style: 'margin-top:6px' }, 'WHITE HALO: PAST 24 HOURS'));
+    legend.append(el('div', { class: 'hd', style: 'margin-top:8px' }, 'SOURCES'));
+    for (const [k, src] of Object.entries(QUAKE_SRC)) {
+      const b = el('button', { type: 'button', class: 'row', 'data-qsrc': k, 'aria-pressed': 'true' });
+      b.append(el('span', { class: 'sw round', style: k === 'usgs' ? 'background:#cfd8e3' : 'background:transparent;border:2px solid #cfd8e3;box-sizing:border-box' }), document.createTextNode(`${src.name} · ${src.mark}`));
+      b.addEventListener('click', () => { quakeShow[k] = !quakeShow[k]; renderQuakeList(); });
+      legend.append(b);
+    }
     document.getElementById('aboutBody').replaceChildren(
-      el('p', {}, 'This page uses the same globe as the CAP24 alert views, with an international seismic data source: the real-time earthquake feeds of the U.S. Geological Survey (USGS) Earthquake Hazards Program. Each earthquake is shown as USGS publishes it: magnitude, depth, location, time and review status. Automatic solutions are computed by machine and may change until a seismologist reviews them.'),
+      el('p', {}, 'This page uses the same globe as the CAP24 alert views, with two international seismic data sources: the real-time earthquake feeds of the U.S. Geological Survey (USGS) Earthquake Hazards Program, and the European-Mediterranean Seismological Centre (EMSC), which brings together the solutions of national seismological agencies; for each EMSC earthquake the panel shows which agency located it, as EMSC publishes it. Automatic solutions are computed by machine and may change until a seismologist reviews them.'),
+      el('p', {}, 'The two centres are shown side by side and are not matched: an earthquake both report appears twice, and their magnitudes and locations can differ slightly because each uses its own stations and methods. The "past 30 days, significant" list is a USGS selection, so it shows USGS only.'),
       el('p', {}, 'This is not CAP and not a warning. Official earthquake and tsunami warnings that authorities publish in CAP appear on the All alerts globe, under the CAP category Geo. CAP24 never creates or changes alert content, and AI is not used anywhere on this page.')
     );
     const dn = document.getElementById('dataNote');
     dn.replaceChildren();
     dn.append(el('strong', {}, 'Data.'), document.createTextNode(' Earthquakes: '),
       el('a', { href: 'https://www.usgs.gov/programs/earthquake-hazards/data', rel: 'noopener' }, 'U.S. Geological Survey, Earthquake Hazards Program'),
-      document.createTextNode(', real-time GeoJSON summary feeds (USGS data is in the public domain). Magnitudes and locations from automatic solutions may change. Base map: OpenFreeMap, © OpenMapTiles, data © OpenStreetMap contributors. Map software: MapLibre GL JS.'));
+      document.createTextNode(', real-time GeoJSON summary feeds (USGS data is in the public domain); '),
+      el('a', { href: 'https://www.emsc-csem.org/', rel: 'noopener' }, 'European-Mediterranean Seismological Centre (EMSC)'),
+      document.createTextNode(', FDSN event service at seismicportal.eu, with the solutions of its '),
+      el('a', { href: 'https://www.emsc-csem.org/Earthquake_data/contributors.php', rel: 'noopener' }, 'contributing agencies'),
+      document.createTextNode('. Magnitudes and locations from automatic solutions may change. Base map: OpenFreeMap, © OpenMapTiles, data © OpenStreetMap contributors. Map software: MapLibre GL JS.'));
+  }
+
+  async function fetchEmsc(feed) {
+    const w = EMSC_WINDOW[feed];
+    if (!w) return null;   // no EMSC equivalent (the USGS "significant" selection)
+    const params = new URLSearchParams({ format: 'json', starttime: new Date(Date.now() - w[0] * 1000).toISOString().slice(0, 19), limit: '4000', orderby: 'time' });
+    if (w[1] != null) params.set('minmag', String(w[1]));
+    const r = await fetch(`${EMSC_FDSN}?${params}`);
+    if (r.status === 204) return [];
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const j = await r.json();
+    return (j.features || []).filter(f => f.properties && typeof f.properties.lat === 'number' && typeof f.properties.lon === 'number').map(f => {
+      const p = f.properties;
+      return { type: 'Feature', id: 'emsc:' + (p.unid || f.id), geometry: { type: 'Point', coordinates: [p.lon, p.lat, p.depth] },
+        properties: { src: 'emsc', mag: p.mag, magType: p.magtype, place: p.flynn_region, time: Date.parse(p.time), updated: Date.parse(p.lastupdate), auth: p.auth, unid: p.unid || f.id, sourceId: p.source_id, evtype: p.evtype } };
+    });
   }
 
   async function refreshQuakes() {
     const feed = quakeFeed;
-    try {
-      const r = await fetch(USGS_FEED(feed));
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      const j = await r.json();
-      if (feed !== quakeFeed) return;   // the visitor switched feeds meanwhile
-      const now = Date.now();
-      const feats = (j.features || []).filter(f => f.geometry && Array.isArray(f.geometry.coordinates) && f.properties);
-      for (const f of feats) {
-        const p = f.properties, c = f.geometry.coordinates;
-        p._id = f.id; p._mag = typeof p.mag === 'number' ? p.mag : 0; p._dc = depthClass(c[2]);
-        p._recent = (now - p.time) < 864e5 ? 1 : 0;
-      }
-      quakes = feats.map(f => ({ id: f.id, p: f.properties, lon: f.geometry.coordinates[0], lat: f.geometry.coordinates[1], depth: f.geometry.coordinates[2] }))
-        .sort((a, b) => (b.p.time || 0) - (a.p.time || 0));
-      quakeById = new Map(quakes.map(q => [q.id, q]));
-      quakeGeo = { type: 'FeatureCollection', features: feats };
-      lastGood = Date.now();
-      document.getElementById('liveDot').classList.remove('err');
-      const t = document.getElementById('liveText');
-      t.replaceChildren();
-      if (!quakes.length) t.textContent = `No earthquakes in this feed (${feedLabel(feed)}).`;
-      else {
-        const top = quakes.reduce((m, q) => (q.p._mag > m.p._mag ? q : m), quakes[0]);
-        t.append(el('span', { class: 'val' }, String(quakes.length)), document.createTextNode(` earthquakes · ${feedLabel(feed)} · largest `),
-          el('span', { class: 'val' }, 'M ' + magText(top.p.mag)));
-      }
-      const gen = j.metadata && j.metadata.generated;
-      document.getElementById('liveTime').textContent = 'Updated ' + fmtTime(lastGood) + (gen ? ` · USGS feed of ${fmtTime(gen)}` : '');
-      renderQuakeList();
-      if (mapReady) map.getSource('quakes').setData(quakeGeo); else pendingGeo = quakeGeo;
-      if (selectedKey && !quakeById.has(selectedKey)) closePanel();
-    } catch (e) {
+    const [u, e] = await Promise.allSettled([
+      fetch(USGS_FEED(feed)).then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status))),
+      fetchEmsc(feed)]);
+    if (feed !== quakeFeed) return;   // the visitor switched feeds meanwhile
+    if (u.status !== 'fulfilled' && e.status !== 'fulfilled') {
       document.getElementById('liveDot').classList.add('err');
       document.getElementById('liveText').textContent = lastGood
-        ? `The USGS feed could not be reached. Showing earthquakes from ${fmtTime(lastGood)}. Retrying in 5 minutes.`
-        : 'The USGS feed could not be reached. Retrying in 5 minutes.';
-      if (!lastGood) document.getElementById('mapStatus').textContent = 'Earthquake feed unavailable';
+        ? `The earthquake feeds could not be reached. Showing earthquakes from ${fmtTime(lastGood)}. Retrying in 5 minutes.`
+        : 'The earthquake feeds could not be reached. Retrying in 5 minutes.';
+      if (!lastGood) document.getElementById('mapStatus').textContent = 'Earthquake feeds unavailable';
+      return;
     }
+    const now = Date.now();
+    quakeNotes = [];
+    let feats = [];
+    if (u.status === 'fulfilled') {
+      const uf = (u.value.features || []).filter(f => f.geometry && Array.isArray(f.geometry.coordinates) && f.properties);
+      for (const f of uf) f.properties.src = 'usgs';
+      feats.push(...uf);
+    } else quakeNotes.push('USGS feed could not be reached');
+    if (e.status === 'fulfilled') { if (e.value) feats.push(...e.value); else quakeNotes.push('EMSC has no "significant" list, so USGS only'); }
+    else quakeNotes.push('EMSC could not be reached');
+    for (const f of feats) {
+      const p = f.properties, c = f.geometry.coordinates;
+      p._id = f.id; p._mag = typeof p.mag === 'number' ? p.mag : 0; p._dc = depthClass(c[2]);
+      p._recent = (now - p.time) < 864e5 ? 1 : 0;
+    }
+    quakes = feats.map(f => ({ id: f.id, src: f.properties.src, p: f.properties, lon: f.geometry.coordinates[0], lat: f.geometry.coordinates[1], depth: f.geometry.coordinates[2] }))
+      .sort((a, b) => (b.p.time || 0) - (a.p.time || 0));
+    quakeById = new Map(quakes.map(q => [q.id, q]));
+    quakeCounts = { usgs: quakes.filter(q => q.src === 'usgs').length, emsc: quakes.filter(q => q.src === 'emsc').length };
+    quakeGeo = { type: 'FeatureCollection', features: feats };
+    lastGood = Date.now();
+    document.getElementById('liveDot').classList.toggle('err', quakeNotes.some(n => /reached/.test(n)));
+    const t = document.getElementById('liveText');
+    t.replaceChildren();
+    if (!quakes.length) t.textContent = `No earthquakes in this window (${feedLabel(feed)}).`;
+    else {
+      const top = quakes.reduce((m, q) => (q.p._mag > m.p._mag ? q : m), quakes[0]);
+      t.append(el('span', { class: 'val' }, String(quakeCounts.usgs)), document.createTextNode(' from USGS · '),
+        el('span', { class: 'val' }, String(quakeCounts.emsc)), document.createTextNode(` from EMSC · ${feedLabel(feed)} · largest `),
+        el('span', { class: 'val' }, 'M ' + magText(top.p.mag)), document.createTextNode(` (${QUAKE_SRC[top.src].name})`));
+    }
+    const gen = u.status === 'fulfilled' && u.value.metadata && u.value.metadata.generated;
+    document.getElementById('liveTime').textContent = 'Updated ' + fmtTime(lastGood) + (gen ? ` · USGS feed of ${fmtTime(gen)}` : '') + (quakeNotes.length ? ' · ' + quakeNotes.join(' · ') : '');
+    renderQuakeList();
+    if (mapReady) map.getSource('quakes').setData(quakeGeo); else pendingGeo = quakeGeo;
+    if (selectedKey && !quakeById.has(selectedKey)) closePanel();
   }
 
   function renderQuakeList() {
     const q = document.getElementById('q').value.trim().toLowerCase();
-    const shown = quakes.filter(k => (!fDepth || k.p._dc === fDepth) && (!q || String(k.p.place || k.p.title || '').toLowerCase().includes(q)));
+    const shown = quakes.filter(k => quakeShow[k.src] && (!fDepth || k.p._dc === fDepth) && (!q || String(k.p.place || k.p.title || '').toLowerCase().includes(q)));
     const ul = document.getElementById('alertList');
     ul.replaceChildren();
     const frag = document.createDocumentFragment();
@@ -1706,7 +1751,7 @@
       const bar = el('span', { class: 'bar', style: `background:${d.color}`, 'aria-hidden': 'true' });
       const body = el('span');
       body.append(
-        el('div', { class: 'a-sev', style: `color:${d.color}` }, `M ${magText(k.p.mag)}${k.p.status === 'automatic' ? ' · automatic' : ''}`),
+        el('div', { class: 'a-sev', style: `color:${d.color}` }, `M ${magText(k.p.mag)} · ${QUAKE_SRC[k.src].name}${k.src === 'emsc' && k.p.auth ? ' / ' + k.p.auth : ''}${k.p.status === 'automatic' ? ' · automatic' : ''}`),
         el('div', { class: 'a-event' }, k.p.place || k.p.title || 'Earthquake'),
         el('div', { class: 'a-meta' }, `${fmtTime(k.p.time)} · ${typeof k.depth === 'number' ? Math.round(k.depth) + ' km deep' : 'depth unknown'}`)
       );
@@ -1722,29 +1767,34 @@
     const legend = document.getElementById('legend');
     legend.classList.toggle('filtered', !!fDepth);
     legend.querySelectorAll('button[data-depth]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.depth === fDepth)));
+    legend.querySelectorAll('button[data-qsrc]').forEach(b => b.setAttribute('aria-pressed', String(!!quakeShow[b.dataset.qsrc])));
     if (!mapReady) return;
-    let filter = null;
-    if (q) filter = ['in', ['get', '_id'], ['literal', shown.map(k => k.id)]];
-    else if (fDepth) filter = ['==', ['get', '_dc'], fDepth];
+    const all = !q && !fDepth && quakeShow.usgs && quakeShow.emsc;
+    const filter = all ? null : ['in', ['get', '_id'], ['literal', shown.map(k => k.id)]];
     map.setFilter('quake-circle', filter);
+    map.setFilter('quake-recent', filter ? ['all', ['==', ['get', '_recent'], 1], filter] : ['==', ['get', '_recent'], 1]);
   }
 
   const QUAKE_COLOR = ['match', ['get', '_dc'], 'mid', DEPTH_BY.mid.color, 'deep', DEPTH_BY.deep.color, DEPTH_BY.shallow.color];
   const QUAKE_RADIUS = ['interpolate', ['linear'], ['get', '_mag'], 0, 2, 2.5, 3.5, 4.5, 7, 6, 13, 7, 20, 8, 28];
+  // USGS: filled dots; EMSC: rings in the same depth colours (the fill stays clear)
+  const quakeOpacity = dim => ['case', ['==', ['get', 'src'], 'emsc'], 0, dim ? 0.35 : 0.72];
   function addQuakeLayers() {
     tintBase();
-    map.addSource('quakes', { type: 'geojson', data: { type: 'FeatureCollection', features: [] }, attribution: 'Earthquakes: U.S. Geological Survey' });
+    map.addSource('quakes', { type: 'geojson', data: { type: 'FeatureCollection', features: [] }, attribution: 'Earthquakes: U.S. Geological Survey; EMSC and contributing agencies' });
+    map.addLayer({ id: 'quake-recent', type: 'circle', source: 'quakes', filter: ['==', ['get', '_recent'], 1],
+      paint: { 'circle-radius': ['+', QUAKE_RADIUS, 2.5], 'circle-color': 'rgba(0,0,0,0)', 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 1, 'circle-stroke-opacity': 0.75 } });
     map.addLayer({ id: 'quake-circle', type: 'circle', source: 'quakes',
       layout: { 'circle-sort-key': ['-', 10, ['get', '_mag']] },   // small quakes on top, so they stay clickable
-      paint: { 'circle-radius': QUAKE_RADIUS, 'circle-color': QUAKE_COLOR, 'circle-opacity': 0.72,
-               'circle-stroke-color': '#ffffff', 'circle-stroke-width': ['case', ['==', ['get', '_recent'], 1], 1.2, 0], 'circle-stroke-opacity': 0.9 } });
+      paint: { 'circle-radius': QUAKE_RADIUS, 'circle-color': QUAKE_COLOR, 'circle-opacity': quakeOpacity(false),
+               'circle-stroke-color': QUAKE_COLOR, 'circle-stroke-width': ['case', ['==', ['get', 'src'], 'emsc'], 2, 0], 'circle-stroke-opacity': 0.95 } });
     map.addLayer({ id: 'quake-sel', type: 'circle', source: 'quakes', filter: ['==', ['get', '_id'], ''],
       paint: { 'circle-radius': ['+', QUAKE_RADIUS, 5], 'circle-color': 'rgba(0,0,0,0)', 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2.5 } });
     const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 8 });
     map.on('mousemove', 'quake-circle', e => {
       map.getCanvas().style.cursor = 'pointer';
       const p = e.features[0].properties;
-      popup.setLngLat(e.lngLat).setText(`M ${magText(p.mag)} · ${p.place || ''}`).addTo(map);
+      popup.setLngLat(e.lngLat).setText(`M ${magText(p.mag)} · ${p.place || ''} · ${p.src === 'emsc' ? 'EMSC' : 'USGS'}`).addTo(map);
     });
     map.on('mouseleave', 'quake-circle', () => { map.getCanvas().style.cursor = ''; popup.remove(); });
     map.on('click', 'quake-circle', e => {
@@ -1755,7 +1805,7 @@
   function highlightQuake(id) {
     if (!mapReady) return;
     map.setFilter('quake-sel', ['==', ['get', '_id'], id || '']);
-    map.setPaintProperty('quake-circle', 'circle-opacity', id ? 0.35 : 0.72);
+    map.setPaintProperty('quake-circle', 'circle-opacity', quakeOpacity(!!id));
   }
   function flyQuake(id) {
     const k = quakeById.get(id);
@@ -1779,7 +1829,7 @@
 
     document.getElementById('pSev').replaceChildren(el('span', { class: 'sev-chip', style: `background:${d.color};color:#0a0d14` }, `M ${magText(p.mag)}`));
     document.getElementById('pTitle').textContent = p.place || p.title || 'Earthquake';
-    document.getElementById('pSub').textContent = 'U.S. Geological Survey · ' + (p.type || 'earthquake');
+    document.getElementById('pSub').textContent = k.src === 'emsc' ? 'European-Mediterranean Seismological Centre' + (p.auth ? ` · located by ${p.auth}` : '') : 'U.S. Geological Survey · ' + (p.type || 'earthquake');
     const body = document.getElementById('pBody');
     body.replaceChildren(el('div', { class: 'quake-note' }, 'Earthquake data, not a warning. This is not a CAP alert, so there is no TV or phone view. For warnings, including tsunami warnings, follow your national authority.'));
 
@@ -1791,6 +1841,25 @@
       if (note) dd.append(el('small', {}, note));
       facts.append(el('dt', {}, label), dd);
     };
+    if (k.src === 'emsc') {
+      add('Magnitude', `${magText(p.mag)}${p.magType ? ' (' + p.magType + ')' : ''}`, p.magType ? 'The letters name the method used to compute it.' : null);
+      add('Time', fmtTime(p.time));
+      add('Depth', typeof k.depth === 'number' ? `${k.depth.toFixed(1)} km` : null, d.label);
+      add('Location', `${Math.abs(k.lat).toFixed(3)}° ${k.lat < 0 ? 'S' : 'N'}, ${Math.abs(k.lon).toFixed(3)}° ${k.lon < 0 ? 'W' : 'E'}`);
+      add('Region', p.place, 'Flynn-Engdahl region name, as EMSC publishes it.');
+      add('Located by', p.auth, 'Code of the agency whose solution EMSC shows, as EMSC publishes it. EMSC\'s list of contributing agencies gives the full names.');
+      add('Last updated', fmtTime(p.updated));
+      add('EMSC event ID', p.unid);
+      body.append(facts);
+      const links = el('div', { class: 'links' });
+      const rec = el('div'); rec.append(el('a', { href: `${EMSC_FDSN}?eventid=${encodeURIComponent(p.unid)}&format=text`, target: '_blank', rel: 'noopener' }, 'EMSC data record for this earthquake (FDSN, plain text)')); links.append(rec);
+      const con = el('div'); con.append(el('a', { href: 'https://www.emsc-csem.org/Earthquake_data/contributors.php', target: '_blank', rel: 'noopener' }, 'EMSC contributing agencies (what the agency codes mean)')); links.append(con);
+      body.append(links, el('p', { class: 'src-note' }, `Source: European-Mediterranean Seismological Centre, solution by ${p.auth || 'a contributing agency'}. Shown as published; nothing is changed. USGS may list the same earthquake separately.`));
+      panel.classList.add('open'); panel.setAttribute('aria-hidden', 'false');
+      scrim.classList.add('open');
+      document.getElementById('pClose').focus();
+      return;
+    }
     add('Magnitude', `${magText(p.mag)}${p.magType ? ' (' + p.magType + ')' : ''}`, p.magType ? 'The letters name the method USGS used to compute it.' : null);
     add('Time', fmtTime(p.time));
     add('Depth', typeof k.depth === 'number' ? `${k.depth.toFixed(1)} km` : null, d.label);
