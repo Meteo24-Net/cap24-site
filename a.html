@@ -957,7 +957,8 @@ body.ss-open { overflow:hidden; }
     if (id) target.searchParams.set('alert', id);
     back.href = target.pathname + target.search;
     setText('back-label', fromSite ? 'Back' : 'Map');
-    back.setAttribute('aria-label', fromSite ? 'Back to the alert map' : 'Open the alert map');
+    const fromTv = fromSite && /^\/tv\/?$/.test(ref.pathname);
+    back.setAttribute('aria-label', fromTv ? 'Back to the TV demonstration' : fromSite ? 'Back to the alert map' : 'Open the alert map');
     back.addEventListener('click', e => {
       if (fromSite && history.length > 1) { e.preventDefault(); history.back(); }
     });

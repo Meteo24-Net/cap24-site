@@ -150,6 +150,16 @@
   .tv-fit { flex: 1; position: relative; overflow: hidden; }
   /* /tv demonstration: the TV view on its own, cycling through current official alerts */
   body.tvmode { overflow: hidden; }
+  body.tvmode .tv-bar { flex-wrap: wrap; row-gap: 6px; }
+  body.tvmode .tv-bar .tv-ctl { flex-wrap: wrap; row-gap: 6px; }
+  .tv-bar a.tv-btn.phone { border-color: var(--neon); color: var(--neon); }
+  .tv-bar a.tv-btn[aria-disabled="true"] { opacity: 0.4; pointer-events: none; }
+  .tv-portrait { position: absolute; inset: 0; z-index: 3; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 24px; text-align: center; background: rgba(5,7,11,0.93); color: #e8edf8; font-size: 16px; line-height: 1.4; }
+  .tv-portrait.on { display: flex; }
+  .tv-portrait .acts { display: flex; flex-direction: column; gap: 10px; width: min(300px, 100%); }
+  .tv-portrait a, .tv-portrait button { display: block; padding: 11px 14px; border-radius: 8px; font: inherit; font-weight: 600; text-decoration: none; cursor: pointer; }
+  .tv-portrait a { background: var(--neon); color: #001318; border: 0; }
+  .tv-portrait button { background: none; color: var(--text); border: 1px solid var(--border-hi); }
   body.tvmode .demo-banner, body.tvmode header.site, body.tvmode main, body.tvmode footer { display: none; }
   .tv-bar .tv-stat { font-family: var(--ff-mono); font-size: 13px; color: #b9c4d8; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tv-bar .tv-stat b { color: #ffc400; font-weight: 600; }
@@ -278,7 +288,7 @@
     <a href="/context/internet" data-mode="internet">Internet</a>
     <a href="/context/air" data-mode="air">Air quality</a>
     <a href="/context/space" data-mode="space">Space weather</a>
-    <a href="/tv" data-mode="tv">TV demo</a>
+    <a href="/tv" data-mode="tv">TV + phone</a>
   </nav>
   <div class="by">A Green Media Foundation demonstration</div>
 </header>
@@ -1359,6 +1369,8 @@
   // Shows each current official alert as the TV overlay, one after another. Every alert is fetched again from the
   // feed just before it is shown, the list is rechecked every two minutes, new alerts (including CAP Updates, which
   // carry a new identifier) are shown next in severity order, and an alert that leaves the feed is taken off screen.
+  let tvStartKey = TV_PARAMS.get('alert');   // /tv?alert=<identifier> starts with that alert (Back from the phone view)
+  let tvPortraitOff = false;
   let tvRound = new Set(), tvHistory = [], tvCur = null, tvPaused = false, tvNextAt = 0, tvSlide = null, tvBusy = false, tvWake = null;
 
   const fetchRows = async a => {
@@ -1384,6 +1396,8 @@
 
   function tvIdle(text) {
     clearTimeout(tvSlide); tvCur = null; tvNextAt = 0;
+    try { const u = new URL(location.href); u.searchParams.delete('alert'); history.replaceState(null, '', u); } catch (e) { /* unchanged */ }
+    tvPhoneLinks();
     clearInterval(signTimer); cancelAnimationFrame(tvScroll);
     tvStage.style.visibility = 'hidden';
     document.getElementById('tvEnded').classList.remove('on');
@@ -1422,6 +1436,9 @@
     tvStage.style.visibility = '';
     openTV(a, blocks[bi]);
     tvSchedule(TV_SEC * 1000);
+    // The alert on screen is kept in the address, so reloading or coming Back from the phone view resumes here
+    try { const u = new URL(location.href); if (a.identifier) u.searchParams.set('alert', a.identifier); else u.searchParams.delete('alert'); history.replaceState(null, '', u); } catch (e) { /* address unchanged */ }
+    tvPhoneLinks();
     tvStatus();
   }
 
@@ -1441,7 +1458,8 @@
           back = false;
         }
         if (!a) {
-          a = alerts.find(x => !tvRound.has(x.key));
+          if (tvStartKey) { a = byKey.get(tvStartKey) || null; tvStartKey = null; }
+          if (!a) a = alerts.find(x => !tvRound.has(x.key));
           if (!a) { tvRound = new Set(); a = alerts[0]; }
         }
         tvRound.add(a.key);
@@ -1480,6 +1498,21 @@
     }
   }
 
+  // "Open on phone": the alert on screen in the phone view. On a wide screen it opens in a new tab, so TV and phone
+  // can be shown side by side; on a phone it opens in place, and its Back button returns here.
+  function tvPhoneLinks() {
+    const href = tvCur && tvCur.a.identifier ? phoneUrl(tvCur.a.identifier) : null;
+    for (const id of ['tvPhone', 'tvPortraitPhone']) {
+      const l = document.getElementById(id);
+      if (!l) continue;
+      if (href) { l.href = href; l.removeAttribute('aria-disabled'); } else { l.removeAttribute('href'); l.setAttribute('aria-disabled', 'true'); }
+    }
+  }
+  function tvPortrait() {
+    const box = document.getElementById('tvPortrait');
+    if (box) box.classList.toggle('on', !tvPortraitOff && window.matchMedia('(orientation: portrait) and (max-width: 700px)').matches);
+  }
+
   function setupTv() {
     document.body.classList.add('tvmode');
     document.title = 'CAP24 — TV demonstration' + (TV_COUNTRY ? ` · ${regionName(TV_COUNTRY)}` : '') + ' (not for broadcast)';
@@ -1490,10 +1523,24 @@
       btn('tvPrev', 'Previous', () => tvNext(true)),
       btn('tvPause', 'Pause', () => { tvPaused = !tvPaused; if (tvPaused) clearTimeout(tvSlide); else tvSchedule(Math.max(3000, tvNextAt - Date.now())); tvStatus(); }),
       btn('tvNextBtn', 'Next', () => tvNext()),
+      (() => {
+        const l = el('a', { class: 'tv-btn phone', id: 'tvPhone', 'aria-disabled': 'true' }, 'Open on phone');
+        l.addEventListener('click', () => { if (window.innerWidth > 860) { l.target = '_blank'; l.rel = 'noopener'; } else { l.removeAttribute('target'); l.removeAttribute('rel'); } });
+        return l;
+      })(),
       document.getElementById('tvFull'),
       el('a', { class: 'tv-btn', href: '/' }, 'Map'));
     bar.replaceChildren(el('span', { class: 'tv-stat', id: 'tvStat', role: 'status' }), ctl);
     tv.setAttribute('aria-label', 'TV demonstration: current official alerts shown one after another as a full-screen overlay');
+    const pn = el('div', { class: 'tv-portrait', id: 'tvPortrait', role: 'note' });
+    const acts = el('div', { class: 'acts' });
+    const keep = el('button', { type: 'button' }, 'Show the TV view here');
+    keep.addEventListener('click', () => { tvPortraitOff = true; tvPortrait(); });
+    acts.append(el('a', { id: 'tvPortraitPhone', 'aria-disabled': 'true' }, 'Open this alert in the phone view'), keep);
+    pn.append(el('div', {}, 'This page shows how an official alert fills a TV screen. Turn your phone sideways to see it, or open the alert on screen as it appears on a phone after scanning the QR code.'), acts);
+    document.getElementById('tvFit').append(pn);
+    window.addEventListener('resize', tvPortrait);
+    tvPortrait();
     tv.classList.add('open');
     fitStage();
     tvIdle('Loading official alerts…');
