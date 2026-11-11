@@ -23,6 +23,9 @@
    - "Cancelled" is SIMULATED and "Expired" is a PREVIEW: both are drawn from the live alert and labelled so.
    - animation: the header band pulses about once every 1.6 s (no flashing), the arrow moves; both stop for
      reduced motion and with the Pause button.
+  Platforms: Facebook and LinkedIn (link in the post text), Instagram feed and TikTok (link in the profile),
+  Instagram Stories (link sticker). Icons are the platforms' own files in /assets/platforms/, added after a
+  brand-rules check; until then the buttons show names. The phone frame itself carries no platform branding.
   Not built yet (labelled on the page): MP4 export, per-alert short link.
   No AI anywhere in this page.
 -->
@@ -75,6 +78,27 @@
   .seg button, .btn { background: none; color: var(--text); border: 1px solid var(--border-hi); border-radius: 6px; padding: 7px 11px; font: inherit; font-size: 14px; cursor: pointer; min-height: 36px; }
   .seg button[aria-pressed="true"] { background: var(--neon); color: #04121a; border-color: var(--neon); font-weight: 600; }
   .note { font-size: 13px; color: var(--text-dim); margin: 8px 0 0; }
+  .pf button { display: inline-flex; align-items: center; gap: 8px; }
+  .pf img { width: 20px; height: 20px; display: block; flex: none; }
+  .pf img[hidden] { display: none; }
+  .pfinfo { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; margin: 10px 0 0; font-size: 13px; }
+  .pfinfo dt { font-family: var(--ff-mono); font-size: 11px; letter-spacing: 0.06em; color: var(--text-dim); text-transform: uppercase; padding-top: 2px; }
+  .pfinfo dd { margin: 0; }
+  .fhead button.who { display: flex; align-items: center; gap: 10px; background: none; border: 0; padding: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; min-width: 0; }
+  .story .sbar { position: absolute; z-index: 2; top: 18px; left: 14px; right: 14px; display: flex; align-items: center; gap: 8px; }
+  .story .sbar button { display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.25); color: #fff; border-radius: 999px; padding: 4px 10px 4px 4px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; max-width: 100%; }
+  .story .sbar .avatar { width: 28px; height: 28px; font-size: 12px; }
+  .story .sbar span.nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .prof { position: absolute; inset: 0; display: flex; flex-direction: column; background: #0d1117; overflow-y: auto; }
+  .prof .bar { flex: none; display: flex; align-items: center; padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+  .prof .bar button { white-space: nowrap; background: none; border: 1px solid var(--border-hi); color: var(--text); border-radius: 6px; padding: 6px 10px; font: inherit; font-size: 13px; cursor: pointer; }
+  .prof .card { padding: 22px 18px; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
+  .prof .avatar { width: 72px; height: 72px; font-size: 24px; }
+  .prof .card b { font-size: 17px; }
+  .prof .card small { font-size: 12px; color: var(--text-dim); }
+  .prof .bio { margin: 6px 0 0; font-size: 14px; color: var(--text-dim); font-style: italic; }
+  .prof .card a { display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; font-weight: 600; font-size: 14px; overflow-wrap: anywhere; }
+  .prof .why { margin: 6px 18px 0; padding: 10px 12px; border: 1px dashed rgba(255,255,255,0.18); border-radius: 8px; font-size: 12px; color: var(--text-dim); }
   .rules { margin: 0; padding-left: 18px; font-size: 13px; color: var(--text-dim); }
   .rules li { margin: 4px 0; }
   .planned { display: inline-block; font-family: var(--ff-mono); font-size: 11px; letter-spacing: 0.06em; color: #000; background: #ffc400; border-radius: 3px; padding: 1px 6px; margin-left: 4px; }
@@ -236,12 +260,16 @@
         <div class="live" style="margin-top:8px"><i id="dot"></i><span id="liveText" role="status">Connecting to the feed…</span></div>
       </div>
       <div class="box">
-        <span class="lbl" id="fmtL">Post format</span>
-        <div class="seg" role="group" aria-labelledby="fmtL">
-          <button type="button" data-fmt="feed" aria-pressed="true">Feed 4:5</button>
-          <button type="button" data-fmt="vert" aria-pressed="false">Vertical 9:16</button>
+        <span class="lbl" id="pfL">Platform</span>
+        <div class="seg pf" role="group" aria-labelledby="pfL">
+          <button type="button" data-pf="facebook" aria-pressed="true"><img alt="" data-icon="facebook" hidden><span>Facebook</span></button>
+          <button type="button" data-pf="instagram" aria-pressed="false"><img alt="" data-icon="instagram" hidden><span>Instagram</span></button>
+          <button type="button" data-pf="linkedin" aria-pressed="false"><img alt="" data-icon="linkedin" hidden><span>LinkedIn</span></button>
+          <button type="button" data-pf="igstories" aria-pressed="false"><img alt="" data-icon="instagram" hidden><span>Instagram Stories</span></button>
+          <button type="button" data-pf="tiktok" aria-pressed="false"><img alt="" data-icon="tiktok" hidden><span>TikTok</span></button>
         </div>
-        <p class="note">Feed: Facebook, LinkedIn, Instagram feed, link in the post text. Vertical: Stories and TikTok, link sticker.</p>
+        <p class="note">Formats sized for these platforms. Not affiliated with or endorsed by them.</p>
+        <dl class="pfinfo" id="pfInfo"></dl>
       </div>
       <div class="box">
         <span class="lbl" id="stL">Message state</span>
@@ -256,7 +284,7 @@
         <span class="lbl">Journey</span>
         <ol class="steps" id="steps">
           <li data-step="1" class="on"><b>1</b>The post appears in a feed</li>
-          <li data-step="2"><b>2</b>The viewer taps the link</li>
+          <li data-step="2"><b>2</b><span id="step2">The viewer taps the link</span></li>
           <li data-step="3"><b>3</b>The full alert opens on the phone</li>
         </ol>
         <div class="seg" style="margin-top:10px">
@@ -361,7 +389,16 @@
   // ── State, kept in the address so links can be shared ──
   const Q = new URLSearchParams(location.search);
   const COUNTRY = /^[A-Za-z]{2}$/.test(Q.get('country') || '') ? Q.get('country').toLowerCase() : null;
-  let fmt = Q.get('fmt') === 'vert' ? 'vert' : 'feed';
+  // Each platform: post format, where the link can go, and how video starts. Checked Nov 2026; platforms change these.
+  const PLATFORMS = {
+    facebook:  { name: 'Facebook', fmt: 'feed', link: 'post', size: '1080 × 1350 px (4:5)', where: 'In the post text: clickable', sound: 'Feed videos start muted' },
+    instagram: { name: 'Instagram', fmt: 'feed', link: 'bio', size: '1080 × 1350 px (4:5)', where: 'Captions are not clickable: the link goes in the profile', sound: 'Feed videos start muted' },
+    linkedin:  { name: 'LinkedIn', fmt: 'feed', link: 'post', size: '1080 × 1350 px (4:5)', where: 'In the post text: clickable', sound: 'Feed videos start muted' },
+    igstories: { name: 'Instagram Stories', fmt: 'vert', link: 'sticker', size: '1080 × 1920 px (9:16)', where: 'Link sticker, placed when publishing', sound: 'Usually plays with sound' },
+    tiktok:    { name: 'TikTok', fmt: 'vert', link: 'bio', size: '1080 × 1920 px (9:16)', where: 'In the profile, where the account is allowed a link (e.g. business accounts)', sound: 'Usually plays with sound' }
+  };
+  let pf = PLATFORMS[Q.get('pf')] ? Q.get('pf') : (Q.get('fmt') === 'vert' ? 'igstories' : 'facebook');
+  let fmt = PLATFORMS[pf].fmt;
   let st = ['cancelled', 'expired'].includes(Q.get('state')) ? Q.get('state') : 'sent';
   let want = Q.get('alert');
   let officialIds = null, list = [], cur = null, step = 1, paused = false, lastGood = null;
@@ -371,7 +408,7 @@
     try {
       const u = new URL(location.href);
       if (cur) u.searchParams.set('alert', cur.identifier); else u.searchParams.delete('alert');
-      if (fmt === 'vert') u.searchParams.set('fmt', 'vert'); else u.searchParams.delete('fmt');
+      u.searchParams.delete('fmt'); if (pf !== 'facebook') u.searchParams.set('pf', pf); else u.searchParams.delete('pf');
       if (st !== 'sent') u.searchParams.set('state', st); else u.searchParams.delete('state');
       history.replaceState(null, '', u);
     } catch (e) { /* address unchanged */ }
@@ -448,7 +485,7 @@
   const mainText = b => (b.headline && b.headline.trim() && b.headline.trim() !== (b.event || '').trim()) ? b.headline : (b.description || '');
   const setLang = (n, b) => { if (b && b.language) n.setAttribute('lang', b.language); n.setAttribute('dir', 'auto'); return n; };
 
-  function buildPost(blocks, format, state, interactive) {
+  function buildPost(blocks, format, state, interactive, link) {
     const b1 = blocks[0];
     const b2 = blocks.find((x, i) => i > 0 && x.language && x.language !== b1.language) || null;
     const L = levelOf(b1);
@@ -571,9 +608,17 @@
     who.append(el('em', {}, 'ISSUED BY'), document.createTextNode([b1.senderName, regionName(b1.countryCode)].filter(Boolean).join(' · ') || 'Not in message'));
     body.append(who);
 
-    // Link area: feed points to the post text; vertical has a sticker that is a real link in the app
+    // Link area: the post text (Facebook, LinkedIn), the profile (Instagram feed, TikTok) or a link sticker (Stories)
     let linkBtn = null;
-    if (format === 'vert') {
+    if (format === 'vert' && link === 'bio') {
+      const sticker = el('div', { class: 'sticker' });
+      const say = el('div', { class: 'say' });
+      const ar = el('div', { class: 'arrow' }); ar.innerHTML = ARROW_UP;
+      say.append(ar, el('span', {}, neutral ? 'Current status: link in our profile' : 'Full alert: link in our profile'));
+      sticker.append(say, el('small', {}, 'Open the profile, then tap its link'));
+      post.append(el('div', { class: 'zone ztop' }), strip, head, body, sticker, el('div', { class: 'zone zbot' }));
+      post.querySelectorAll('.zone').forEach(z => z.append(el('i')));
+    } else if (format === 'vert') {
       const sticker = el('div', { class: 'sticker' });
       const say = el('div', { class: 'say' });
       const ar = el('div', { class: 'arrow' }); ar.innerHTML = ARROW_DOWN;
@@ -589,8 +634,8 @@
     } else {
       const foot = el('div', { class: 'foot' });
       const l = el('div');
-      l.append(el('span', { class: 'k' }, neutral ? 'CURRENT STATUS ON YOUR PHONE' : 'FULL ALERT ON YOUR PHONE'), el('b', {}, 'Link in the post text'));
-      const ar = el('div', { class: 'arrow' }); ar.innerHTML = ARROW_DOWN;
+      l.append(el('span', { class: 'k' }, neutral ? 'CURRENT STATUS ON YOUR PHONE' : 'FULL ALERT ON YOUR PHONE'), el('b', {}, link === 'bio' ? 'Link in our profile' : 'Link in the post text'));
+      const ar = el('div', { class: 'arrow' }); ar.innerHTML = link === 'bio' ? ARROW_UP : ARROW_DOWN;
       foot.append(l, ar);
       post.append(strip, head, body, foot);
     }
@@ -620,6 +665,33 @@
     document.querySelectorAll('#steps li').forEach(li => li.classList.toggle('on', +li.dataset.step === n));
   }
   function hint(text) { $('hint').textContent = text; }
+  const authorityName = () => (cur && cur.blocks && cur.blocks[0].senderName) || (cur && cur.sender) || 'Alerting authority';
+  const initials = who => who.replace(/[^\p{L}\p{N} ]/gu, '').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase() || 'A';
+  function goTo(fn, text) { setStep(2); hint(text); setTimeout(fn, 450); }
+
+  // Profile screen (Instagram feed, TikTok): one link for the whole account
+  function openProfile() {
+    if (!cur) return;
+    setStep(2);
+    const sc = $('screen'); sc.replaceChildren();
+    const v = el('div', { class: 'prof' });
+    const bar = el('div', { class: 'bar' });
+    const back = el('button', { type: 'button' }, '← Feed');
+    back.addEventListener('click', showFeed);
+    bar.append(back);
+    const card = el('div', { class: 'card' });
+    const who = authorityName();
+    card.append(el('div', { class: 'avatar', 'aria-hidden': 'true' }, initials(who)), el('b', {}, who), el('small', {}, 'Profile · demonstration · not an official account'), el('p', { class: 'bio' }, '[Profile text written by the authority]'));
+    const a = el('a', { href: phonePath(cur.identifier) });
+    a.innerHTML = LINK_ICON.replace('<svg ', '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" ');
+    a.append(document.createTextNode('cap24.org/a.html?id=…'));
+    a.addEventListener('click', e => { e.preventDefault(); openPage(); });
+    card.append(a);
+    v.append(bar, card, el('p', { class: 'why' }, 'A profile holds one link for every post. In practice it should open a page of this authority\'s current alerts. In this demonstration it opens the alert above.'));
+    sc.append(v);
+    hint('Step 2: on ' + PLATFORMS[pf].name + ', the viewer opens the profile and taps its link.');
+    back.focus();
+  }
 
   function openPage() {
     if (!cur) return;
@@ -646,16 +718,28 @@
     const sc = $('screen'); sc.replaceChildren();
     if (!cur || !cur.blocks) { sc.append(el('div', { class: 'msg' }, 'No alert selected.')); return; }
     const W = $('screen').clientWidth || 360;
+    const P = PLATFORMS[pf];
     if (fmt === 'vert') {
       const story = el('div', { class: 'story' });
       const box = el('div', { class: 'fit' });
-      const { post, linkBtn } = buildPost(cur.blocks, 'vert', st, true);
-      story.append(box);
+      const { post, linkBtn } = buildPost(cur.blocks, 'vert', st, true, P.link);
+      // The account name at the top of a story opens the profile on every platform
+      const sbar = el('div', { class: 'sbar' });
+      const pb = el('button', { type: 'button', 'aria-label': 'Open the profile of ' + authorityName() });
+      pb.append(el('span', { class: 'avatar', 'aria-hidden': 'true' }, initials(authorityName())), el('span', { class: 'nm' }, authorityName()));
+      pb.addEventListener('click', openProfile);
+      sbar.append(pb);
+      story.append(box, sbar);
       sc.append(story);
       fitInto(box, post, W, $('screen').clientHeight || 760);
-      post.addEventListener('click', e => { if (!e.target.closest('button')) hint('The picture itself is not a link. Tap the link sticker.'); });
-      linkBtn.addEventListener('click', () => { setStep(2); hint('Step 2: the link sticker is a real link in Stories and TikTok.'); setTimeout(openPage, 450); });
-      hint('Step 1: a vertical post in Stories or TikTok. The arrow points to the link sticker.');
+      if (linkBtn) {
+        post.addEventListener('click', e => { if (!e.target.closest('button')) hint('The picture itself is not a link. Tap the link sticker.'); });
+        linkBtn.addEventListener('click', () => goTo(openPage, 'Step 2: in ' + P.name + ', the link sticker is a real link.'));
+        hint('Step 1: a vertical post in ' + P.name + '. The arrow points to the link sticker.');
+      } else {
+        post.addEventListener('click', () => hint('The picture is not a link. Tap the account name at the top to open the profile.'));
+        hint('Step 1: a vertical post on ' + P.name + '. The link is in the profile: tap the account name at the top.');
+      }
     } else {
       const app = el('div', { class: 'appbar' });
       app.append(el('span', {}, 'FEED · DEMONSTRATION'), el('span', {}, 'no brand'));
@@ -667,22 +751,35 @@
       const ini = who.replace(/[^\p{L}\p{N} ]/gu, '').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase() || 'A';
       const fw = el('div', { class: 'fwho' });
       fw.append(el('b', {}, who), el('small', {}, 'Demonstration · not an official account'));
-      fh.append(el('div', { class: 'avatar', 'aria-hidden': 'true' }, ini), fw);
+      const whoBtn = el('button', { type: 'button', class: 'who', 'aria-label': 'Open the profile of ' + who });
+      whoBtn.append(el('div', { class: 'avatar', 'aria-hidden': 'true' }, ini), fw);
+      whoBtn.addEventListener('click', openProfile);
+      fh.append(whoBtn);
       const box = el('div', { class: 'fit' });
-      const { post } = buildPost(cur.blocks, 'feed', st, false);
+      const { post } = buildPost(cur.blocks, 'feed', st, false, P.link);
       const cap = el('p', { class: 'fcap' });
       const b1 = cur.blocks[0];
       cap.append(setLang(el('span', {}, (b1.event || 'Alert') + (b1.areas.length ? ' · ' + b1.areas[0] : '')), b1));
-      cap.append(document.createTextNode(st === 'sent' ? '. Full alert: ' : st === 'cancelled' ? '. [Simulated] Cancelled. Current status: ' : '. [Preview] Ended. Details: '));
-      const a = el('a', { href: phonePath(cur.identifier) }, 'cap24.org/a.html?id=…');
-      a.addEventListener('click', e => { e.preventDefault(); setStep(2); hint('Step 2: on Facebook and LinkedIn the link in the post text is clickable.'); setTimeout(openPage, 450); });
-      cap.append(a);
+      const lead = st === 'sent' ? '. Full alert: ' : st === 'cancelled' ? '. [Simulated] Cancelled. Current status: ' : '. [Preview] Ended. Details: ';
+      if (P.link === 'bio') {
+        cap.append(document.createTextNode(lead + 'link in our profile.'));
+      } else {
+        cap.append(document.createTextNode(lead));
+        const a = el('a', { href: phonePath(cur.identifier) }, 'cap24.org/a.html?id=…');
+        a.addEventListener('click', e => { e.preventDefault(); goTo(openPage, 'Step 2: on ' + P.name + ', the link in the post text is clickable.'); });
+        cap.append(a);
+      }
       fp.append(fh, box, cap);
       feed.append(fp, el('div', { class: 'ghost' }, 'another post'));
       sc.append(app, feed);
       fitInto(box, post, W);
-      post.addEventListener('click', () => hint('The picture itself is not a link on social platforms. Tap the link in the post text.'));
-      hint('Step 1: the authority\'s post in a feed. Tap the link in the post text.');
+      if (P.link === 'bio') {
+        post.addEventListener('click', () => hint('Neither the picture nor the caption is a link on ' + P.name + '. Tap the account name to open the profile.'));
+        hint('Step 1: the authority\'s post on ' + P.name + '. The link is in the profile: tap the account name.');
+      } else {
+        post.addEventListener('click', () => hint('The picture itself is not a link on ' + P.name + '. Tap the link in the post text.'));
+        hint('Step 1: the authority\'s post on ' + P.name + '. Tap the link in the post text.');
+      }
     }
     drawBig();
   }
@@ -690,10 +787,10 @@
   function drawBig() {
     const box = $('bigFit');
     if (!cur || !cur.blocks) { box.replaceChildren(); return; }
-    const { post } = buildPost(cur.blocks, fmt, st, false);
+    const { post } = buildPost(cur.blocks, fmt, st, false, PLATFORMS[pf].link);
     const col = box.parentElement.clientWidth || 600;
     fitInto(box, post, Math.min(col, fmt === 'vert' ? 520 : 760));
-    $('bigCap').textContent = `${fmt === 'vert' ? '1080 × 1920 px' : '1080 × 1350 px'} · ${st === 'sent' ? 'as sent' : st === 'cancelled' ? 'simulated cancellation' : 'expired preview'} · from CAP message ${cur.identifier}`;
+    $('bigCap').textContent = `${PLATFORMS[pf].name} · ${PLATFORMS[pf].size} · ${st === 'sent' ? 'as sent' : st === 'cancelled' ? 'simulated cancellation' : 'expired preview'} · from CAP message ${cur.identifier}`;
   }
 
   // ── Choose an alert ──
@@ -751,13 +848,26 @@
 
   // ── Controls ──
   $('pick').addEventListener('change', e => choose(e.target.value));
-  document.querySelectorAll('[data-fmt]').forEach(b => b.addEventListener('click', () => {
-    fmt = b.dataset.fmt; document.querySelectorAll('[data-fmt]').forEach(x => x.setAttribute('aria-pressed', String(x === b))); setParams(); showFeed();
+  function showPlatform() {
+    const P = PLATFORMS[pf];
+    document.querySelectorAll('[data-pf]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.pf === pf)));
+    const dl = $('pfInfo'); dl.replaceChildren();
+    for (const [k, v] of [['Format', P.size], ['Link', P.where], ['Video', P.sound]]) dl.append(el('dt', {}, k), el('dd', {}, v));
+    $('step2').textContent = P.link === 'bio' ? 'The viewer opens the profile and taps its link' : P.link === 'sticker' ? 'The viewer taps the link sticker' : 'The viewer taps the link in the post text';
+  }
+  document.querySelectorAll('[data-pf]').forEach(b => b.addEventListener('click', () => {
+    pf = b.dataset.pf; fmt = PLATFORMS[pf].fmt; showPlatform(); setParams(); showFeed();
   }));
+  // Platform icons: official single-colour files placed in /assets/platforms/ after the brand-rules check.
+  // Until a file is there, the button shows the name only.
+  document.querySelectorAll('img[data-icon]').forEach(img => {
+    img.addEventListener('load', () => { img.hidden = false; });
+    img.src = '/assets/platforms/' + img.dataset.icon + '.svg';
+  });
   document.querySelectorAll('[data-st]').forEach(b => b.addEventListener('click', () => {
     st = b.dataset.st; document.querySelectorAll('[data-st]').forEach(x => x.setAttribute('aria-pressed', String(x === b))); setParams(); showFeed();
   }));
-  document.querySelectorAll('[data-fmt]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.fmt === fmt)));
+  showPlatform();
   document.querySelectorAll('[data-st]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.st === st)));
   $('pause').addEventListener('click', () => {
     paused = !paused;
