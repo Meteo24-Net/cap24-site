@@ -3,6 +3,7 @@
 One-page demonstration of how official CAP alerts can appear on screen. Not a warning service.
 
 - `index.html` — one globe, five views: `/` all official CAP alerts, `/category/met` CAP category Met; context data that is not CAP under `/context/`: `/context/seismic` USGS earthquakes (data, not CAP), `/context/internet` internet outages (Cloudflare Radar, IODA) and DDoS targets (Cloudflare Radar), measurements, not CAP, no causes; `/context/air` PM2.5 from OpenAQ against the WHO guideline (sensor data, not CAP)
+- `/tv` — TV demonstration: current official alerts one after another as the full-screen TV overlay, rechecked every two minutes; `?country=EE` for one country, `?sec=20` seconds per alert; watermarked, not for broadcast
 - `a.html` — phone view: one alert, verbatim, opened from the TV QR code (`a.html?id=<CAP identifier>`)
 - `_redirects` — serves `/category/met` and `/context/*` from `index.html`; the old addresses `/weather`, `/seismic`, `/internet`, `/air` forward to them (301)
 - `worker.js` — Cloudflare Worker: `/api/outages`, `/api/ioda`, `/api/ddos` (Radar key in the secret `RADAR_TOKEN`; causes and attack origins never passed on); everything else is static

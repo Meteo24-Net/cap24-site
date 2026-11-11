@@ -141,6 +141,19 @@
   .tv-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 14px; background: #05070b; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text-dim); }
   .tv-bar button { background: none; border: 1px solid var(--border-hi); color: var(--text); border-radius: 6px; padding: 6px 12px; font: inherit; cursor: pointer; margin-left: 6px; }
   .tv-fit { flex: 1; position: relative; overflow: hidden; }
+  /* /tv demonstration: the TV view on its own, cycling through current official alerts */
+  body.tvmode { overflow: hidden; }
+  body.tvmode .demo-banner, body.tvmode header.site, body.tvmode main, body.tvmode footer { display: none; }
+  .tv-bar .tv-stat { font-family: var(--ff-mono); font-size: 13px; color: #b9c4d8; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tv-bar .tv-stat b { color: #ffc400; font-weight: 600; }
+  .tv-bar .tv-ctl { display: flex; align-items: center; flex: none; }
+  .tv-bar a.tv-btn { border: 1px solid var(--border-hi); color: var(--text); border-radius: 6px; padding: 6px 12px; margin-left: 6px; text-decoration: none; }
+  .tv-idle { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 40px; text-align: center; color: #b9c4d8; }
+  .tv-idle.on { display: flex; }
+  .tv-idle .big { font-family: var(--ff-head); font-size: clamp(22px, 3.2vw, 46px); color: #e8edf8; max-width: 30ch; line-height: 1.15; }
+  .tv-idle .wm { font-family: var(--ff-mono); font-size: clamp(11px, 1.1vw, 16px); color: #ffc400; letter-spacing: 1px; }
+  .tv-ended { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: none; max-width: 80%; background: rgba(5,7,11,0.94); border: 2px solid #ffc400; border-radius: 10px; padding: 22px 30px; text-align: center; font-size: clamp(16px, 2vw, 28px); color: #e8edf8; z-index: 2; }
+  .tv-ended.on { display: block; }
   .tv-stage { --sev-color: #607080; --sev-ink: #fff; position: absolute; left: 50%; top: 50%; width: 1920px; height: 1080px; transform-origin: center center; background: rgba(8,12,20,0.97); color: #e8edf8; font-family: var(--ff-body); display: flex; flex-direction: column; overflow: hidden; }
   .tv-head { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 0 32px; height: 104px; flex: none; background: var(--sev-color); color: var(--sev-ink); }
   .tv-head .l { display: flex; align-items: center; gap: 20px; min-width: 0; }
@@ -333,6 +346,8 @@
     <span><button type="button" id="tvFull">Full screen</button><button type="button" id="tvClose">Close</button></span>
   </div>
   <div class="tv-fit" id="tvFit">
+    <div class="tv-idle" id="tvIdle" role="status"></div>
+    <div class="tv-ended" id="tvEnded" role="status"></div>
     <div class="tv-stage" id="tvStage">
       <div class="tv-head">
         <div class="l">
@@ -412,6 +427,7 @@
   // understands them, in case it is served somewhere without the forwarding rules.
   const ROUTES = {
     '/category/met': 'weather',
+    '/tv': 'tv',
     '/context/seismic': 'seismic',
     '/context/internet': 'internet',
     '/context/air': 'air'
@@ -425,6 +441,12 @@
     }
     return ROUTES[p] || 'all';
   })();
+
+  // /tv settings: ?sec= seconds per alert (8-120, default 20), ?country= two-letter code (e.g. EE)
+  const TV_PARAMS = new URLSearchParams(location.search);
+  const TV_SEC = Math.min(120, Math.max(8, parseInt(TV_PARAMS.get('sec'), 10) || 20));
+  const TV_COUNTRY = /^[A-Za-z]{2}$/.test(TV_PARAMS.get('country') || '') ? TV_PARAMS.get('country').toUpperCase() : null;
+  const TV_RECHECK_MS = 2 * 60 * 1000;
 
   const SEV_ORDER = { Extreme: 4, Severe: 3, Moderate: 2, Minor: 1, Unknown: 0 };
   // Default colours when no level is declared (demo rule 7a, spec 5.2): no green; colour never carries meaning alone
@@ -529,7 +551,8 @@
   }
 
   async function fetchPage(offset) {
-    const where = "status='Actual' AND msgType IN ('Alert','Update')" + (MODE === 'weather' ? ` AND category LIKE '%"Met"%'` : '');
+    const where = "status='Actual' AND msgType IN ('Alert','Update')" + (MODE === 'weather' ? ` AND category LIKE '%"Met"%'` : '')
+      + (MODE === 'tv' && TV_COUNTRY ? ` AND countryCode=${sqlStr(TV_COUNTRY.toLowerCase())}` : '');
     const params = new URLSearchParams({
       where,
       outFields: 'OBJECTID,identifier,sourceId,registerUrl,countryCode,severity,event,senderName,orgName,sent,expires,language,infoIndex',
@@ -1218,7 +1241,8 @@
     tickClock();
     clearInterval(tvTimer); tvTimer = setInterval(tickClock, 1000);
     startDescScroll();
-    document.getElementById('tvClose').focus();
+    const closeBtn = document.getElementById('tvClose');   // not on the /tv page
+    if (closeBtn) closeBtn.focus();
   }
 
   function tickClock() {
@@ -1305,6 +1329,161 @@
     else tv.requestFullscreen && tv.requestFullscreen().catch(() => {});
   });
   window.addEventListener('resize', () => { if (tv.classList.contains('open')) fitStage(); });
+
+  // ---- /tv demonstration page --------------------------------------------
+  // Shows each current official alert as the TV overlay, one after another. Every alert is fetched again from the
+  // feed just before it is shown, the list is rechecked every two minutes, new alerts (including CAP Updates, which
+  // carry a new identifier) are shown next in severity order, and an alert that leaves the feed is taken off screen.
+  let tvRound = new Set(), tvHistory = [], tvCur = null, tvPaused = false, tvNextAt = 0, tvSlide = null, tvBusy = false, tvWake = null;
+
+  const fetchRows = async a => {
+    const params = new URLSearchParams({
+      where: a.identifier ? `identifier=${sqlStr(a.identifier)}` : `OBJECTID IN (${a.oids.join(',')})`,
+      outFields: 'identifier,infoIndex,areaIndex,language,event,headline,description,instruction,web,contact,senderName,sender,sent,effective,onset,expires,urgency,severity,certainty,areaDesc,msgType,registerUrl,hubLink,orgName,responseType,parameter,scope,status',
+      returnGeometry: 'false', orderByFields: 'infoIndex,areaIndex', f: 'json'
+    });
+    const j = await fetch(`${LAYER}?${params}`).then(r => r.json());
+    if (j.error) throw new Error('layer');
+    return (j.features || []).map(f => f.attributes);
+  };
+  const toBlocks = rows => {
+    const infos = new Map();
+    for (const r of rows) {
+      const k = r.infoIndex ?? 0;
+      if (!infos.has(k)) infos.set(k, { ...r, areas: new Set() });
+      if (r.areaDesc) infos.get(k).areas.add(r.areaDesc);
+    }
+    return [...infos.values()];
+  };
+  const tvScope = () => TV_COUNTRY ? regionName(TV_COUNTRY) : 'all countries';
+
+  function tvIdle(text) {
+    clearTimeout(tvSlide); tvCur = null; tvNextAt = 0;
+    clearInterval(signTimer); cancelAnimationFrame(tvScroll);
+    tvStage.style.visibility = 'hidden';
+    document.getElementById('tvEnded').classList.remove('on');
+    const box = document.getElementById('tvIdle');
+    box.replaceChildren(el('div', { class: 'big' }, text),
+      el('div', {}, `This screen checks the feed again every two minutes and shows official CAP alerts for ${tvScope()} when there are any.`),
+      el('div', { class: 'wm' }, 'CAP24 · GMF — DEMONSTRATION · NOT FOR BROADCAST'));
+    box.classList.add('on');
+    tvStatus();
+  }
+
+  function tvStatus() {
+    const st = document.getElementById('tvStat');
+    st.replaceChildren(el('b', {}, 'DEMONSTRATION · NOT FOR BROADCAST'));
+    const parts = [TV_COUNTRY ? `${regionName(TV_COUNTRY)} only` : 'All countries'];
+    if (tvCur) {
+      const pos = alerts.findIndex(a => a.key === tvCur.a.key);
+      parts.push(`alert ${pos + 1} of ${alerts.length}` + (tvCur.blocks.length > 1 ? ` · language ${tvCur.bi + 1} of ${tvCur.blocks.length}` : ''));
+      parts.push(tvPaused ? 'paused' : `next in ${Math.max(0, Math.ceil((tvNextAt - Date.now()) / 1000))} s`);
+    }
+    if (lastGood) parts.push('feed checked ' + fmtTime(lastGood).replace(/^.*, /, ''));
+    st.append(document.createTextNode(' · ' + parts.join(' · ')));
+    document.getElementById('tvPause').textContent = tvPaused ? 'Play' : 'Pause';
+  }
+
+  function tvSchedule(ms) {
+    clearTimeout(tvSlide);
+    tvNextAt = Date.now() + ms;
+    if (!tvPaused) tvSlide = setTimeout(() => tvNext(), ms);
+  }
+
+  function tvShow(a, blocks, bi) {
+    tvCur = { a, blocks, bi };
+    document.getElementById('tvIdle').classList.remove('on');
+    document.getElementById('tvEnded').classList.remove('on');
+    tvStage.style.visibility = '';
+    openTV(a, blocks[bi]);
+    tvSchedule(TV_SEC * 1000);
+    tvStatus();
+  }
+
+  // Next alert: the most severe, most recent one not yet shown in this round; a new round starts when all were shown
+  async function tvNext(back) {
+    if (tvBusy) return;
+    tvBusy = true;
+    try {
+      if (!back && tvCur && tvCur.bi + 1 < tvCur.blocks.length && byKey.has(tvCur.a.key)) { tvShow(tvCur.a, tvCur.blocks, tvCur.bi + 1); return; }
+      for (let tries = 0; tries < 5; tries++) {
+        if (!alerts.length) { tvIdle(lastGood ? `No official alerts for ${tvScope()} in the feed right now.` : 'Loading official alerts…'); return; }
+        let a = null;
+        if (back) {
+          tvHistory.pop();                       // the alert on screen
+          const k = tvHistory.pop();
+          a = k && byKey.get(k);
+          back = false;
+        }
+        if (!a) {
+          a = alerts.find(x => !tvRound.has(x.key));
+          if (!a) { tvRound = new Set(); a = alerts[0]; }
+        }
+        tvRound.add(a.key);
+        let rows = [];
+        try { rows = await fetchRows(a); } catch (e) { rows = null; }
+        if (rows === null) { tvIdle('The alert feed could not be reached just now.'); return; }
+        if (!rows.length) continue;             // left the feed since the list was loaded
+        tvHistory.push(a.key); if (tvHistory.length > 50) tvHistory.shift();
+        tvShow(a, toBlocks(rows), 0);
+        return;
+      }
+      tvIdle(`No official alerts for ${tvScope()} could be shown just now.`);
+    } finally { tvBusy = false; }
+  }
+
+  async function tvRefresh() {
+    try {
+      if (!officialIds) await loadCatalogue();
+      const { list, geo } = await loadAlerts();
+      alerts = list; byKey = new Map(list.map(a => [a.key, a])); currentGeo = geo; lastGood = Date.now();
+      if (tvCur && !byKey.has(tvCur.a.key)) {
+        // The alert on screen has ended, been cancelled or been replaced: take it off at once
+        clearTimeout(tvSlide); tvCur = null;
+        const box = document.getElementById('tvEnded');
+        box.textContent = 'This alert is no longer in the feed: it has ended, been cancelled or been replaced. Next alert in a few seconds.';
+        box.classList.add('on');
+        tvStage.style.visibility = 'hidden';
+        setTimeout(() => tvNext(), 5000);
+      } else if (!tvCur && !tvBusy) {
+        tvNext();
+      }
+      tvStatus();
+    } catch (e) {
+      if (!lastGood) tvIdle('The alert feed could not be reached. Retrying in two minutes.');
+      else { const st = document.getElementById('tvStat'); st.append(document.createTextNode(' · feed unreachable, retrying')); }
+    }
+  }
+
+  function setupTv() {
+    document.body.classList.add('tvmode');
+    document.title = 'CAP24 — TV demonstration' + (TV_COUNTRY ? ` · ${regionName(TV_COUNTRY)}` : '') + ' (not for broadcast)';
+    const bar = tv.querySelector('.tv-bar');
+    const ctl = el('span', { class: 'tv-ctl' });
+    const btn = (id, label, fn) => { const b = el('button', { type: 'button', id }, label); b.addEventListener('click', fn); return b; };
+    ctl.append(
+      btn('tvPrev', 'Previous', () => tvNext(true)),
+      btn('tvPause', 'Pause', () => { tvPaused = !tvPaused; if (tvPaused) clearTimeout(tvSlide); else tvSchedule(Math.max(3000, tvNextAt - Date.now())); tvStatus(); }),
+      btn('tvNextBtn', 'Next', () => tvNext()),
+      document.getElementById('tvFull'),
+      el('a', { class: 'tv-btn', href: '/' }, 'Map'));
+    bar.replaceChildren(el('span', { class: 'tv-stat', id: 'tvStat', role: 'status' }), ctl);
+    tv.setAttribute('aria-label', 'TV demonstration: current official alerts shown one after another as a full-screen overlay');
+    tv.classList.add('open');
+    fitStage();
+    tvIdle('Loading official alerts…');
+    document.addEventListener('keydown', e => {
+      if (e.target.closest && e.target.closest('input,select,textarea')) return;
+      if (e.key === 'ArrowRight') tvNext();
+      else if (e.key === 'ArrowLeft') tvNext(true);
+      else if (e.key === ' ') { e.preventDefault(); document.getElementById('tvPause').click(); }
+      else if (e.key === 'f' || e.key === 'F') document.getElementById('tvFull').click();
+    });
+    // Keep the screen awake while the demonstration runs, where the browser allows it
+    const wake = () => { if (navigator.wakeLock && document.visibilityState === 'visible') navigator.wakeLock.request('screen').then(w => { tvWake = w; }).catch(() => {}); };
+    wake(); document.addEventListener('visibilitychange', wake);
+    setInterval(() => { if (tvCur && !tvPaused) tvStatus(); }, 1000);
+  }
   document.addEventListener('fullscreenchange', () => { if (tv.classList.contains('open')) setTimeout(fitStage, 50); });
 
   function closePanel() {
@@ -1320,6 +1499,7 @@
   scrim.addEventListener('click', closePanel);
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
+    if (MODE === 'tv') return;   // the TV demonstration has no page behind it
     if (tv.classList.contains('open')) { if (!document.fullscreenElement) closeTV(); }
     else if (panel.classList.contains('open')) closePanel();
   });
@@ -2173,6 +2353,7 @@
 
   function setupMode() {
     document.querySelectorAll('nav.modes a').forEach(a => { if (a.dataset.mode === MODE) a.setAttribute('aria-current', 'page'); });
+    if (MODE === 'tv') { setupTv(); return; }
     if (MODE === 'seismic') { setupSeismic(); return; }
     if (MODE === 'internet') { setupInternet(); return; }
     if (MODE === 'air') { setupAir(); return; }
@@ -2188,6 +2369,11 @@
 
   // ---- Start -------------------------------------------------------------
   setupMode();
+  if (MODE === 'tv') {
+    loadOutlines();
+    tvRefresh();
+    setInterval(tvRefresh, TV_RECHECK_MS);
+  } else {
   initMap();
   if (MODE === 'seismic') {
     refreshQuakes();
@@ -2202,6 +2388,7 @@
     loadOutlines();
     refresh();
     setInterval(refresh, REFRESH_MS);
+  }
   }
 })();
 </script>
