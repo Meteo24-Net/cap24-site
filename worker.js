@@ -7,7 +7,8 @@
 //                                 network layer (L3/4) and websites (L7). Origins are never requested.
 //   /api/air?page=N            →  OpenAQ: latest PM2.5 readings from the last 3 hours, one page of 1,000 sensors
 //   /api/air/location?id=N     →  OpenAQ: one station's details (name, type, provider, licences)
-// Secrets: RADAR_TOKEN (Cloudflare Radar read), OPENAQ_KEY (OpenAQ API key).
+//   /api/fires                 →  NASA FIRMS: VIIRS active-fire detections worldwide, last 24 hours
+// Secrets: RADAR_TOKEN (Cloudflare Radar read), OPENAQ_KEY (OpenAQ API key), FIRMS_KEY (NASA FIRMS MAP_KEY).
 // The Radar API token stays here (Worker secret RADAR_TOKEN), never in the browser.
 // Cause fields (outageCause, description, linkedUrl, eventType) are removed here, so the
 // public page cannot show causes even by mistake (CAP24 resilience spec, "Public website").
@@ -26,6 +27,7 @@ export default {
     if (url.pathname === '/api/ddos') return ddos(url, env, ctx);
     if (url.pathname === '/api/air') return airPage(url, env, ctx);
     if (url.pathname === '/api/air/location') return airLocation(url, env, ctx);
+    if (url.pathname === '/api/fires') return fires(url, env, ctx);
     return env.ASSETS.fetch(request);
   }
 };
@@ -248,6 +250,55 @@ async function airLocation(url, env, ctx) {
       attribution: x.attribution ? { name: x.attribution.name || null, url: x.attribution.url || null } : null
     }))
   }, 200, 86400);
+  ctx.waitUntil(cache.put(cacheKey, res.clone()));
+  return res;
+}
+
+// NASA FIRMS: satellite detections of heat sources (active fires), VIIRS 375 m, whole world, last 24 hours.
+// Shown as FIRMS publishes them: FIRMS's own confidence classes (low, nominal, high), no CAP24 thresholds.
+// One upstream request per satellite every 30 minutes at most, to stay well inside the MAP_KEY transaction limit.
+const FIRMS = 'https://firms.modaps.eosdis.nasa.gov/api/area/csv';
+const FIRMS_SOURCES = { VIIRS_NOAA20_NRT: 'NOAA-20', VIIRS_NOAA21_NRT: 'NOAA-21' };
+const FIRMS_WINDOW = 1800;
+const FIRMS_CONF = { l: 'low', n: 'nominal', h: 'high' };
+
+async function fires(url, env, ctx) {
+  const bucket = Math.floor(Date.now() / 1000 / FIRMS_WINDOW) * FIRMS_WINDOW;
+  const cacheKey = new Request(`${url.origin}/api/fires?w=${bucket}&v=${CACHE_VERSION}`);
+  const cache = caches.default;
+  const hit = await cache.match(cacheKey);
+  if (hit) return hit;
+  if (!env.FIRMS_KEY) return json({ error: 'not-configured' }, 503, 60);
+
+  const rows = [], sources = [], failed = [];
+  let skipped = 0;
+  for (const [src, sat] of Object.entries(FIRMS_SOURCES)) {
+    let text;
+    try {
+      const r = await fetch(`${FIRMS}/${encodeURIComponent(env.FIRMS_KEY)}/${src}/world/1`);
+      if (!r.ok) { failed.push(sat); continue; }
+      text = await r.text();
+    } catch (e) { failed.push(sat); continue; }
+    const lines = text.split(/\r?\n/);
+    const head = (lines.shift() || '').split(',');
+    const col = n => head.indexOf(n);
+    const iLat = col('latitude'), iLon = col('longitude'), iFrp = col('frp'), iConf = col('confidence'), iDate = col('acq_date'), iTime = col('acq_time'), iDn = col('daynight');
+    if (iLat < 0 || iLon < 0 || iDate < 0) { failed.push(sat); continue; }   // not CSV: an error message or a changed format
+    sources.push(sat);
+    for (const line of lines) {
+      if (!line) continue;
+      const c = line.split(',');
+      const lat = parseFloat(c[iLat]), lon = parseFloat(c[iLon]);
+      const hhmm = String(c[iTime] || '').padStart(4, '0');
+      const t = Date.parse(`${c[iDate]}T${hhmm.slice(0, 2)}:${hhmm.slice(2)}:00Z`);
+      if (!isFinite(lat) || !isFinite(lon) || !t) { skipped++; continue; }
+      const frp = parseFloat(c[iFrp]);
+      // Compact rows: [longitude, latitude, fire radiative power (MW) or null, confidence l|n|h, time (unix seconds), D|N, satellite]
+      rows.push([Math.round(lon * 1e4) / 1e4, Math.round(lat * 1e4) / 1e4, isFinite(frp) ? frp : null, FIRMS_CONF[c[iConf]] ? c[iConf] : null, Math.round(t / 1000), c[iDn] === 'N' ? 'N' : 'D', sat]);
+    }
+  }
+  if (!sources.length) return json({ error: 'upstream', failed }, 502, 60);
+  const res = json({ source: 'NASA FIRMS', product: 'VIIRS 375 m active fire, near real time', hours: 24, window: bucket, fetched: new Date().toISOString(), satellites: sources, failed, skipped, detections: rows }, 200, FIRMS_WINDOW);
   ctx.waitUntil(cache.put(cacheKey, res.clone()));
   return res;
 }
