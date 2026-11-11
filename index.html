@@ -494,7 +494,7 @@
   // ---- Data --------------------------------------------------------------
   async function loadCatalogue() {
     try {
-      const j = await fetch(CATALOGUE, { cache: 'no-store' }).then(r => r.json());
+      const j = await fetch(CATALOGUE).then(r => r.json());
       const s = new Set();
       for (const item of (j.sources || [])) {
         const src = item.source || item;
@@ -520,7 +520,7 @@
       resultRecordCount: String(PAGE),
       f: 'geojson'
     });
-    const r = await fetch(`${LAYER}?${params}`, { cache: 'no-store' });
+    const r = await fetch(`${LAYER}?${params}`);
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const j = await r.json();
     if (j.error) throw new Error(j.error.message || 'layer error');
@@ -1031,7 +1031,16 @@
   const LEVEL_INK = { green: '#071509', yellow: '#171200', orange: '#170900', red: '#ffffff', unknown: '#ffffff' };
 
   const parseList = v => { try { const x = JSON.parse(v); return Array.isArray(x) ? x : []; } catch (e) { return []; } };
-  const parseParams = v => { try { return JSON.parse(v) || {}; } catch (e) { return {}; } };
+  // parameter: today a JSON object; also accept an array of CAP <parameter> entries ({valueName, value}), first value wins
+  const parseParams = v => {
+    let x; try { x = JSON.parse(v); } catch (e) { return {}; }
+    if (Array.isArray(x)) {
+      const o = {};
+      for (const e of x) { const k = e && (e.valueName ?? e.name); if (k != null && !(k in o)) o[k] = e.value; }
+      return o;
+    }
+    return (x && typeof x === 'object') ? x : {};
+  };
 
   function fitStage() {
     const box = document.getElementById('tvFit').getBoundingClientRect();
@@ -1370,7 +1379,7 @@
   async function refreshQuakes() {
     const feed = quakeFeed;
     try {
-      const r = await fetch(USGS_FEED(feed), { cache: 'no-store' });
+      const r = await fetch(USGS_FEED(feed));
       if (!r.ok) throw new Error('HTTP ' + r.status);
       const j = await r.json();
       if (feed !== quakeFeed) return;   // the visitor switched feeds meanwhile
@@ -1572,10 +1581,10 @@
   };
 
   function setupInternet() {
-    document.title = 'CAP24 — Internet outages and warning channels (demonstration)';
+    document.title = 'CAP24 — Internet outages (demonstration)';
     document.getElementById('demoBanner').innerHTML = '<strong>Demonstration.</strong> Internet outages from Cloudflare Radar and IODA, and DDoS attacks stopped by Cloudflare. They may be delayed or revised. This page shows where and when, not why, and it is not a warning service.';
-    document.getElementById('heroH').textContent = 'Where internet-based warning channels are disrupted.';
-    document.getElementById('heroP').textContent = 'When the internet or mobile data goes down, warnings sent through apps, websites and messaging may not arrive. A broadcast transmitter keeps reaching TV sets. The globe shows internet outages from two independent sources, Cloudflare Radar and IODA, and, as a separate layer, the countries most targeted by DDoS attacks that Cloudflare stopped. It shows where and when, not why.';
+    document.getElementById('heroH').textContent = 'Internet outages around the world.';
+    document.getElementById('heroP').textContent = 'Internet outages reported by two independent sources, Cloudflare Radar and IODA, and, as a separate layer, the countries most targeted by DDoS attacks that Cloudflare stopped. It shows where and when, not why.';
     document.getElementById('map').setAttribute('aria-label', 'Globe of countries with internet outages in the chosen period. The list next to it carries the same outages.');
     document.getElementById('listAside').setAttribute('aria-label', 'List of internet outages');
     document.getElementById('q').placeholder = 'Search country or network';
@@ -1608,7 +1617,7 @@
     }
     legend.append(el('div', { class: 'hd', style: 'margin-top:4px' }, 'DARKER = LARGER SHARE (LOG SCALE)'));
     document.getElementById('aboutBody').replaceChildren(
-      el('p', {}, 'CAP24 relays official alerts to TV, IPTV and phone screens. Most of the way from an alerting authority to a TV set runs over the internet, so CAP24 needs to know when the internet fails. Once an alert reaches a broadcaster, the transmitter carries it without the internet; apps, websites and the phone link do not have that independence.'),
+      el('p', {}, 'CAP24 relays official alerts to TV, IPTV and phone screens, and much of that path runs over the internet. This page shows where the internet is disrupted, as measured by others.'),
       el('p', {}, 'Two independent sources are shown, each item labelled with its own. Cloudflare Radar publishes outages its staff have reviewed, seen in Cloudflare\'s own traffic. IODA, run by Georgia Tech\'s Internet Intelligence Lab, detects outages automatically; this page counts only its two direct connectivity signals, internet routing (BGP) and active probing. A detection that starts in the same minute in 20 or more countries is left out as a gap in IODA\'s measurement, and the count is shown above the globe. An outage seen by both sources appears twice, once from each.'),
       el('p', {}, 'Each entry gives the country, the timing and, where the source says, the networks and extent. Causes are left out on purpose: follow the link to the source for its own notes. This is measurement data, not CAP and not an official statement.'),
       el('p', {}, 'The DDoS layer is different: it shows attacks that Cloudflare stopped, not outages. Each country\'s shade is its share of the attacks Cloudflare mitigated in the period, for network attacks or website attacks, among the 30 most targeted countries. The shares mostly reflect where attacked Cloudflare customers are, so they are not a measure of a country\'s threat level. Where attacks come from is not shown: attack traffic comes from hijacked devices and faked addresses, so its origin says little about who is behind it.')

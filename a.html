@@ -445,9 +445,23 @@ body.ss-open { overflow:hidden; }
   const safeUrl = u => { try { const x = new URL(String(u).trim()); return (x.protocol === 'https:' || x.protocol === 'http:') ? x.href : null; } catch (e) { return null; } };
   const sqlStr = s => "'" + String(s).replace(/'/g, "''") + "'";
   const parseList = v => { try { const x = JSON.parse(v); return Array.isArray(x) ? x : []; } catch (e) { return []; } };
-  const parseParams = v => { try { return JSON.parse(v) || {}; } catch (e) { return {}; } };
-  // The layer flattens <resource> blocks into one string with repeated keys, so read mimeType/uri pairs in order
+  // parameter: today a JSON object; also accept an array of CAP <parameter> entries ({valueName, value}), first value wins
+  const parseParams = v => {
+    let x; try { x = JSON.parse(v); } catch (e) { return {}; }
+    if (Array.isArray(x)) {
+      const o = {};
+      for (const e of x) { const k = e && (e.valueName ?? e.name); if (k != null && !(k in o)) o[k] = e.value; }
+      return o;
+    }
+    return (x && typeof x === 'object') ? x : {};
+  };
+  // resource: today one string with repeated keys; also accept a JSON array of CAP <resource> entries
   const parseResources = v => {
+    try {
+      const x = JSON.parse(v);
+      const arr = Array.isArray(x) ? x : (x && Array.isArray(x.resource)) ? x.resource : null;
+      if (arr) return arr.filter(e => e && typeof e === 'object').map(e => ({ mimeType: String(e.mimeType || ''), uri: String(e.uri || ''), resourceDesc: e.resourceDesc || '' }));
+    } catch (e) { /* not valid JSON: the current flattened form */ }
     const out = [], re = /"mimeType"\s*:\s*"([^"]*)"\s*,\s*"uri"\s*:\s*"([^"]*)"/g; let m;
     while ((m = re.exec(String(v || '')))) out.push({ mimeType: m[1], uri: m[2] });
     return out;
@@ -492,7 +506,7 @@ body.ss-open { overflow:hidden; }
     });
     let feats;
     try {
-      const j = await fetch(`${LAYER}?${params}`, { cache: 'no-store' }).then(r => r.json());
+      const j = await fetch(`${LAYER}?${params}`).then(r => r.json());
       if (j.error) throw new Error('layer');
       feats = j.features || [];
     } catch (e) {
