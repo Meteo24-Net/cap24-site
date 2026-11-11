@@ -218,6 +218,9 @@
   .post .sticker button:focus-visible { outline: 6px solid var(--neon); outline-offset: 6px; }
   .post .sg { flex: none; display: flex; gap: 18px; align-items: stretch; background: #0d1422; border: 3px solid #b388ff; border-radius: 10px; padding: 12px; }
   .post .sg .gl { gap: 4px !important; }
+  .post.feed4x5 .sg .fig { width: 150px; height: 150px; }
+  .post.feed4x5 .sg .fig svg { width: 92px; height: 92px; }
+  .post.feed4x5 .sg .gl b { font-size: 42px; }
   .post .sg .fig { width: 170px; height: 170px; flex: none; border-radius: 8px; background: #1b2436; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; }
   .post .sg .fig svg { width: 104px; height: 104px; fill: none; stroke: #c9b6ff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .post .sg .fig small { font-family: var(--ff-mono); font-size: 18px; color: #c9b6ff; letter-spacing: 1px; }
@@ -298,7 +301,7 @@
       <div class="box">
         <span class="lbl">Sign language</span>
         <button type="button" class="btn sgbtn" id="signBtn" aria-pressed="false">Signed version: off</button>
-        <p class="note" id="signNote">A post for a separate signed-alerts account: a signer panel plays one clip per fixed CAP code (warning level, hazard, action). The free text is never signed. Clips must be recorded by deaf signers in each national sign language <span class="planned">PLANNED</span></p>
+        <p class="note" id="signNote">A video post for a separate signed-alerts account, on every platform here (feed videos play muted, which sign language does not need): a signer panel plays one clip per fixed CAP code (warning level, hazard, action). The free text is never signed. Clips must be recorded by deaf signers in each national sign language <span class="planned">PLANNED</span></p>
       </div>
       <div class="box">
         <span class="lbl">Journey</span>
@@ -418,7 +421,7 @@
     return cc => { if (!cc) return ''; try { return (dn && dn.of(String(cc).toUpperCase())) || String(cc).toUpperCase(); } catch (e) { return String(cc).toUpperCase(); } };
   })();
   const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const phonePath = id => '/a.html?id=' + encodeURIComponent(id) + (signed && fmt === 'vert' ? '&sign=1' : '');
+  const phonePath = id => '/a.html?id=' + encodeURIComponent(id) + (signed ? '&sign=1' : '');
 
   // ── State, kept in the address so links can be shared ──
   const Q = new URLSearchParams(location.search);
@@ -562,7 +565,7 @@
     post.style.setProperty('--ink', neutral ? NEUTRAL.ink : L.ink);
 
     const strip = el('div', { class: 'strip' });
-    const sgn = signed && format === 'vert' && state === 'sent';
+    const sgn = signed && state === 'sent';
     strip.append(el('span', {}, state === 'cancelled' ? 'SIMULATED CANCELLATION · NOT A REAL MESSAGE' : state === 'expired' ? 'PREVIEW OF THE EXPIRED STATE · DEMONSTRATION' : sgn ? 'DEMONSTRATION · SIGNED VERSION · CLIPS PLANNED' : 'DEMONSTRATION · NOT AN OFFICIAL PUBLICATION'), el('span', {}, 'CAP24'));
 
     // Header band: event as sent (both languages), message type, time
@@ -779,7 +782,7 @@
     const fr = el('iframe', { src: phonePath(cur.identifier), title: 'Phone view of the full alert', loading: 'lazy' });
     v.append(fr);
     sc.append(v);
-    hint(signed && fmt === 'vert' ? 'Step 3: the phone view opens on its signed summary. "Alert" leads to the full text, map and "Am I in this area?".' : 'Step 3: the phone view of the same alert, with the map and "Am I in this area?". Your position stays on your device.');
+    hint(signed ? 'Step 3: the phone view opens on its signed summary. "Alert" leads to the full text, map and "Am I in this area?".' : 'Step 3: the phone view of the same alert, with the map and "Am I in this area?". Your position stays on your device.');
     back.focus();
   }
 
@@ -808,7 +811,7 @@
         hint('Step 1: a vertical post in ' + P.name + (signed && st === 'sent' ? ', signed version' : '') + '. The arrow points to the link sticker.');
       } else {
         post.addEventListener('click', () => hint('The picture is not a link. Tap the account name at the top to open the profile.'));
-        hint('Step 1: a vertical post on ' + P.name + '. The link is in the profile: tap the account name at the top.');
+        hint('Step 1: a vertical post on ' + P.name + (signed && st === 'sent' ? ', signed version' : '') + '. The link is in the profile: tap the account name at the top.');
       }
     } else {
       const app = el('div', { class: 'appbar' });
@@ -845,10 +848,10 @@
       fitInto(box, post, W);
       if (P.link === 'bio') {
         post.addEventListener('click', () => hint('Neither the picture nor the caption is a link on ' + P.name + '. Tap the account name to open the profile.'));
-        hint('Step 1: the authority\'s post on ' + P.name + '. The link is in the profile: tap the account name.');
+        hint('Step 1: the authority\'s post on ' + P.name + (signed && st === 'sent' ? ', signed version' : '') + '. The link is in the profile: tap the account name.');
       } else {
         post.addEventListener('click', () => hint('The picture itself is not a link on ' + P.name + '. Tap the link in the post text.'));
-        hint('Step 1: the authority\'s post on ' + P.name + '. Tap the link in the post text.');
+        hint('Step 1: the authority\'s post on ' + P.name + (signed && st === 'sent' ? ', signed version' : '') + '. Tap the link in the post text.');
       }
     }
     drawBig();
@@ -949,11 +952,8 @@
   if (reduceMotion) { $('pause').disabled = true; $('pause').textContent = 'Animation off (reduced motion)'; }
   $('restart').addEventListener('click', showFeed);
   function showSigned() {
-    const vert = PLATFORMS[pf].fmt === 'vert';
     $('signBtn').setAttribute('aria-pressed', String(signed));
     $('signBtn').textContent = 'Signed version: ' + (signed ? 'on' : 'off');
-    $('signBtn').disabled = !vert;
-    $('signBtn').title = vert ? '' : 'The signed version is a video post: choose Instagram Stories or TikTok';
   }
   $('signBtn').addEventListener('click', () => { signed = !signed; showSigned(); setParams(); showFeed(); });
   setInterval(() => {
