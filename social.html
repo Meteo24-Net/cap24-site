@@ -31,6 +31,7 @@
 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="/assets/phone-frame.css" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700;800;900&family=Noto+Sans:wght@400;600;700&family=Noto+Sans+Georgian:wght@400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -113,10 +114,8 @@
   .steps li.on { background: rgba(0,229,255,0.08); color: var(--text); }
   .steps li.on b { color: var(--neon); }
 
-  /* Phone frame */
+  /* Phone frame: the frame itself is in /assets/phone-frame.css (shared with TV + phone) */
   .phonecol { display: flex; flex-direction: column; align-items: center; gap: 10px; }
-  .phone { width: 380px; max-width: 100%; aspect-ratio: 380 / 780; background: #000; border: 10px solid #1d232d; border-radius: 44px; box-shadow: 0 20px 60px rgba(0,0,0,0.6); overflow: hidden; position: relative; }
-  .screen { position: absolute; inset: 0; overflow: hidden; background: #0d1117; display: flex; flex-direction: column; }
   .appbar { flex: none; display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 10px; border-bottom: 1px solid rgba(255,255,255,0.08); font-family: var(--ff-mono); font-size: 12px; letter-spacing: 0.08em; color: var(--text-dim); }
   .feed { flex: 1; overflow-y: auto; }
   .fpost { padding: 10px 0 14px; border-bottom: 1px solid rgba(255,255,255,0.08); }
@@ -129,12 +128,6 @@
   .fcap a { font-weight: 600; }
   .ghost { margin: 14px 12px; height: 120px; border-radius: 8px; background: repeating-linear-gradient(135deg, rgba(255,255,255,0.03) 0 12px, transparent 12px 24px); border: 1px dashed rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; font-size: 12px; color: rgba(255,255,255,0.35); font-family: var(--ff-mono); }
   .story { position: absolute; inset: 0; background: #000; display: flex; align-items: center; justify-content: center; }
-  .pagev { position: absolute; inset: 0; display: flex; flex-direction: column; background: #0b1016; }
-  .pagev .bar { flex: none; display: flex; align-items: center; gap: 8px; padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); }
-  .pagev .bar button { white-space: nowrap; flex: none; background: none; border: 1px solid var(--border-hi); color: var(--text); border-radius: 6px; padding: 6px 10px; font: inherit; font-size: 13px; cursor: pointer; }
-  .pagev .url { font-family: var(--ff-mono); font-size: 11px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-  .pagev .sim { flex: none; background: #1a1205; color: #ffe3a1; font-size: 12px; padding: 6px 10px; border-bottom: 1px solid #5a4410; }
-  .pagev iframe { flex: 1; width: 100%; border: 0; background: #0b1016; }
   .hint { min-height: 1.5em; font-size: 14px; color: #ffe3a1; text-align: center; max-width: 380px; }
 
   /* Post scaling: the post is drawn at its real pixel size and scaled to its box */
@@ -329,8 +322,8 @@
     </div>
 
     <div class="phonecol">
-      <div class="phone" aria-label="Phone screen">
-        <div class="screen" id="screen"><div class="msg">Loading…</div></div>
+      <div class="pf-phone" aria-label="Phone screen">
+        <div class="pf-screen" id="screen"><div class="msg">Loading…</div></div>
       </div>
       <p class="hint" id="hint" role="status" aria-live="polite"></p>
     </div>
@@ -771,13 +764,13 @@
     if (!cur) return;
     setStep(3);
     const sc = $('screen'); sc.replaceChildren();
-    const v = el('div', { class: 'pagev' });
-    const bar = el('div', { class: 'bar' });
+    const v = el('div', { class: 'pf-page' });
+    const bar = el('div', { class: 'pf-bar' });
     const back = el('button', { type: 'button' }, '← Feed');
     back.addEventListener('click', showFeed);
-    bar.append(back, el('span', { class: 'url' }, 'cap24.org' + phonePath(cur.identifier)));
+    bar.append(back, el('span', { class: 'pf-url' }, 'cap24.org' + phonePath(cur.identifier)));
     v.append(bar);
-    if (st !== 'sent') v.append(el('div', { class: 'sim' }, st === 'cancelled'
+    if (st !== 'sent') v.append(el('div', { class: 'pf-sim' }, st === 'cancelled'
       ? 'Simulated: this alert is still live. After a real cancellation, this page would say the alert is no longer active.'
       : 'Preview: this alert is still live. After it ends, this page would say it is no longer active.'));
     const fr = el('iframe', { src: phonePath(cur.identifier), title: 'Phone view of the full alert', loading: 'lazy' });

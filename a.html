@@ -952,6 +952,11 @@ body.ss-open { overflow:hidden; }
   // opened from a QR code or a shared link, go to the map with this alert open
   (() => {
     const back = $('back');
+    // Shown inside a phone frame on this site (Social + phone, TV + phone): the frame has its own controls,
+    // and Back here would move the page around the frame, so it is hidden
+    let framed = false;
+    try { framed = window.self !== window.top; } catch (e) { framed = true; }
+    if (framed) { back.style.display = 'none'; return; }
     let ref = null;
     try { ref = document.referrer ? new URL(document.referrer) : null; } catch (e) { ref = null; }
     const fromSite = !!ref && ref.origin === location.origin && !/^\/a(\.html)?$/.test(ref.pathname);

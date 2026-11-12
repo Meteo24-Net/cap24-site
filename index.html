@@ -10,6 +10,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&family=Noto+Sans:wght@400;600&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <link href="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.css" rel="stylesheet">
+<link href="/assets/phone-frame.css" rel="stylesheet">
 <style>
   :root {
     --bg-base: #070a10;
@@ -169,6 +170,16 @@
   .tv-portrait a { background: var(--neon); color: #001318; border: 0; }
   .tv-portrait button { background: none; color: var(--text); border: 1px solid var(--border-hi); }
   body.tvmode .demo-banner, body.tvmode header.site, body.tvmode main, body.tvmode footer { display: none; }
+  /* /tv on a wide screen: TV on the left, the same alert in the site's phone frame on the right */
+  .tv-row { flex: 1; display: flex; min-height: 0; }
+  .tv-row .tv-fit { flex: 1; min-width: 0; }
+  .tv-phonecol { flex: none; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 16px 22px; background: #05070b; border-left: 1px solid var(--border); }
+  .tv-phonecol .pf-phone { max-width: none; width: auto; height: min(780px, calc(100vh - 140px)); }
+  .tv-phonecol .cap { max-width: 340px; margin: 0; font-size: 13px; line-height: 1.4; color: var(--text-dim); text-align: center; }
+  @media (min-width: 1100px) and (min-aspect-ratio: 4/3) {
+    body.tvmode .tv-phonecol { display: flex; }
+    body.tvmode .tv-bar a.tv-btn.phone { display: none; }   /* the phone is already on screen */
+  }
   .tv-bar .tv-stat { font-family: var(--ff-mono); font-size: 13px; color: #b9c4d8; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tv-bar .tv-stat b { color: #ffc400; font-weight: 600; }
   .tv-bar .tv-ctl { display: flex; align-items: center; flex: none; }
@@ -1638,6 +1649,7 @@
       if (tvCur && !byKey.has(tvCur.a.key)) {
         // The alert on screen has ended, been cancelled or been replaced: take it off at once
         clearTimeout(tvSlide); tvCur = null;
+        tvPhoneLinks();   // off the phone too, at the same moment
         const box = document.getElementById('tvEnded');
         box.textContent = 'This alert is no longer in the feed: it has ended, been cancelled or been replaced. Next alert in a few seconds.';
         box.classList.add('on');
@@ -1662,6 +1674,25 @@
       if (!l) continue;
       if (href) { l.href = href; l.removeAttribute('aria-disabled'); } else { l.removeAttribute('href'); l.setAttribute('aria-disabled', 'true'); }
     }
+    tvPhoneFrame(href, tvCur && tvCur.a.identifier);
+  }
+  function tvPhoneFrame(href, identifier) {
+    const empty = document.getElementById('tvPhoneEmpty');
+    if (!empty) return;   // only on /tv
+    const page = empty.parentNode;
+    let fr = document.getElementById('tvPhoneFrame');
+    if (!href) {
+      if (fr) fr.remove();
+      empty.hidden = false;
+      document.getElementById('tvPhoneUrl').textContent = 'cap24.org/a.html?id=…';
+      return;
+    }
+    if (fr && fr.dataset.src === href) return;   // same alert, keep the reader's place
+    if (!fr) { fr = el('iframe', { id: 'tvPhoneFrame', title: 'Phone view of the alert on the TV', loading: 'lazy' }); page.append(fr); }
+    empty.hidden = true;
+    fr.dataset.src = href;
+    fr.src = href;
+    document.getElementById('tvPhoneUrl').textContent = 'cap24.org/a.html?id=' + (identifier || '…');
   }
   function tvPortrait() {
     const box = document.getElementById('tvPortrait');
@@ -1694,6 +1725,21 @@
     acts.append(el('a', { id: 'tvPortraitPhone', 'aria-disabled': 'true' }, 'Open this alert in the phone view'), keep);
     pn.append(el('div', {}, 'This page shows how an official alert fills a TV screen. Turn your phone sideways to see it, or open the alert on screen as it appears on a phone after scanning the QR code.'), acts);
     document.getElementById('tvFit').append(pn);
+    // Phone column (wide screens): the alert on the TV, as the phone view opens it after the QR code, in the site's
+    // one phone frame (/assets/phone-frame.css, shared with Social + phone). It follows the TV from alert to alert.
+    const fit = document.getElementById('tvFit');
+    const row = el('div', { class: 'tv-row' });
+    fit.replaceWith(row);
+    const col = el('aside', { class: 'tv-phonecol', 'aria-label': 'The alert on the TV, as it opens on a phone' });
+    const phone = el('div', { class: 'pf-phone', 'aria-label': 'Phone screen' });
+    const screen = el('div', { class: 'pf-screen' });
+    const page = el('div', { class: 'pf-page' });
+    const pbar = el('div', { class: 'pf-bar' });
+    pbar.append(el('span', { class: 'pf-url', id: 'tvPhoneUrl' }, 'cap24.org/a.html?id=…'));
+    page.append(pbar, el('div', { class: 'pf-empty', id: 'tvPhoneEmpty' }, 'The phone view appears with the first alert.'));
+    screen.append(page); phone.append(screen);
+    col.append(phone, el('p', { class: 'cap' }, 'The same alert on a phone, as the QR code opens it. Scroll inside the phone to read it all. Pause keeps this alert on both screens.'));
+    row.append(fit, col);
     window.addEventListener('resize', tvPortrait);
     tvPortrait();
     tv.classList.add('open');
