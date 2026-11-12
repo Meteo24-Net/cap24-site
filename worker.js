@@ -267,7 +267,7 @@ const FIRMS_DAYS = 2, FIRMS_HOURS = 24;
 
 async function fires(url, env, ctx) {
   const bucket = Math.floor(Date.now() / 1000 / FIRMS_WINDOW) * FIRMS_WINDOW;
-  const cacheKey = new Request(`${url.origin}/api/fires?w=${bucket}&d=${FIRMS_DAYS}&v=${CACHE_VERSION}`);
+  const cacheKey = new Request(`${url.origin}/api/fires?w=${bucket}&d=${FIRMS_DAYS}&u=1&v=${CACHE_VERSION}`);
   const cache = caches.default;
   const hit = await cache.match(cacheKey);
   if (hit) return hit;
@@ -276,6 +276,8 @@ async function fires(url, env, ctx) {
   const rows = [], sources = [], failed = [];
   let skipped = 0;
   const oldest = bucket - FIRMS_HOURS * 3600;
+  const seen = new Set();
+  let duplicates = 0;
   for (const [src, sat] of Object.entries(FIRMS_SOURCES)) {
     let text;
     try {
@@ -297,13 +299,16 @@ async function fires(url, env, ctx) {
       const t = Date.parse(`${c[iDate]}T${hhmm.slice(0, 2)}:${hhmm.slice(2)}:00Z`);
       if (!isFinite(lat) || !isFinite(lon) || !t) { skipped++; continue; }
       if (t / 1000 < oldest) continue;   // older than 24 hours
+      const key = `${c[iLat]}|${c[iLon]}|${c[iDate]}|${hhmm}|${sat}`;
+      if (seen.has(key)) { duplicates++; continue; }   // the same detection listed twice by FIRMS
+      seen.add(key);
       const frp = parseFloat(c[iFrp]);
       // Compact rows: [longitude, latitude, fire radiative power (MW) or null, confidence l|n|h, time (unix seconds), D|N, satellite]
       rows.push([Math.round(lon * 1e4) / 1e4, Math.round(lat * 1e4) / 1e4, isFinite(frp) ? frp : null, FIRMS_CONF[c[iConf]] ? c[iConf] : null, Math.round(t / 1000), c[iDn] === 'N' ? 'N' : 'D', sat]);
     }
   }
   if (!sources.length) return json({ error: 'upstream', failed }, 502, 60);
-  const res = json({ source: 'NASA FIRMS', product: 'VIIRS 375 m active fire, near real time', hours: FIRMS_HOURS, window: bucket, fetched: new Date().toISOString(), satellites: sources, failed, skipped, detections: rows }, 200, FIRMS_WINDOW);
+  const res = json({ source: 'NASA FIRMS', product: 'VIIRS 375 m active fire, near real time', hours: FIRMS_HOURS, window: bucket, fetched: new Date().toISOString(), satellites: sources, failed, skipped, duplicates, detections: rows }, 200, FIRMS_WINDOW);
   ctx.waitUntil(cache.put(cacheKey, res.clone()));
   return res;
 }
