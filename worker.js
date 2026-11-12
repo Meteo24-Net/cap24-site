@@ -261,10 +261,13 @@ const FIRMS = 'https://firms.modaps.eosdis.nasa.gov/api/area/csv';
 const FIRMS_SOURCES = { VIIRS_NOAA20_NRT: 'NOAA-20', VIIRS_NOAA21_NRT: 'NOAA-21' };
 const FIRMS_WINDOW = 1800;
 const FIRMS_CONF = { l: 'low', n: 'nominal', h: 'high' };
+// FIRMS counts days by UTC date, so DAY_RANGE=1 is only today: just after midnight UTC it is almost empty.
+// Ask for two days and keep the last 24 hours by detection time.
+const FIRMS_DAYS = 2, FIRMS_HOURS = 24;
 
 async function fires(url, env, ctx) {
   const bucket = Math.floor(Date.now() / 1000 / FIRMS_WINDOW) * FIRMS_WINDOW;
-  const cacheKey = new Request(`${url.origin}/api/fires?w=${bucket}&v=${CACHE_VERSION}`);
+  const cacheKey = new Request(`${url.origin}/api/fires?w=${bucket}&d=${FIRMS_DAYS}&v=${CACHE_VERSION}`);
   const cache = caches.default;
   const hit = await cache.match(cacheKey);
   if (hit) return hit;
@@ -272,10 +275,11 @@ async function fires(url, env, ctx) {
 
   const rows = [], sources = [], failed = [];
   let skipped = 0;
+  const oldest = bucket - FIRMS_HOURS * 3600;
   for (const [src, sat] of Object.entries(FIRMS_SOURCES)) {
     let text;
     try {
-      const r = await fetch(`${FIRMS}/${encodeURIComponent(env.FIRMS_KEY)}/${src}/world/1`);
+      const r = await fetch(`${FIRMS}/${encodeURIComponent(env.FIRMS_KEY)}/${src}/world/${FIRMS_DAYS}`);
       if (!r.ok) { failed.push(sat); continue; }
       text = await r.text();
     } catch (e) { failed.push(sat); continue; }
@@ -292,13 +296,14 @@ async function fires(url, env, ctx) {
       const hhmm = String(c[iTime] || '').padStart(4, '0');
       const t = Date.parse(`${c[iDate]}T${hhmm.slice(0, 2)}:${hhmm.slice(2)}:00Z`);
       if (!isFinite(lat) || !isFinite(lon) || !t) { skipped++; continue; }
+      if (t / 1000 < oldest) continue;   // older than 24 hours
       const frp = parseFloat(c[iFrp]);
       // Compact rows: [longitude, latitude, fire radiative power (MW) or null, confidence l|n|h, time (unix seconds), D|N, satellite]
       rows.push([Math.round(lon * 1e4) / 1e4, Math.round(lat * 1e4) / 1e4, isFinite(frp) ? frp : null, FIRMS_CONF[c[iConf]] ? c[iConf] : null, Math.round(t / 1000), c[iDn] === 'N' ? 'N' : 'D', sat]);
     }
   }
   if (!sources.length) return json({ error: 'upstream', failed }, 502, 60);
-  const res = json({ source: 'NASA FIRMS', product: 'VIIRS 375 m active fire, near real time', hours: 24, window: bucket, fetched: new Date().toISOString(), satellites: sources, failed, skipped, detections: rows }, 200, FIRMS_WINDOW);
+  const res = json({ source: 'NASA FIRMS', product: 'VIIRS 375 m active fire, near real time', hours: FIRMS_HOURS, window: bucket, fetched: new Date().toISOString(), satellites: sources, failed, skipped, detections: rows }, 200, FIRMS_WINDOW);
   ctx.waitUntil(cache.put(cacheKey, res.clone()));
   return res;
 }
