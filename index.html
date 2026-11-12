@@ -185,7 +185,8 @@
   .tv-portrait a, .tv-portrait button { display: block; padding: 11px 14px; border-radius: 8px; font: inherit; font-weight: 600; text-decoration: none; cursor: pointer; }
   .tv-portrait a { background: var(--neon); color: #001318; border: 0; }
   .tv-portrait button { background: none; color: var(--text); border: 1px solid var(--border-hi); }
-  body.tvmode .demo-banner, body.tvmode main, body.tvmode footer { display: none; }
+  body.tvmode main, body.tvmode footer { display: none; }
+  body.tvmode .demo-banner { flex: none; position: static; }
   /* /tv keeps the site menu on top, like every page; the TV fills the rest. Full screen still shows the TV alone. */
   body.tvmode { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
   body.tvmode header.site { flex: none; }
@@ -1728,6 +1729,7 @@
 
   function setupTv() {
     document.body.classList.add('tvmode');
+    document.getElementById('demoBanner').innerHTML = '<strong>Demonstration</strong> of how a CAP alert could appear on TV and on a phone. Alerts may be delayed or incomplete. Always follow your official warning source.';
     document.title = 'CAP24 — TV demonstration' + (TV_COUNTRY ? ` · ${regionName(TV_COUNTRY)}` : '') + ' (not for broadcast)';
     const bar = tv.querySelector('.tv-bar');
     const ctl = el('span', { class: 'tv-ctl' });
@@ -1769,7 +1771,8 @@
     row.append(fit, col);
     // The site menu sits above the TV: size the phone to the space left under it
     const hdr = document.querySelector('header.site');
-    const setTop = () => document.documentElement.style.setProperty('--tv-top', (hdr ? hdr.offsetHeight : 0) + 'px');
+    const ban = document.getElementById('demoBanner');
+    const setTop = () => document.documentElement.style.setProperty('--tv-top', ((hdr ? hdr.offsetHeight : 0) + (ban ? ban.offsetHeight : 0)) + 'px');
     setTop(); window.addEventListener('resize', setTop);
     window.addEventListener('resize', tvPortrait);
     tvPortrait();
