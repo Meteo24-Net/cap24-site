@@ -72,7 +72,23 @@
   .live-line .dot.err { background: var(--sev-severe); }
   .live-line .val { color: var(--text); }
 
-  .stage { display: grid; grid-template-columns: minmax(0, 1fr) 380px; height: calc(100vh - 210px); min-height: 520px; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  /* Stage. Wide screens (1280 px+): explanation and data | globe | alert list.
+     Medium: globe | list, with the explanation and data below. Phones: one column. */
+  .stage { display: grid; grid-template-columns: minmax(0, 1fr) 380px; grid-template-rows: minmax(520px, calc(100vh - 210px)) auto; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .stage > #map { grid-column: 1; grid-row: 1; }
+  .stage > aside.list { grid-column: 2; grid-row: 1; }
+  .stage > .explain { grid-column: 1 / -1; grid-row: 2; border-top: 1px solid var(--border); padding: 0 0 24px; }
+  .explain .data-note { max-width: 1100px; margin: 0; padding: 0 24px; font-size: 13px; color: var(--text-dim); }
+  @media (min-width: 1280px) {
+    .stage { grid-template-columns: 320px minmax(0, 1fr) 380px; grid-template-rows: minmax(520px, calc(100vh - 210px)); }
+    .stage > .explain { grid-column: 1; grid-row: 1; border-top: 0; border-right: 1px solid var(--border); background: var(--bg-panel); overflow-y: auto; min-height: 0; padding: 20px 20px 24px; }
+    .stage > #map { grid-column: 2; }
+    .stage > aside.list { grid-column: 3; }
+    .explain section.about { padding: 0; max-width: none; }
+    .explain section.about h2 { font-size: 21px; }
+    .explain section.about p { font-size: 14px; line-height: 1.5; }
+    .explain .data-note { padding: 14px 0 0; margin-top: 4px; border-top: 1px solid var(--border); font-size: 12.5px; line-height: 1.5; }
+  }
   #map { position: relative; min-height: 420px; background: radial-gradient(ellipse at center, #0d1626 0%, #070a10 70%); }
   .map-status { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-family: var(--ff-mono); color: var(--text-dim); font-size: 14px; pointer-events: none; text-align: center; }
 
@@ -275,7 +291,10 @@
     nav.modes { order: 3; width: 100%; justify-content: space-between; flex-wrap: wrap; border-radius: 16px; }
     nav.modes a { flex: 1 1 auto; text-align: center; padding: 6px 6px; font-size: 13px; }
     .hero-head, .live-line { padding-left: 16px; padding-right: 16px; }
-    .stage { grid-template-columns: 1fr; height: auto; }
+    .stage { grid-template-columns: 1fr; grid-template-rows: none; height: auto; }
+    .stage > #map, .stage > aside.list, .stage > .explain { grid-column: 1; grid-row: auto; }
+    .stage > .explain { order: 3; }
+    .explain .data-note { padding: 0 16px; }
     #map { height: 56vh; }
     aside.list { border-left: 0; border-top: 1px solid var(--border); max-height: 70vh; }
   }
@@ -326,6 +345,17 @@
   </div>
 
   <div class="stage">
+    <aside class="explain" id="explain" aria-label="What you are looking at, and the data sources">
+    <section class="about" id="about">
+      <h2>What you are looking at</h2>
+      <div id="aboutBody">
+      <p>Alerting authorities around the world already publish their warnings in CAP, the international standard for public alerts (OASIS CAP 1.2, ITU-T X.1303). CAP24 relays such alerts verbatim to broadcast, IPTV and phone screens, under the approval of each country's authorities and as part of its national warning system. This page shows the alerts as published. AI never creates, translates or changes alert content.</p>
+      <p>Open any alert and choose <em>View as TV overlay</em> to see it fill a broadcast screen. Its QR code opens the same alert on a phone (or choose <em>Open phone view</em>). Both show a proposed signed summary for deaf viewers, with clip slots that are placeholders until recorded and approved.</p>
+      </div>
+    </section>
+    <p id="dataNote" class="data-note"><strong>Data.</strong> Alerts: <a href="https://alert-hub.org" rel="noopener">Alert-Hub.org</a> and the alerting authorities, through the public "CAP Alerts Feed" layer hosted by Esri. CAP alerts re-published by <a href="https://alert-hub.org/" rel="noopener">Alert-Hub.Org</a> were published in the public domain or licensed under <a href="https://creativecommons.org/licenses/by/4.0/" rel="noopener">CC BY 4.0</a>. Only sources marked official in the <a href="https://alert-hub.s3.amazonaws.com/cap-sources.html" rel="noopener">Alert-Hub source catalogue</a> (listed in the WMO Register of Alerting Authorities) are shown. Current conditions beside weather alerts: model estimates from <a href="https://open-meteo.com/" rel="noopener">Open-Meteo.com</a>, licensed under <a href="https://creativecommons.org/licenses/by/4.0/" rel="noopener">CC BY 4.0</a>; not part of any alert. Base map: OpenFreeMap, © OpenMapTiles, data © OpenStreetMap contributors. TV view outlines: Natural Earth. Map software: MapLibre GL JS.</p>
+    </aside>
+
     <div id="map" role="region" aria-label="Globe of current official CAP alerts. The alert list next to it carries the same alerts.">
       <div class="map-status" id="mapStatus">Loading globe…</div>
       <div class="legend" id="legend" role="group" aria-label="Show one severity on the globe and in the list">
@@ -356,17 +386,9 @@
     </aside>
   </div>
 
-  <section class="about" id="about">
-    <h2>What you are looking at</h2>
-    <div id="aboutBody">
-    <p>Alerting authorities around the world already publish their warnings in CAP, the international standard for public alerts (OASIS CAP 1.2, ITU-T X.1303). CAP24 relays such alerts verbatim to broadcast, IPTV and phone screens, under the approval of each country's authorities and as part of its national warning system. This page shows the alerts as published. AI never creates, translates or changes alert content.</p>
-    <p>Open any alert and choose <em>View as TV overlay</em> to see it fill a broadcast screen. Its QR code opens the same alert on a phone (or choose <em>Open phone view</em>). Both show a proposed signed summary for deaf viewers, with clip slots that are placeholders until recorded and approved.</p>
-    </div>
-  </section>
 </main>
 
 <footer>
-  <p id="dataNote"><strong>Data.</strong> Alerts: <a href="https://alert-hub.org" rel="noopener">Alert-Hub.org</a> and the alerting authorities, through the public "CAP Alerts Feed" layer hosted by Esri. CAP alerts re-published by <a href="https://alert-hub.org/" rel="noopener">Alert-Hub.Org</a> were published in the public domain or licensed under <a href="https://creativecommons.org/licenses/by/4.0/" rel="noopener">CC BY 4.0</a>. Only sources marked official in the <a href="https://alert-hub.s3.amazonaws.com/cap-sources.html" rel="noopener">Alert-Hub source catalogue</a> (listed in the WMO Register of Alerting Authorities) are shown. Current conditions beside weather alerts: model estimates from <a href="https://open-meteo.com/" rel="noopener">Open-Meteo.com</a>, licensed under <a href="https://creativecommons.org/licenses/by/4.0/" rel="noopener">CC BY 4.0</a>; not part of any alert. Base map: OpenFreeMap, © OpenMapTiles, data © OpenStreetMap contributors. TV view outlines: Natural Earth. Map software: MapLibre GL JS.</p>
   <p><strong>Who.</strong> CAP24 is developed by MTÜ Green Media Foundation (Estonia, registry 80661721), with Smartnet (Georgia) as technology provider and Infozavri Group LLC (Georgia) as delivery partner. Teimuraz Tsagareishvili founded Green Media Foundation and Smartnet; Infozavri is independently owned.</p>
   <p>This page is a demonstration, not a warning service and not an official source.</p>
 </footer>
