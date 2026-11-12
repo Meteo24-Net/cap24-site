@@ -185,12 +185,17 @@
   .tv-portrait a, .tv-portrait button { display: block; padding: 11px 14px; border-radius: 8px; font: inherit; font-weight: 600; text-decoration: none; cursor: pointer; }
   .tv-portrait a { background: var(--neon); color: #001318; border: 0; }
   .tv-portrait button { background: none; color: var(--text); border: 1px solid var(--border-hi); }
-  body.tvmode .demo-banner, body.tvmode header.site, body.tvmode main, body.tvmode footer { display: none; }
+  body.tvmode .demo-banner, body.tvmode main, body.tvmode footer { display: none; }
+  /* /tv keeps the site menu on top, like every page; the TV fills the rest. Full screen still shows the TV alone. */
+  body.tvmode { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+  body.tvmode header.site { flex: none; }
+  body.tvmode .tv-modal { position: relative; inset: auto; z-index: auto; flex: 1; min-height: 0; }
+  #tv:fullscreen { --tv-top: 0px; }
   /* /tv on a wide screen: TV on the left, the same alert in the site's phone frame on the right */
   .tv-row { flex: 1; display: flex; min-height: 0; }
   .tv-row .tv-fit { flex: 1; min-width: 0; }
   .tv-phonecol { flex: none; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 16px 22px; background: #05070b; border-left: 1px solid var(--border); }
-  .tv-phonecol .pf-phone { max-width: none; width: auto; height: min(780px, calc(100vh - 140px)); }
+  .tv-phonecol .pf-phone { max-width: none; width: auto; height: min(780px, calc(100vh - var(--tv-top, 0px) - 140px)); }
   .tv-phonecol .cap { max-width: 340px; margin: 0; font-size: 13px; line-height: 1.4; color: var(--text-dim); text-align: center; }
   @media (min-width: 1100px) and (min-aspect-ratio: 4/3) {
     body.tvmode .tv-phonecol { display: flex; }
@@ -1762,6 +1767,10 @@
     screen.append(page); phone.append(screen);
     col.append(phone, el('p', { class: 'cap' }, 'The same alert on a phone, as the QR code opens it. Scroll inside the phone to read it all. Pause keeps this alert on both screens.'));
     row.append(fit, col);
+    // The site menu sits above the TV: size the phone to the space left under it
+    const hdr = document.querySelector('header.site');
+    const setTop = () => document.documentElement.style.setProperty('--tv-top', (hdr ? hdr.offsetHeight : 0) + 'px');
+    setTop(); window.addEventListener('resize', setTop);
     window.addEventListener('resize', tvPortrait);
     tvPortrait();
     tv.classList.add('open');
