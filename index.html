@@ -282,15 +282,15 @@
     <div class="tag">Official alerts · every screen</div>
   </div>
   <nav class="modes" aria-label="Views">
-    <a href="/" data-mode="all">All alerts</a>
-    <a href="/category/met" data-mode="weather">Weather</a>
-    <a href="/context/seismic" data-mode="seismic">Earthquakes</a>
-    <a href="/context/internet" data-mode="internet">Internet</a>
-    <a href="/context/air" data-mode="air">Air quality</a>
-    <a href="/context/fires" data-mode="fires">Fires</a>
-    <a href="/context/space" data-mode="space">Space weather</a>
+    <a href="/" data-mode="all">CAP alerts</a>
     <a href="/tv" data-mode="tv">TV + phone</a>
     <a href="/social" data-mode="social">Social + phone</a>
+    <a href="/category/met" data-mode="weather">Weather</a>
+    <a href="/context/space" data-mode="space">Space weather</a>
+    <a href="/context/air" data-mode="air">Air quality</a>
+    <a href="/context/seismic" data-mode="seismic">Earthquakes</a>
+    <a href="/context/fires" data-mode="fires">Fires</a>
+    <a href="/context/internet" data-mode="internet">Internet</a>
   </nav>
   <div class="by">A Green Media Foundation demonstration</div>
 </header>
@@ -1673,7 +1673,7 @@
     document.getElementById('aboutBody').replaceChildren(
       el('p', {}, 'This page uses the same globe as the CAP24 alert views, with two international seismic data sources: the real-time earthquake feeds of the U.S. Geological Survey (USGS) Earthquake Hazards Program, and the European-Mediterranean Seismological Centre (EMSC), which brings together the solutions of national seismological agencies; for each EMSC earthquake the panel shows which agency located it, as EMSC publishes it. Automatic solutions are computed by machine and may change until a seismologist reviews them.'),
       el('p', {}, 'The two centres are shown side by side and are not matched: an earthquake both report appears twice, and their magnitudes and locations can differ slightly because each uses its own stations and methods. The "past 30 days, significant" list is a USGS selection, so it shows USGS only.'),
-      el('p', {}, 'This is not CAP and not a warning. Official earthquake and tsunami warnings that authorities publish in CAP appear on the All alerts globe, under the CAP category Geo. CAP24 never creates or changes alert content, and AI is not used anywhere on this page.')
+      el('p', {}, 'This is not CAP and not a warning. Official earthquake and tsunami warnings that authorities publish in CAP appear on the CAP alerts globe, under the CAP category Geo. CAP24 never creates or changes alert content, and AI is not used anywhere on this page.')
     );
     const dn = document.getElementById('dataNote');
     dn.replaceChildren();
@@ -2286,7 +2286,7 @@
     document.title = 'CAP24 — Air quality worldwide (OpenAQ data, demonstration)';
     document.getElementById('demoBanner').innerHTML = '<strong>Demonstration.</strong> Air quality readings from sensors worldwide, through OpenAQ. They are measurements, not warnings, and may be delayed or wrong. For official air quality alerts, follow your national authority.';
     document.getElementById('heroH').textContent = 'Fine-particle air pollution, as sensors measure it.';
-    document.getElementById('heroP').textContent = 'The globe shows the latest PM2.5 reading from each station that reported in the last three hours, from government monitors and low-cost sensors that OpenAQ brings together. Readings are compared with the WHO guideline as a reference only. Official air quality alerts, where an authority issues them in CAP, appear on the All alerts globe.';
+    document.getElementById('heroP').textContent = 'The globe shows the latest PM2.5 reading from each station that reported in the last three hours, from government monitors and low-cost sensors that OpenAQ brings together. Readings are compared with the WHO guideline as a reference only. Official air quality alerts, where an authority issues them in CAP, appear on the CAP alerts globe.';
     document.getElementById('map').setAttribute('aria-label', 'Globe of the latest PM2.5 readings from air quality sensors. The list next to it carries the highest readings.');
     document.getElementById('listAside').setAttribute('aria-label', 'List of the highest PM2.5 readings');
     document.getElementById('q').placeholder = 'Search country';
@@ -2305,7 +2305,7 @@
     legend.append(el('div', { class: 'hd', style: 'margin-top:6px' }, 'A REFERENCE, NOT A WARNING LEVEL'));
     document.getElementById('aboutBody').replaceChildren(
       el('p', {}, 'Each dot is the latest PM2.5 reading (fine particles, in micrograms per cubic metre) from one station that reported in the last three hours. OpenAQ, an open-data non-profit, brings together readings from government monitoring networks and from low-cost sensors; each station\'s panel says which kind it is, who provides the data and under which licence.'),
-      el('p', {}, 'The colours compare each reading with the World Health Organization\'s 2021 guideline for 24-hour average PM2.5 (15 µg/m³) and its interim targets of 37.5 and 75 µg/m³. Most readings are hourly, so a single reading above 15 does not mean the daily guideline was exceeded. This is a reference for orientation, not a warning level: air quality alerts are for authorities to issue, and where they do so in CAP, they appear on the All alerts globe.'),
+      el('p', {}, 'The colours compare each reading with the World Health Organization\'s 2021 guideline for 24-hour average PM2.5 (15 µg/m³) and its interim targets of 37.5 and 75 µg/m³. Most readings are hourly, so a single reading above 15 does not mean the daily guideline was exceeded. This is a reference for orientation, not a warning level: air quality alerts are for authorities to issue, and where they do so in CAP, they appear on the CAP alerts globe.'),
       el('p', {}, 'Readings below 0 or above 1,000 µg/m³ are left out as sensor errors. Low-cost sensors are less accurate than government monitors, especially in humid air. This is measurement data, not CAP, and AI is not used anywhere on this page.')
     );
     const dn = document.getElementById('dataNote');
@@ -2526,7 +2526,7 @@
     document.title = 'CAP24 — Active fires worldwide (NASA FIRMS data, demonstration)';
     document.getElementById('demoBanner').innerHTML = '<strong>Demonstration.</strong> Heat sources detected by satellite in the last 24 hours, through NASA FIRMS. They are measurements, not warnings, and may be delayed or wrong. For official fire warnings, follow your national authority.';
     document.getElementById('heroH').textContent = 'Active fires, as satellites detect them.';
-    document.getElementById('heroP').textContent = 'The globe shows heat sources that the VIIRS instruments on the NOAA-20 and NOAA-21 satellites detected in the last 24 hours, as NASA FIRMS publishes them. A detection is not a confirmed wildfire: it can be a farm burn, a gas flare or a hot industrial site. Official fire warnings, where an authority issues them in CAP, appear on the All alerts globe.';
+    document.getElementById('heroP').textContent = 'The globe shows heat sources that the VIIRS instruments on the NOAA-20 and NOAA-21 satellites detected in the last 24 hours, as NASA FIRMS publishes them. A detection is not a confirmed wildfire: it can be a farm burn, a gas flare or a hot industrial site. Official fire warnings, where an authority issues them in CAP, appear on the CAP alerts globe.';
     document.getElementById('map').setAttribute('aria-label', 'Globe of satellite fire detections from the last 24 hours. The list next to it carries the most intense detections.');
     document.getElementById('listAside').setAttribute('aria-label', 'List of the most intense fire detections');
     document.getElementById('q').placeholder = 'Search country';
@@ -2546,7 +2546,7 @@
     document.getElementById('aboutBody').replaceChildren(
       el('p', {}, 'Each dot is one detection by the VIIRS instrument (375 m resolution) on the NOAA-20 or NOAA-21 satellite in the last 24 hours, as published by NASA\'s Fire Information for Resource Management System (FIRMS). A detection means the satellite saw a pixel much hotter than its surroundings.'),
       el('p', {}, 'Not every detection is a wildfire. Agricultural burning, gas flares, volcanoes and hot industrial sites are also detected, and clouds or smoke can hide real fires. The colours are FIRMS\'s own confidence classes; the list is ordered by fire radiative power, a measure of the heat released, as FIRMS reports it. CAP24 adds no thresholds, ratings or forecasts.'),
-      el('p', {}, 'Satellites pass over each place a few times a day, so a fire can be missing between passes. This is measurement data, not CAP, and AI is not used anywhere on this page. Official fire warnings, where an authority issues them in CAP, appear on the All alerts globe.')
+      el('p', {}, 'Satellites pass over each place a few times a day, so a fire can be missing between passes. This is measurement data, not CAP, and AI is not used anywhere on this page. Official fire warnings, where an authority issues them in CAP, appear on the CAP alerts globe.')
     );
     const dn = document.getElementById('dataNote');
     dn.replaceChildren();
