@@ -10,5 +10,7 @@
     "directory": "./",
     "binding": "ASSETS",
     "run_worker_first": ["/api/*"]
-  }
+  },
+  // Needed by "npx wrangler preview" (branch preview builds) since Wrangler 4.165; may stay empty
+  "previews": {}
 }

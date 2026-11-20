@@ -92,7 +92,20 @@
   #map { position: relative; min-height: 420px; background: radial-gradient(ellipse at center, #0d1626 0%, #070a10 70%); }
   .map-status { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-family: var(--ff-mono); color: var(--text-dim); font-size: 14px; pointer-events: none; text-align: center; }
 
-  .legend { position: absolute; left: 16px; bottom: 16px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 13px; z-index: 2; }
+  /* Floating corners over the globe: the legend (bottom left), the weather QR (bottom right) and the map credits
+     stay inside the part of the globe that is on screen, however the page is scrolled or sized.
+     placeFloats() in the script sets --float-below (globe hidden under the window), --float-above (hidden above it)
+     and --float-vis (visible height). The legend scrolls inside itself when it is taller than the space. */
+  .legend { position: absolute; left: 16px; bottom: calc(16px + var(--float-below, 0px)); max-height: max(96px, calc(var(--float-vis, 100%) - 32px)); overflow-y: auto; overscroll-behavior: contain; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 13px; z-index: 2; }
+  #map .maplibregl-ctrl-bottom-right, #map .maplibregl-ctrl-bottom-left { bottom: var(--float-below, 0px); }
+  /* Meteo24 weather QR: local weather on the viewer's phone. Weather only, never an alert route. */
+  .wxqr { position: absolute; right: 12px; bottom: calc(40px + var(--float-below, 0px)); z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 6px; width: 186px; padding: 10px 10px 9px; background: var(--bg-panel); border: 1px solid var(--border-hi); border-radius: 8px; color: var(--text); text-decoration: none; text-align: center; }
+  .wxqr:hover { border-color: var(--neon); }
+  .wxqr strong { font-family: var(--ff-head); font-weight: 600; font-size: 16px; line-height: 1.15; letter-spacing: 0.01em; }
+  .wxqr img { display: block; width: 120px; height: 120px; border-radius: 4px; image-rendering: pixelated; }
+  .wxqr small { font-size: 11.5px; line-height: 1.3; color: var(--text-dim); }
+  .wxqr .wxqr-t { display: flex; flex-direction: column; gap: 2px; }
+  .wxqr .on-phone { display: none; }
   .legend .row { display: flex; align-items: center; gap: 8px; margin: 2px 0; width: 100%; background: none; border: 1px solid transparent; border-radius: 4px; color: var(--text); font: inherit; font-size: 13px; padding: 2px 6px; cursor: pointer; text-align: left; }
   .legend .row:hover { border-color: var(--border-hi); }
   .legend .row[aria-pressed="true"] { border-color: var(--neon); background: rgba(0,229,255,0.08); }
@@ -159,7 +172,14 @@
   .maplibregl-ctrl-attrib { background: rgba(7,10,16,0.7) !important; color: var(--text-dim); }
   .maplibregl-ctrl-attrib a { color: var(--text-dim); }
   @media (max-width: 720px) {
-    .legend { left: 8px; bottom: 8px; padding: 6px 8px; }
+    .legend { left: 8px; bottom: calc(8px + var(--float-below, 0px)); padding: 6px 8px; max-height: max(80px, calc(var(--float-vis, 100%) - 70px)); }
+    /* On a phone the code cannot be scanned from the same screen: it becomes a button in the top left corner */
+    .wxqr { right: auto; left: 8px; bottom: auto; top: calc(8px + var(--float-above, 0px)); width: auto; max-width: calc(100% - 64px); flex-direction: row; gap: 8px; padding: 7px 11px; text-align: left; }
+    .wxqr img, .wxqr .on-screen { display: none; }
+    .wxqr .on-phone { display: block; }
+    .wxqr strong { font-size: 15px; }
+    .wxqr small { font-size: 11px; }
+    .wxqr .arrow { font-size: 18px; color: var(--neon); }
     .legend .row { font-size: 12px; padding: 1px 6px; margin: 1px 0; }
     .legend .hd { font-size: 10px; }
   }
@@ -371,6 +391,14 @@
         <button type="button" class="row" data-sev="Minor" aria-pressed="false"><span class="sw sev-Minor"></span>Minor</button>
         <button type="button" class="row" data-sev="Unknown" aria-pressed="false"><span class="sw sev-Unknown"></span>Unknown</button>
       </div>
+      <!-- Meteo24 weather QR: local weather only, never an alert route. Same address on every globe view. -->
+      <a class="wxqr" id="wxqr" href="https://meteo24.tv/qr/cap24" target="_blank" rel="noopener">
+        <span class="wxqr-t"><strong>Weather at your location</strong><small class="on-phone">Opens Meteo24 · not an official warning</small></span>
+        <img src="/assets/meteo24-weather-qr.svg" width="120" height="120" alt="">
+        <small class="on-screen">Scan with your phone · not an official warning</small>
+        <span class="arrow on-phone" aria-hidden="true">↗</span>
+        <span class="sr-only">(opens the Meteo24 weather page in a new tab)</span>
+      </a>
     </div>
 
     <aside class="list" id="listAside" aria-label="List of current official alerts">
@@ -3223,6 +3251,36 @@
     setInterval(refresh, REFRESH_MS);
   }
   }
+})();
+
+// Floating corners: keep the legend, the weather QR and the map credits inside the part of the globe
+// that is on screen. On a standard screen the bottom of the globe is below the window, so corners pinned
+// to the globe's own bottom edge would be hidden. Sets CSS variables on #map; the styles do the rest.
+(function placeFloats() {
+  'use strict';
+  const mapEl = document.getElementById('map');
+  if (!mapEl) return;
+  const banner = document.getElementById('demoBanner');   // sticky on top, covers the top of the window
+  let queued = false;
+  function place() {
+    queued = false;
+    const r = mapEl.getBoundingClientRect();
+    const topEdge = Math.max(0, banner ? banner.getBoundingClientRect().bottom : 0);
+    const visTop = Math.max(r.top, topEdge);
+    const visBottom = Math.min(r.bottom, window.innerHeight);
+    const s = mapEl.style;
+    s.setProperty('--float-below', Math.max(0, Math.round(r.bottom - visBottom)) + 'px');
+    s.setProperty('--float-above', Math.max(0, Math.round(visTop - r.top)) + 'px');
+    s.setProperty('--float-vis', Math.max(0, Math.round(visBottom - visTop)) + 'px');
+  }
+  function queue() { if (!queued) { queued = true; requestAnimationFrame(place); } }
+  window.addEventListener('scroll', queue, { passive: true });
+  window.addEventListener('resize', queue);
+  // The globe also moves when text above it changes (live line, view titles, fonts), so watch the page too
+  if ('ResizeObserver' in window) { const ro = new ResizeObserver(queue); ro.observe(mapEl); ro.observe(document.body); }
+  window.addEventListener('load', queue);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(queue);
+  place();
 })();
 </script>
 </body>
