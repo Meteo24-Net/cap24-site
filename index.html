@@ -172,14 +172,15 @@
   .maplibregl-ctrl-attrib { background: rgba(7,10,16,0.7) !important; color: var(--text-dim); }
   .maplibregl-ctrl-attrib a { color: var(--text-dim); }
   @media (max-width: 720px) {
-    .legend { left: 8px; bottom: calc(8px + var(--float-below, 0px)); padding: 6px 8px; max-height: max(80px, calc(var(--float-vis, 100%) - 70px)); }
-    /* On a phone the code cannot be scanned from the same screen: it becomes a button in the top left corner */
-    .wxqr { right: auto; left: 8px; bottom: auto; top: calc(8px + var(--float-above, 0px)); width: auto; max-width: calc(100% - 64px); flex-direction: row; gap: 8px; padding: 7px 11px; text-align: left; }
-    .wxqr img, .wxqr .on-screen { display: none; }
+    .legend { left: 8px; bottom: calc(8px + var(--float-below, 0px)); padding: 6px 8px; max-height: max(80px, calc(var(--float-vis, 100%) - 130px)); }
+    /* On a phone the code stays visible and is tappable (the whole panel is the link), in the top left corner;
+       it can still be scanned by another phone or kept as a screenshot */
+    .wxqr { right: auto; left: 8px; bottom: auto; top: calc(8px + var(--float-above, 0px)); width: auto; max-width: calc(100% - 64px); flex-direction: row; align-items: center; gap: 10px; padding: 8px 10px; text-align: left; }
+    .wxqr img { order: -1; width: 88px; height: 88px; flex: none; }
+    .wxqr .on-screen { display: none; }
     .wxqr .on-phone { display: block; }
     .wxqr strong { font-size: 15px; }
     .wxqr small { font-size: 11px; }
-    .wxqr .arrow { font-size: 18px; color: var(--neon); }
     .legend .row { font-size: 12px; padding: 1px 6px; margin: 1px 0; }
     .legend .hd { font-size: 10px; }
   }
@@ -393,10 +394,9 @@
       </div>
       <!-- Meteo24 weather QR: local weather only, never an alert route. Same address on every globe view. -->
       <a class="wxqr" id="wxqr" href="https://meteo24.tv/qr/cap24" target="_blank" rel="noopener">
-        <span class="wxqr-t"><strong>Weather at your location</strong><small class="on-phone">Opens Meteo24 · not an official warning</small></span>
+        <span class="wxqr-t"><strong>Weather at your location</strong><small class="on-phone">Tap the code to open · not an official warning</small></span>
         <img src="/assets/meteo24-weather-qr.svg" width="120" height="120" alt="">
         <small class="on-screen">Scan with your phone · not an official warning</small>
-        <span class="arrow on-phone" aria-hidden="true">↗</span>
         <span class="sr-only">(opens the Meteo24 weather page in a new tab)</span>
       </a>
     </div>
