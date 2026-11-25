@@ -166,6 +166,9 @@
   section.about p { color: var(--text-dim); max-width: 780px; }
   footer { border-top: 1px solid var(--border); padding: 20px 24px 40px; font-size: 13px; color: var(--text-dim); display: grid; gap: 8px; max-width: 1100px; }
   footer p { margin: 0; }
+  footer .signoff { margin-top: 10px; padding-top: 12px; border-top: 1px solid var(--border); text-align: center; letter-spacing: 0.02em; }
+  footer .signoff a { color: inherit; }
+  footer .signoff .heart { color: #ff5c7a; }
 
   .maplibregl-popup-content { background: var(--bg-raised); color: var(--text); border: 1px solid var(--border-hi); font-family: var(--ff-body); font-size: 13px; padding: 8px 10px; }
   .maplibregl-popup-tip { display: none; }
@@ -425,6 +428,7 @@
 <footer>
   <p><strong>Who.</strong> CAP24 is developed by MTÜ Green Media Foundation (Estonia, registry 80661721), with Smartnet (Georgia) as technology provider and Infozavri Group LLC (Georgia) as delivery partner. Teimuraz Tsagareishvili founded Green Media Foundation and Smartnet; Infozavri is independently owned.</p>
   <p>This page is a demonstration, not a warning service and not an official source.</p>
+  <p class="signoff"><a href="https://greenmediafoundation.org" rel="noopener">A Green Media Foundation project</a> · Technology by Smartnet · Made with <span class="heart" role="img" aria-label="love">♥</span> in Estonia</p>
 </footer>
 
 <div class="scrim" id="scrim"></div>
